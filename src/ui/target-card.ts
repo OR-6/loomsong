@@ -57,7 +57,9 @@ export class TargetCard {
     const cell = CARD.cell;
     const pad = 0.008;
     const markW = 0.012; // left arrow / right tick column
-    const titleH = 0.014;
+    // Only glyphs on the card (stars after a win); words live on the plaque,
+    // where they can meet the 1.5 cm cap-height rule.
+    const titleH = stars > 0 ? 0.014 : 0;
     const rows = status.length;
     const wM = pad * 2 + markW * 2 + cell * WARPS;
     const hM = pad * 2 + titleH + cell * rows;
@@ -90,10 +92,8 @@ export class TargetCard {
       for (let i = 0; i < 3; i++) {
         drawStar(g, c.width / 2 + (i - 1) * px(0.014), px(pad + titleH / 2), px(0.0055), i < stars);
       }
-    } else {
-      g.font = `400 ${Math.round(px(0.0095))}px ${th.font}`;
-      g.fillText(title, c.width / 2, px(pad + titleH / 2));
     }
+    void title;
 
     const gridX = pad + markW;
     const gridTop = pad + titleH;

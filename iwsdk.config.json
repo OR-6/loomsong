@@ -13,8 +13,11 @@
       "mode": "ar",
       "offer": "always",
       "features": {
-        "handTracking": { "required": true },
-        "planeDetection": true
+        "handTracking": {
+          "required": true
+        },
+        "planeDetection": true,
+        "anchors": true
       }
     },
     "input": {
@@ -24,7 +27,11 @@
       "near": 0.01,
       "far": 20,
       "camera": {
-        "position": [0, 1.25, 0.25]
+        "position": [
+          0,
+          1.25,
+          0.25
+        ]
       }
     },
     "features": {

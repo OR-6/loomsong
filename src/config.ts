@@ -71,6 +71,20 @@ export const TOKEN = {
   radius: 0.011,
 } as const;
 
+/** Desk-height nudge arrows (default placement only): card side, front. */
+export const NUDGE = {
+  x: 0.172,
+  y: 0.016,
+  upZ: 0.028,
+  downZ: 0.06,
+  radius: 0.011,
+  step: 0.01,
+} as const;
+
+export function nudgeX(side: 1 | -1): number {
+  return -side * NUDGE.x;
+}
+
 /** Target card: stands at the back corner opposite the lever bank. */
 export const CARD = {
   x: 0.165,
@@ -113,6 +127,10 @@ export const PLACE = {
   minDrop: 0.25,
   maxDrop: 0.85,
   nudgeStepM: 0.01,
+  /** Hands seen but no flat palm: fall back after this long. */
+  palmTimeoutS: 15,
+  /** No hands at all: fall back after this long. */
+  noHandTimeoutS: 8,
 } as const;
 
 /** Seated reach limit for R2. */

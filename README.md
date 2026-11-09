@@ -2,9 +2,18 @@
 
 A hands-only mixed-reality puzzle game for Meta Quest, built with Meta's Immersive Web SDK (IWSDK 1.0.1, WebXR). A tiny loom sits on your real desk. Slide levers to lift threads, slide the shuttle across, and hear the cloth play.
 
-**Play:** https://or-6.github.io/loomsong/ (open in Meta Quest Browser, hand tracking on). Milestone snapshots stay at https://or-6.github.io/loomsong/m0/ and https://or-6.github.io/loomsong/m1/.
+**Play:** https://or-6.github.io/loomsong/ (open in Meta Quest Browser, hand tracking on). Milestone snapshots stay at https://or-6.github.io/loomsong/m0/, /m1/ and /m2/.
 
-**Status:** M1. Three authored levels. Level 1 was played end to end in the emulator E2E; Levels 2 and 3 are unit-tested only. Features: set-the-table placement, pinch-slide or poke levers, shuttle passes that strum, target card, undo bobbin, stars, and the cloth plays back as a melody. Finishing levels 1–3 unlocks the alternate Workshop style. Verified in the IWSDK emulator only; **not** yet run on a headset.
+**Status:** M2. Levels 1–3 are authored; from level 4 they are generated (seeded, solvable by construction, scored against a computed par) and continue endlessly. Features:
+- set-the-table placement, with a no-hand fallback and nudge arrows;
+- pinch-slide or poke levers;
+- shuttle passes that strum;
+- target card, undo bobbin, stars, a star-total nameplate, and cloth that plays back as a melody;
+- an unlockable Workshop style;
+- high-contrast and lever-side settings;
+- an optional spatial anchor.
+
+Emulator E2E covers Level 1 (first run), generated Level 4, the no-hand fallback and high contrast. Everything is verified in the IWSDK emulator only; it has **not** yet been run on a headset.
 
 ## Run
 

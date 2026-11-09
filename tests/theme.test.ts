@@ -3,7 +3,7 @@ import { workshopUnlocked } from '../src/persistence/progress';
 import { THEMES, otherTheme } from '../src/ui/theme';
 import { LoomController } from '../src/loom/loom-controller';
 import { LoomModel } from '../src/loom/loom-model';
-import { TOKEN, tokenX } from '../src/config';
+import { NUDGE, TOKEN, nudgeX, tokenX } from '../src/config';
 
 function lum(hex: number) {
   const c = [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255].map((v) => {
@@ -31,6 +31,24 @@ describe('themes', () => {
     expect(otherTheme('toy')).toBe('workshop');
     expect(otherTheme('workshop')).toBe('toy');
   });
+  it('nudge arrows press only when enabled, with direction', () => {
+    const dirs: number[] = [];
+    const c = new LoomController(new LoomModel([1, 2]), { nudge: (d) => dirs.push(d) });
+    const idle = { tracked: false, pinching: false, edge: 'none' as const, pinch: { x: 0, y: 1, z: 0 }, index: { x: 0, y: 1, z: 0 }, indexVel: { x: 0, y: 0, z: 0 } };
+    const at = (z: number) => ({ x: nudgeX(1), y: NUDGE.y, z });
+    const poke = (p: { x: number; y: number; z: number }) => [
+      { ...idle, tracked: true, index: { ...p, y: p.y + 0.05 }, indexVel: { x: 0, y: -0.3, z: 0 } },
+      { ...idle, tracked: true, index: { ...p, y: p.y + 0.003 }, indexVel: { x: 0, y: -0.3, z: 0 } },
+      { ...idle, tracked: true, index: { ...p, y: p.y + 0.08 }, indexVel: { x: 0, y: 0.3, z: 0 } },
+    ];
+    for (const f of poke(at(NUDGE.upZ))) c.update({ right: f, left: idle }, 1 / 72);
+    expect(dirs).toEqual([]);
+    c.nudgeEnabled = true;
+    for (const f of poke(at(NUDGE.upZ))) c.update({ right: f, left: idle }, 1 / 72);
+    for (const f of poke(at(NUDGE.downZ))) c.update({ right: f, left: idle }, 1 / 72);
+    expect(dirs).toEqual([1, -1]);
+  });
+
   it('token presses only when enabled (poke)', () => {
     let presses = 0;
     const c = new LoomController(new LoomModel([1, 2]), { token: () => presses++ });
@@ -46,5 +64,17 @@ describe('themes', () => {
     c.tokenEnabled = true;
     for (const f of pokeFrames) c.update({ right: f, left: idle }, 1 / 72);
     expect(presses).toBe(1);
+  });
+});
+
+import { highContrast } from '../src/ui/theme';
+
+describe('high contrast', () => {
+  it('returns a stable object per theme with pure white/near-black yarn', () => {
+    const a = highContrast(THEMES.toy);
+    expect(highContrast(THEMES.toy)).toBe(a);
+    expect(a.palette.warp).toBe(0xffffff);
+    expect(a.palette.weft).toBe(0x111111);
+    expect(highContrast(THEMES.workshop).palette.wood).toBe(THEMES.workshop.palette.wood);
   });
 });

@@ -4,7 +4,7 @@
  * the deepest plausible desk, across lever and shuttle travel.
  */
 import { describe, expect, it } from 'vitest';
-import { BOBBIN, LEVER, LEVERS, MAX_REACH_M, PLACE, SHUTTLE, TOKEN, bobbinX, leverX, tokenX } from '../src/config';
+import { BOBBIN, LEVER, LEVERS, MAX_REACH_M, NUDGE, PLACE, SHUTTLE, TOKEN, bobbinX, leverX, nudgeX, tokenX } from '../src/config';
 import { loomPose } from '../src/app/placement';
 
 function world(p: ReturnType<typeof loomPose>, x: number, y: number, z: number) {
@@ -28,6 +28,8 @@ describe('check:reach', () => {
         pts.push(['shuttle max', SHUTTLE.maxX, SHUTTLE.y, SHUTTLE.z]);
         pts.push(['bobbin', bobbinX(side), BOBBIN.y, BOBBIN.z]);
         pts.push(['style token', tokenX(side), TOKEN.y, TOKEN.z]);
+        pts.push(['nudge up', nudgeX(side), NUDGE.y, NUDGE.upZ]);
+        pts.push(['nudge down', nudgeX(side), NUDGE.y, NUDGE.downZ]);
         let worst = 0;
         let worstName = '';
         for (const [name, x, y, z] of pts) {

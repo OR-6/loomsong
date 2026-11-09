@@ -94,3 +94,25 @@ export const DEFAULT_THEME: ThemeId = 'toy';
 export function otherTheme(id: ThemeId): ThemeId {
   return id === 'toy' ? 'workshop' : 'toy';
 }
+
+const hcCache = new Map<ThemeId, Theme>();
+
+/**
+ * High-contrast variant: pure white/near-black yarns, opaque ink labels.
+ * Same object per theme id, so callers can compare by identity.
+ */
+export function highContrast(t: Theme): Theme {
+  let v = hcCache.get(t.id);
+  if (!v) {
+    v = {
+      ...t,
+      palette: { ...t.palette, warp: 0xffffff, weft: 0x111111 },
+      labelBg: 'rgba(0,0,0,0.95)',
+      labelText: '#ffffff',
+      paper: '#ffffff',
+      ink: '#000000',
+    };
+    hcCache.set(t.id, v);
+  }
+  return v;
+}

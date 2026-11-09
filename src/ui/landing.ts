@@ -6,6 +6,7 @@ import { VisibilityState, type World } from '@iwsdk/core';
 import { audio } from '../audio/synth.js';
 import { loadProgress, workshopUnlocked } from '../persistence/progress.js';
 import type { ThemeId } from './theme.js';
+import { loadSettings, saveSettings, type HandPref } from '../persistence/settings.js';
 
 export function mountLanding(world: World): void {
   const el = document.createElement('div');
@@ -19,6 +20,15 @@ export function mountLanding(world: World): void {
       <button type="button" data-theme="workshop" role="radio">Workshop</button>
     </div>
     <p class="small">Sit at a desk, controllers down, hand tracking on.</p>
+    <div id="settings">
+      <button type="button" id="hc" role="switch" aria-checked="false">High contrast</button>
+      <div role="radiogroup" aria-label="Lever side" id="hand-pick">
+        <span class="lbl">Levers</span>
+        <button type="button" data-hand="auto" role="radio">Auto</button>
+        <button type="button" data-hand="left" role="radio">Left</button>
+        <button type="button" data-hand="right" role="radio">Right</button>
+      </div>
+    </div>
     <p class="small" id="xr-unsupported" hidden>WebXR AR is not available in this browser. Open this page in Meta Quest Browser.</p>`;
   document.body.appendChild(el);
   const btn = el.querySelector<HTMLButtonElement>('#enter-xr')!;
@@ -46,6 +56,32 @@ export function mountLanding(world: World): void {
   });
   window.addEventListener('loomsong:unlocked', sync);
   sync();
+
+  // Accessibility settings.
+  const hc = el.querySelector<HTMLButtonElement>('#hc')!;
+  const handPick = el.querySelector<HTMLElement>('#hand-pick')!;
+  const syncSettings = () => {
+    const st = loadSettings();
+    hc.setAttribute('aria-checked', String(st.highContrast));
+    for (const b of handPick.querySelectorAll<HTMLButtonElement>('button')) {
+      b.setAttribute('aria-checked', String(b.dataset.hand === st.hand));
+    }
+  };
+  const changed = () => window.dispatchEvent(new CustomEvent('loomsong:settings'));
+  hc.addEventListener('click', () => {
+    const st = loadSettings();
+    saveSettings({ ...st, highContrast: !st.highContrast });
+    syncSettings();
+    changed();
+  });
+  handPick.addEventListener('click', (e) => {
+    const hand = (e.target as HTMLElement).dataset?.hand as HandPref | undefined;
+    if (!hand) return;
+    saveSettings({ ...loadSettings(), hand });
+    syncSettings();
+    changed();
+  });
+  syncSettings();
   world.visibilityState.subscribe((s) => {
     el.style.display = s === VisibilityState.NonImmersive ? '' : 'none';
     if (s === VisibilityState.NonImmersive) sync();

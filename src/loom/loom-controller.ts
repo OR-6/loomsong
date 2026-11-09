@@ -3,7 +3,7 @@
  * lever / shuttle motion and LoomModel changes. No Three.js, so unit tests
  * can drive it with synthetic joint streams.
  */
-import { BOBBIN, LEVER, LEVERS, PINCH, POKE, SHUTTLE, TOKEN, bobbinX, leverX, tokenX, warpX, WARPS } from '../config.js';
+import { BOBBIN, LEVER, LEVERS, NUDGE, PINCH, POKE, SHUTTLE, TOKEN, bobbinX, leverX, nudgeX, tokenX, warpX, WARPS } from '../config.js';
 import type { PinchEdge } from '../input/pinch.js';
 import { Slider } from '../input/slider.js';
 import { isLifted } from '../puzzle/tieup.js';
@@ -32,6 +32,7 @@ export type Target =
   | { kind: 'shuttle' }
   | { kind: 'bobbin' }
   | { kind: 'token' }
+  | { kind: 'nudge'; dir: 1 | -1 }
   | null;
 
 export interface ControllerHooks {
@@ -42,6 +43,8 @@ export interface ControllerHooks {
   undo?(): void;
   /** Style token pressed (poke or pinch). */
   token?(): void;
+  /** Desk-height nudge pressed. */
+  nudge?(dir: 1 | -1): void;
 }
 
 /** Lever settle speed in t/s, shuttle return speed in m/s. */
@@ -71,6 +74,8 @@ export class LoomController {
   enabled = true;
   /** Style token present (unlocked)? */
   tokenEnabled = false;
+  /** Nudge arrows present (default placement)? */
+  nudgeEnabled = false;
   private pokeArmed: Record<Side, boolean> = { left: true, right: true };
   private prevShuttleX: number = SHUTTLE.minX;
 
@@ -142,6 +147,8 @@ export class LoomController {
       if (t?.kind === 'token') {
         // A button, not a slider: pinch on it presses it.
         this.hooks.token?.();
+      } else if (t?.kind === 'nudge') {
+        this.hooks.nudge?.(t.dir);
       } else if (t && !this.isHeld(t) && !(t.kind === 'shuttle' && this.autoThrow)) {
         this.holding[side] = t;
         this.sliderOf(t).grab(this.axisOf(t, h.pinch));
@@ -188,6 +195,8 @@ export class LoomController {
       this.doUndo();
     } else if (t.kind === 'token') {
       this.hooks.token?.();
+    } else if (t.kind === 'nudge') {
+      this.hooks.nudge?.(t.dir);
     } else if (!this.shuttle.held && !this.autoThrow) {
       this.throwShuttle();
     }
@@ -277,7 +286,7 @@ export class LoomController {
   }
 
   private sliderOf(t: Exclude<Target, null>): Slider {
-    if (t.kind === 'token') return this.bobbin; // never held; satisfies the type
+    if (t.kind === 'token' || t.kind === 'nudge') return this.bobbin; // never held
     if (t.kind === 'shuttle') return this.shuttle;
     if (t.kind === 'bobbin') return this.bobbin;
     return this.levers[t.k];
@@ -325,7 +334,20 @@ export class LoomController {
     }
     if (this.tokenEnabled) {
       const dt = Math.hypot(p.x - tokenX(this.bankSide), p.y - TOKEN.y, p.z - TOKEN.z);
-      if (dt < bestD) best = { kind: 'token' };
+      if (dt < bestD) {
+        bestD = dt;
+        best = { kind: 'token' };
+      }
+    }
+    if (this.nudgeEnabled) {
+      const nx = nudgeX(this.bankSide);
+      for (const [dir, z] of [[1, NUDGE.upZ], [-1, NUDGE.downZ]] as const) {
+        const dn = Math.hypot(p.x - nx, p.y - NUDGE.y, p.z - z);
+        if (dn < bestD) {
+          bestD = dn;
+          best = { kind: 'nudge', dir };
+        }
+      }
     }
     return best;
   }

@@ -22,6 +22,8 @@ export interface FlowHooks {
   pluck(warp: number, delay: number): void;
   glowRow(row: number): void;
   hint(step: HintStep, lever: number): void;
+  /** Total stars changed (front-beam plaque). */
+  totals?(stars: number, level: number): void;
   save(p: Progress): void;
 }
 
@@ -45,7 +47,7 @@ export class LevelFlow {
 
   constructor(
     private model: LoomModel,
-    private levels: readonly Level[],
+    private levelAt: (i: number) => Level,
     public progress: Progress,
     private hooks: FlowHooks,
   ) {
@@ -53,14 +55,20 @@ export class LevelFlow {
   }
 
   start(index = this.progress.level): void {
-    this.index = ((index % this.levels.length) + this.levels.length) % this.levels.length;
-    this.level = this.levels[this.index];
+    this.index = Math.max(0, Math.floor(index));
+    this.level = this.levelAt(this.index);
     this.model.reset([...this.level.tieUp]);
     this.phase = 'play';
     this.lastStars = 0;
     this.hooks.load(this.level, this.index);
+    this.hooks.totals?.(totalStars(this.progress), this.index);
     this.emitStatus();
     this.setHint(this.index === 0 && !this.progress.tutorialDone ? 'lever' : 'none');
+  }
+
+  /** Re-emit the card status (e.g. after a settings change). */
+  refresh(): void {
+    if (this.level) this.emitStatus();
   }
 
   update(dt: number): void {
@@ -124,11 +132,12 @@ export class LevelFlow {
     this.lastStars = stars(this.level.par, this.model.leverFlips);
     const id = this.level.id;
     this.progress.best[id] = Math.max(this.progress.best[id] ?? 0, this.lastStars);
-    this.progress.level = (this.index + 1) % this.levels.length;
+    this.progress.level = this.index + 1;
     this.progress.tutorialDone = true;
     this.hooks.save(this.progress);
     this.emitStatus();
     this.hooks.win(this.lastStars);
+    this.hooks.totals?.(totalStars(this.progress), this.index);
     if (this.hintStep !== 'none') this.setHint('none');
   }
 
@@ -140,6 +149,12 @@ export class LevelFlow {
     this.hintStep = step;
     this.hooks.hint(step, firstLeverForRow0(this.level));
   }
+}
+
+export function totalStars(p: Pick<Progress, 'best'>): number {
+  let n = 0;
+  for (const v of Object.values(p.best)) n += v;
+  return n;
 }
 
 /** Lowest-index lever that is part of a cheapest way to weave row 0. */

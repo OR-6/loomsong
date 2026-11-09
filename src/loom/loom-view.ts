@@ -25,6 +25,7 @@ import {
 } from '@iwsdk/core';
 import { TargetCard } from '../ui/target-card.js';
 import { THEMES, type Palette, type Theme } from '../ui/theme.js';
+import { PLAQUE, Plaque } from '../ui/plaque.js';
 import {
   BOBBIN,
   CARD,
@@ -35,6 +36,8 @@ import {
   SHUTTLE,
   TOKEN,
   tokenX,
+  NUDGE,
+  nudgeX,
   WARPS,
   WARP_PITCH,
   leverX,
@@ -68,6 +71,10 @@ export class LoomView {
   readonly card: TargetCard;
   /** Style token: poke or pinch to switch theme. */
   readonly token: Group;
+  /** Front-beam nameplate: level number and star total. */
+  readonly plaque = new Plaque();
+  /** Desk-height nudge arrows (shown for default placement only). */
+  readonly nudges: Group = makeNudges();
   private preview!: InstancedMesh;
   palette!: Palette;
   theme!: Theme;
@@ -85,6 +92,10 @@ export class LoomView {
     this.root.add(this.card.mesh);
     this.token = makeToken();
     this.root.add(this.token);
+    this.root.add(this.plaque.mesh);
+    this.root.add(this.nudges);
+    this.nudges.visible = false;
+    this.plaque.setTheme(theme);
 
     // Pinch glows (world-space; positioned by the game system).
     const glowMat = new MeshBasicMaterial({
@@ -112,6 +123,7 @@ export class LoomView {
     this.leverMats = [];
     this.build(theme);
     this.card.setTheme(theme);
+    this.plaque.setTheme(theme);
     this.layoutLevers();
     this.setBobbinT(0);
     this.setShed(this.targetShed, true);
@@ -228,6 +240,11 @@ export class LoomView {
   setSide(side: 1 | -1): void {
     this.side = side;
     this.token.position.set(tokenX(side), TOKEN.y, TOKEN.z);
+    this.nudges.position.set(nudgeX(side), NUDGE.y, 0);
+    // Plaque leans on the front beam, shifted away from the token.
+    const tilt = (PLAQUE.tiltDeg * Math.PI) / 180;
+    this.plaque.mesh.position.set(-side * 0.035, 0.016, LOOM.frontBeamZ + 0.014);
+    this.plaque.mesh.rotation.set(-tilt, 0, 0);
     this.layoutLevers();
     this.setBobbinT(0);
     this.placeCard();
@@ -402,6 +419,24 @@ export class LoomView {
     _m.compose(_p, _q, _s.set(1, 1, len));
     this.warps.setMatrixAt(idx, _m);
   }
+}
+
+/** Two chunky arrows: up (further) and down (nearer). */
+function makeNudges(): Group {
+  const g = new Group();
+  g.name = 'NudgeArrows';
+  const mat = new MeshStandardMaterial({ color: 0xf2b632, roughness: 0.6 });
+  const base = new MeshStandardMaterial({ color: 0x2b2118, roughness: 1 });
+  for (const [dir, z] of [[1, NUDGE.upZ], [-1, NUDGE.downZ]] as const) {
+    const cone = new Mesh(new CylinderGeometry(0, NUDGE.radius, 0.018, 20), mat);
+    cone.position.set(0, 0.004, z);
+    cone.rotation.x = dir > 0 ? 0 : Math.PI;
+    cone.name = dir > 0 ? 'NudgeUp' : 'NudgeDown';
+    const disc = new Mesh(new CylinderGeometry(NUDGE.radius * 1.15, NUDGE.radius * 1.15, 0.004, 20), base);
+    disc.position.set(0, -NUDGE.y + 0.002, z);
+    g.add(cone, disc);
+  }
+  return g;
 }
 
 /** Style token: a flat disc, half toy-painted, half oiled oak. */

@@ -117,3 +117,10 @@ None of a–e blocks the design. No fallback from §9 is needed at this stage.
 - **Mid-air false placement.** The emulator's default hands (and real resting hands) are palm-down and still at chest height. Fix: a desk must be 25–85 cm below the eyes.
 - **Headset framing for screenshots.** The emulator head looks straight ahead, so a desk-height loom (about 68° below the eye line in the default seated pose) is off-screen. The E2E calls `xr look-at` on the headset before each capture.
 - **E2E result** (`npm run test:e2e`, hand input only): placement by flat palm, pinch engage/release, lever 0 grabbed → latched, shuttle grabbed → thrown across → 1 row = shed, 2 strum plucks. All 9 checks pass. Screenshots are in `artifacts/`.
+
+## Findings from M2 (emulator)
+
+- **How IWSDK anchors work.** `SceneUnderstandingSystem` creates one anchor at the reference-space origin (`frame.createAnchor(new XRRigidTransform(), refSpace)`). It requests a persistent handle when available and stores the UUID in localStorage (IWSDK's own key). Entities tagged `XRAnchor` are re-parented under that anchor's group with `Object3D.attach`, which preserves their world pose.
+- **How we use them.** We add `XRAnchor` only after the loom's world pose is set, and remove it when the session ends, so each new session re-runs "set the table". The emulator Quest 3 profile enables `anchors`; the loom anchored with an identical world pose (lever 0 at `[0.092, 0.8143, -0.255]` before and after). Persistent-anchor restore in Quest Browser is unverified.
+- **No-hand fallback.** `xr set-connected` with `connected: false` on both hands leaves zero hand input sources. After 8 s the loom places at head − 0.45 m (emulator: 1.15 m for a 1.6 m head), and a poke on the up arrow raises it by exactly 1 cm.
+- **Generated levels in E2E.** The script reads the live level, solves it with the same DP as `par.ts`, and plays it with pinch-slides only. Level 4 (seed 4041: 3 levers, 6 rows, par 6) won at par.

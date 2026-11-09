@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LevelFlow, TIMING, firstLeverForRow0, type FlowHooks } from '../src/app/level-flow';
 import { LoomModel } from '../src/loom/loom-model';
-import { LEVELS } from '../src/puzzle/catalog';
+import { LEVELS, levelAt } from '../src/puzzle/catalog';
 import type { Progress } from '../src/persistence/progress';
 
 function setup(progress: Progress = { level: 0, best: {}, tutorialDone: false, theme: 'toy' }) {
@@ -17,7 +17,7 @@ function setup(progress: Progress = { level: 0, best: {}, tutorialDone: false, t
     save: () => log.push('save'),
   };
   const model = new LoomModel([]);
-  const flow = new LevelFlow(model, LEVELS, progress, hooks);
+  const flow = new LevelFlow(model, levelAt, progress, hooks);
   return { model, flow, log, plucks };
 }
 
@@ -67,6 +67,12 @@ describe('level flow', () => {
     expect(plucks.length).toBe(0);
     flow.update(0.2);
     expect(plucks.length).toBe(4);
+  });
+
+  it('after level 3 the sequence continues into generated levels', () => {
+    const { flow } = setup({ level: 3, best: {}, tutorialDone: true, theme: 'toy' });
+    flow.start();
+    expect(flow.level.id).toBe('g4');
   });
 
   it('first lever hint picks a lever that weaves row 0', () => {

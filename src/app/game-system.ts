@@ -8,9 +8,11 @@ import {
   Matrix4,
   Vector3,
   VisibilityState,
+  XRAnchor,
   XRPlane,
+  type Entity,
 } from '@iwsdk/core';
-import { BOBBIN, CARD, LEVER, LEVERS, PLACE, SHUTTLE, TOKEN, leverX, tokenX } from '../config.js';
+import { BOBBIN, CARD, LEVER, LEVERS, NUDGE, PLACE, SHUTTLE, TOKEN, leverX, nudgeX, tokenX } from '../config.js';
 import { hands, calibration, type Side } from '../input/hands.js';
 import { LoomController, type HandInput } from '../loom/loom-controller.js';
 import { LoomModel } from '../loom/loom-model.js';
@@ -19,9 +21,10 @@ import { Placement, loomPose } from './placement.js';
 import { Label } from '../ui/label.js';
 import { audio } from '../audio/synth.js';
 import { LevelFlow, type HintStep } from './level-flow.js';
-import { LEVELS } from '../puzzle/catalog.js';
+import { levelAt } from '../puzzle/catalog.js';
 import { loadProgress, saveProgress, workshopUnlocked, type Progress } from '../persistence/progress.js';
-import { THEMES, otherTheme, type ThemeId } from '../ui/theme.js';
+import { THEMES, highContrast, otherTheme, type Theme, type ThemeId } from '../ui/theme.js';
+import { loadSettings, type Settings } from '../persistence/settings.js';
 import { loadFont } from '../ui/fonts.js';
 
 const params = new URLSearchParams(location.search);
@@ -55,6 +58,10 @@ export interface GameDebug {
   theme: ThemeId;
   workshopUnlocked: boolean;
   notice: string;
+  anchored: boolean;
+  highContrast: boolean;
+  bankSide: number;
+  plaque: string;
 }
 
 export class GameSystem extends createSystem({
@@ -86,15 +93,23 @@ export class GameSystem extends createSystem({
   private time = 0;
   private progress!: Progress;
   private notice = '';
+  private noticeAt: 'token' | 'nudge' = 'token';
   private noticeTimer = 0;
   private tokenPop = 1;
+  private loomEntity!: Entity;
+  private settings: Settings = loadSettings();
+
+  /** Theme as displayed (with the high-contrast override applied). */
+  private shown(id: ThemeId = this.progress.theme): Theme {
+    return this.settings.highContrast ? highContrast(THEMES[id]) : THEMES[id];
+  }
 
   init() {
     this.model = new LoomModel([]);
     this.progress = loadProgress();
     const unlocked = workshopUnlocked(this.progress);
     if (!unlocked) this.progress.theme = 'toy';
-    this.view = new LoomView(THEMES[this.progress.theme]);
+    this.view = new LoomView(this.shown());
     this.controller = new LoomController(this.model, {
       pluck: (i, speed) => {
         audio.pluck(i, speed);
@@ -106,6 +121,7 @@ export class GameSystem extends createSystem({
       pass: () => audio.thud(),
       undo: () => audio.unpick(),
       token: () => this.setTheme(otherTheme(this.progress.theme)),
+      nudge: (dir) => this.nudgeDesk(dir),
     });
     this.controller.tokenEnabled = unlocked;
     this.view.token.visible = unlocked;
@@ -117,7 +133,7 @@ export class GameSystem extends createSystem({
     this.tutor = new Label(0.17, 0.036);
     this.tutor.mesh.rotation.x = -0.35;
     this.view.root.add(this.tutor.mesh);
-    this.tutor.setTheme(THEMES[this.progress.theme]);
+    this.tutor.setTheme(this.shown());
     this.tutor.set('');
 
     const onTheme = (e: Event) => {
@@ -126,9 +142,16 @@ export class GameSystem extends createSystem({
     };
     window.addEventListener('loomsong:theme', onTheme);
     this.cleanupFuncs.push(() => window.removeEventListener('loomsong:theme', onTheme));
+    const onSettings = () => {
+      this.settings = loadSettings();
+      this.restyle();
+      this.flow.refresh();
+    };
+    window.addEventListener('loomsong:settings', onSettings);
+    this.cleanupFuncs.push(() => window.removeEventListener('loomsong:settings', onSettings));
 
-    const loomEntity = this.world.createTransformEntity(this.view.root);
-    loomEntity.object3D!.visible = false;
+    this.loomEntity = this.world.createTransformEntity(this.view.root);
+    this.loomEntity.object3D!.visible = false;
     this.world.createTransformEntity(this.view.glows.left);
     this.world.createTransformEntity(this.view.glows.right);
 
@@ -142,7 +165,7 @@ export class GameSystem extends createSystem({
       if (e.type === 'row' || e.type === 'undo') this.view.setRows(this.model.rows);
     });
 
-    this.flow = new LevelFlow(this.model, LEVELS, this.progress, {
+    this.flow = new LevelFlow(this.model, levelAt, this.progress, {
       load: (level) => {
         this.controller.syncFromModel();
         this.controller.enabled = true;
@@ -157,7 +180,7 @@ export class GameSystem extends createSystem({
         }
       },
       status: (level, statuses, stars) => {
-        this.view.card.draw(level.name, level.target, statuses, stars);
+        this.view.card.draw(level.name, level.target, statuses, stars, this.settings.highContrast);
         this.view.placeCard();
       },
       win: (stars) => {
@@ -178,6 +201,10 @@ export class GameSystem extends createSystem({
         if (this.debug) this.debug.hint = step;
       },
       save: (p) => saveProgress(p),
+      totals: (stars, level) => {
+        this.view.plaque.set(level, stars);
+        if (this.debug) this.debug.plaque = `Level ${level + 1} * ${stars}`;
+      },
     });
 
     this.debug = {
@@ -201,6 +228,10 @@ export class GameSystem extends createSystem({
       theme: this.progress.theme,
       workshopUnlocked: unlocked,
       notice: '',
+      anchored: false,
+      highContrast: this.settings.highContrast,
+      bankSide: 1,
+      plaque: '',
     };
     this.flow.start();
     (window as unknown as { __loom: unknown }).__loom = {
@@ -220,7 +251,7 @@ export class GameSystem extends createSystem({
             sess.updateTargetFrameRate(72).catch(() => {});
           }
         }
-        if (s === VisibilityState.NonImmersive) this.sessionTime = 0;
+        if (s === VisibilityState.NonImmersive) this.endSession();
       }),
     );
     const onVis = () => this.setPaused(document.visibilityState === 'hidden');
@@ -231,12 +262,9 @@ export class GameSystem extends createSystem({
   /** Switch the visual theme (Workshop only once unlocked). */
   setTheme(id: ThemeId): void {
     if (id === 'workshop' && !workshopUnlocked(this.progress)) return;
-    const theme = THEMES[id];
     this.progress.theme = id;
     saveProgress(this.progress);
-    this.view.setTheme(theme);
-    this.tutor.setTheme(theme);
-    audio.tone = theme.tone;
+    this.restyle();
     audio.restyle();
     this.view.pulseWarp();
     this.tokenPop = 0;
@@ -245,12 +273,22 @@ export class GameSystem extends createSystem({
     if (id === 'workshop') this.ensureWorkshopFont();
   }
 
+  /** Apply the current theme + high-contrast setting to every surface. */
+  private restyle(): void {
+    const theme = this.shown();
+    this.debug.highContrast = this.settings.highContrast;
+    this.view.setTheme(theme);
+    this.tutor.setTheme(theme);
+    audio.tone = theme.tone;
+  }
+
   /** Fraunces loads on demand; restyle text once it arrives. */
   private ensureWorkshopFont(): void {
     void loadFont('Fraunces', 4000).then((ok) => {
       if (!ok || this.progress.theme !== 'workshop') return;
-      const theme = THEMES.workshop;
+      const theme = this.shown('workshop');
       this.view.card.setTheme(theme);
+      this.view.plaque.setTheme(theme);
       this.tutor.setTheme(theme);
     });
   }
@@ -266,8 +304,34 @@ export class GameSystem extends createSystem({
     window.dispatchEvent(new CustomEvent('loomsong:unlocked'));
   }
 
-  private showNotice(text: string, seconds: number): void {
+  /** XR session ended: drop the anchor and re-run "set the table" next time. */
+  private endSession(): void {
+    this.sessionTime = 0;
+    if (!this.placement || this.placement.phase !== 'placed') return;
+    if (this.loomEntity.hasComponent(XRAnchor)) this.loomEntity.removeComponent(XRAnchor);
+    this.placement = new Placement();
+    this.view.root.visible = false;
+    this.controller.nudgeEnabled = false;
+    this.view.nudges.visible = false;
+    this.debug.phase = 'waiting';
+    this.debug.anchored = false;
+  }
+
+  /** Default placement: move the loom up/down to meet the real desk. */
+  private nudgeDesk(dir: 1 | -1): void {
+    const y = (this.placement.deskY ?? this.view.root.position.y) + dir * NUDGE.step;
+    this.placement.deskY = y;
+    // Parent may be IWSDK's anchor group (≈ identity), so move in local space.
+    this.view.root.position.y += dir * NUDGE.step;
+    this.view.root.updateMatrixWorld(true);
+    this.debug.deskY = y;
+    this.debug.loomOrigin = this.view.root.position.toArray().map((n) => Math.round(n * 1e4) / 1e4);
+    audio.click(dir > 0);
+  }
+
+  private showNotice(text: string, seconds: number, at: 'token' | 'nudge' = 'token'): void {
     this.notice = text;
+    this.noticeAt = at;
     this.noticeTimer = seconds;
     this.debug.notice = text;
     this.tutor.set(text);
@@ -308,6 +372,7 @@ export class GameSystem extends createSystem({
     this.time += dt;
     this.syncView(dt);
     this.debug.flow = this.flow.phase;
+    this.debug.anchored = this.loomEntity.hasComponent(XRAnchor) && this.loomEntity.getValue(XRAnchor, 'attached') === true;
     this.debug.levelIndex = this.flow.index;
   }
 
@@ -339,6 +404,10 @@ export class GameSystem extends createSystem({
     out.bobbinPulled = v.toArray();
     v.set(tokenX(this.controller.bankSide), TOKEN.y, TOKEN.z).applyMatrix4(this.view.root.matrixWorld);
     out.token = v.toArray();
+    v.set(nudgeX(this.controller.bankSide), NUDGE.y, NUDGE.upZ).applyMatrix4(this.view.root.matrixWorld);
+    out.nudgeUp = v.toArray();
+    v.set(nudgeX(this.controller.bankSide), NUDGE.y, NUDGE.downZ).applyMatrix4(this.view.root.matrixWorld);
+    out.nudgeDown = v.toArray();
     out.head = this.head.toArray();
     return out;
   }
@@ -377,12 +446,16 @@ export class GameSystem extends createSystem({
       }
       if (this.placement.phase === 'steadying') break; // only one hand at a time
     }
-    if (!placed && !hands.left.tracked && !hands.right.tracked) {
-      this.placement.update(null, [], dt);
-      if (this.sessionTime > 8) {
-        this.placement.placeDefault(this.head.y);
-        placed = true;
-      }
+    const noHands = !hands.left.tracked && !hands.right.tracked;
+    if (!placed && noHands) this.placement.update(null, [], dt);
+    // Fallbacks (spec §5.1): no hand at all, or no flat palm for a while.
+    if (
+      !placed &&
+      ((noHands && this.sessionTime > PLACE.noHandTimeoutS) ||
+        this.sessionTime > PLACE.palmTimeoutS)
+    ) {
+      this.placement.placeDefault(this.head.y);
+      placed = true;
     }
     this.debug.phase = this.placement.phase;
     if (placed) this.placeLoom(this.firstHand ?? 'right');
@@ -412,8 +485,10 @@ export class GameSystem extends createSystem({
 
   /** Place the loom ~PLACE.forward ahead, centred with the lever bank. */
   private placeLoom(hand: Side) {
-    const side: 1 | -1 = hand === 'left' ? -1 : 1;
+    const pref = this.settings.hand;
+    const side: 1 | -1 = (pref === 'auto' ? hand : pref) === 'left' ? -1 : 1;
     this.controller.bankSide = side;
+    this.debug.bankSide = side;
     this.view.setSide(side);
     this.forwardFlat(this.fwd);
     const root = this.view.root;
@@ -429,6 +504,15 @@ export class GameSystem extends createSystem({
     this.debug.deskY = this.placement.deskY;
     this.debug.deskSource = this.placement.source;
     this.debug.loomOrigin = root.position.toArray().map((n) => Math.round(n * 1e4) / 1e4);
+    // World-lock to the room (optional feature; IWSDK re-parents under its
+    // anchor group, preserving this world pose). Feature-detected.
+    if (this.world.session?.enabledFeatures?.includes('anchors') && !this.loomEntity.hasComponent(XRAnchor)) {
+      this.loomEntity.addComponent(XRAnchor);
+    }
+    const fallback = this.placement.source === 'default';
+    this.controller.nudgeEnabled = fallback;
+    this.view.nudges.visible = fallback;
+    if (fallback) this.showNotice('Nudge to your desk', 7, 'nudge');
     audio.bloom();
   }
 
@@ -438,7 +522,8 @@ export class GameSystem extends createSystem({
     const m = this.tutor.mesh;
     if (this.notice) {
       this.noticeTimer -= dt;
-      m.position.set(tokenX(this.controller.bankSide), 0.06, TOKEN.z - 0.01);
+      if (this.noticeAt === 'token') m.position.set(tokenX(this.controller.bankSide), 0.06, TOKEN.z - 0.01);
+      else m.position.set(nudgeX(this.controller.bankSide), 0.075, (NUDGE.upZ + NUDGE.downZ) / 2);
       if (this.noticeTimer <= 0) this.showNotice('', 0);
       return;
     }
