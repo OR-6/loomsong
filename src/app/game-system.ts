@@ -13,7 +13,8 @@ import {
   type Entity,
 } from '@iwsdk/core';
 import { BOBBIN, CARD, LEVER, LEVERS, NUDGE, PLACE, SHUTTLE, TOKEN, leverX, nudgeX, tokenX } from '../config.js';
-import { hands, calibration, type Side } from '../input/hands.js';
+import { applyCalibration, hands, calibration, type Side } from '../input/hands.js';
+import { Calibrator } from '../input/calibration.js';
 import { LoomController, type HandInput } from '../loom/loom-controller.js';
 import { LoomModel } from '../loom/loom-model.js';
 import { LoomView } from '../loom/loom-view.js';
@@ -24,8 +25,9 @@ import { LevelFlow, type HintStep } from './level-flow.js';
 import { levelAt } from '../puzzle/catalog.js';
 import { loadProgress, saveProgress, workshopUnlocked, type Progress } from '../persistence/progress.js';
 import { THEMES, highContrast, otherTheme, type Theme, type ThemeId } from '../ui/theme.js';
-import { loadSettings, type Settings } from '../persistence/settings.js';
+import { loadSettings, saveSettings, type Settings } from '../persistence/settings.js';
 import { clothFromHash, clothLevel } from '../net/share.js';
+import { FrameGuard } from './frame-guard.js';
 import { loadFont } from '../ui/fonts.js';
 
 const params = new URLSearchParams(location.search);
@@ -64,6 +66,8 @@ export interface GameDebug {
   bankSide: number;
   plaque: string;
   challenge: boolean;
+  degrade: number;
+  calibrating: string;
 }
 
 export class GameSystem extends createSystem({
@@ -95,11 +99,16 @@ export class GameSystem extends createSystem({
   private time = 0;
   private progress!: Progress;
   private notice = '';
-  private noticeAt: 'token' | 'nudge' = 'token';
+  private noticeAt: 'token' | 'nudge' | 'centre' = 'token';
   private noticeTimer = 0;
   private tokenPop = 1;
   private loomEntity!: Entity;
   private settings: Settings = loadSettings();
+  private guard = new FrameGuard();
+  private calibrator: Calibrator | null = null;
+  private calSide: Side = 'right';
+  /** `?degrade=n` forces a quality level (testing). */
+  private forcedDegrade = Number(new URLSearchParams(location.search).get('degrade') ?? NaN);
 
   /** Theme as displayed (with the high-contrast override applied). */
   private shown(id: ThemeId = this.progress.theme): Theme {
@@ -146,6 +155,7 @@ export class GameSystem extends createSystem({
     this.cleanupFuncs.push(() => window.removeEventListener('loomsong:theme', onTheme));
     const onSettings = () => {
       this.settings = loadSettings();
+      applyCalibration(this.settings.calibration);
       this.restyle();
       this.flow.refresh();
     };
@@ -244,7 +254,10 @@ export class GameSystem extends createSystem({
       bankSide: 1,
       plaque: '',
       challenge: false,
+      degrade: 0,
+      calibrating: '',
     };
+    applyCalibration(this.settings.calibration);
     const shared = clothFromHash(location.hash);
     if (shared) this.flow.startChallenge(clothLevel(shared));
     else this.flow.start();
@@ -288,6 +301,24 @@ export class GameSystem extends createSystem({
     if (id === 'workshop') this.ensureWorkshopFont();
   }
 
+  /** Degrade gracefully when frames are missed (spec §6). */
+  private watchFrames(delta: number): void {
+    const sess = this.world.session;
+    if (!sess) return;
+    const hz = sess.frameRate ?? 72;
+    const forced = Number.isFinite(this.forcedDegrade) ? this.forcedDegrade : null;
+    const lvl = forced ?? this.guard.sample(delta, hz);
+    if (lvl === null || lvl === this.debug.degrade) return;
+    this.debug.degrade = lvl;
+    audio.setReverb(lvl < 1);
+    this.view.setShadow(lvl < 1);
+    try {
+      this.renderer.xr.setFoveation(lvl >= 2 ? 1 : 0.5);
+    } catch {
+      /* foveation unsupported */
+    }
+  }
+
   /** Apply the current theme + high-contrast setting to every surface. */
   private restyle(): void {
     const theme = this.shown();
@@ -319,6 +350,52 @@ export class GameSystem extends createSystem({
     window.dispatchEvent(new CustomEvent('loomsong:unlocked'));
   }
 
+  /** "Fit to my hands": pinch ×3, then hold still 2 s (≤ 20 s total). */
+  private startCalibration(hand: Side): void {
+    this.calibrator = new Calibrator();
+    this.calSide = hand;
+    this.controller.enabled = false;
+    this.setCalText();
+  }
+
+  private updateCalibration(dt: number): void {
+    const cal = this.calibrator!;
+    // Use whichever hand is tracked, preferring the one that set the table.
+    const side: Side = hands[this.calSide].tracked ? this.calSide : this.calSide === 'left' ? 'right' : 'left';
+    const h = hands[side];
+    for (const s of ['left', 'right'] as const) this.fillInput(s); // glow + highlights
+    const before = `${cal.step}${cal.pinches}`;
+    cal.update(h.tracked ? h.pinchDist : null, h.tracked ? h.rawPinch : null, dt);
+    if (`${cal.step}${cal.pinches}` !== before) {
+      audio.click(true);
+      this.setCalText();
+    }
+    if (cal.step === 'done' && cal.result) {
+      this.settings = { ...this.settings, calibrateNext: false, calibration: cal.result };
+      saveSettings(this.settings);
+      applyCalibration(cal.result);
+      this.calibrator = null;
+      this.controller.enabled = this.flow.phase === 'play';
+      this.debug.calibrating = 'done';
+      this.showNotice('All set', 2.5);
+      audio.arpeggio();
+    }
+  }
+
+  private setCalText(): void {
+    const cal = this.calibrator!;
+    const text =
+      cal.step === 'pinches'
+        ? ['Pinch three times', 'Two more', 'One more'][Math.min(cal.pinches, 2)]
+        : 'Hold your pinch still';
+    this.debug.calibrating = `${cal.step}:${cal.pinches}`;
+    this.notice = text;
+    this.noticeTimer = 999;
+    this.noticeAt = 'centre';
+    this.debug.notice = text;
+    this.tutor.set(text);
+  }
+
   /** XR session ended: drop the anchor and re-run "set the table" next time. */
   private endSession(): void {
     this.sessionTime = 0;
@@ -344,7 +421,7 @@ export class GameSystem extends createSystem({
     audio.click(dir > 0);
   }
 
-  private showNotice(text: string, seconds: number, at: 'token' | 'nudge' = 'token'): void {
+  private showNotice(text: string, seconds: number, at: 'token' | 'nudge' | 'centre' = 'token'): void {
     this.notice = text;
     this.noticeAt = at;
     this.noticeTimer = seconds;
@@ -361,6 +438,7 @@ export class GameSystem extends createSystem({
   update(delta: number) {
     const dt = Math.min(delta, 0.05);
     if (this.paused) return;
+    this.watchFrames(delta);
     const immersive = this.visibilityState.peek() !== VisibilityState.NonImmersive;
     this.player.head.getWorldPosition(this.head);
 
@@ -382,6 +460,11 @@ export class GameSystem extends createSystem({
     }
 
     this.inv.copy(this.view.root.matrixWorld).invert();
+    if (this.calibrator) {
+      this.updateCalibration(dt);
+      this.syncView(dt);
+      return;
+    }
     for (const side of ['left', 'right'] as const) this.fillInput(side);
     this.controller.radiusMul = calibration.radiusMul;
     this.controller.update(this.handInputs, dt);
@@ -530,7 +613,8 @@ export class GameSystem extends createSystem({
     const fallback = this.placement.source === 'default';
     this.controller.nudgeEnabled = fallback;
     this.view.nudges.visible = fallback;
-    if (fallback) this.showNotice('Nudge to your desk', 7, 'nudge');
+    if (this.settings.calibrateNext) this.startCalibration(hand);
+    else if (fallback) this.showNotice('Nudge to your desk', 7, 'nudge');
     else if (this.flow.challenge) this.showNotice('Weave this cloth', 6);
     audio.bloom();
   }
@@ -542,6 +626,7 @@ export class GameSystem extends createSystem({
     if (this.notice) {
       this.noticeTimer -= dt;
       if (this.noticeAt === 'token') m.position.set(tokenX(this.controller.bankSide), 0.06, TOKEN.z - 0.01);
+      else if (this.noticeAt === 'centre') m.position.set(0, 0.08, 0);
       else m.position.set(nudgeX(this.controller.bankSide), 0.075, (NUDGE.upZ + NUDGE.downZ) / 2);
       if (this.noticeTimer <= 0) this.showNotice('', 0);
       return;

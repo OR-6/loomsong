@@ -41,6 +41,15 @@ export const hands: Record<Side, HandState> = {
 /** Calibration multiplier (1.0–1.8); scales pinch thresholds and radii. */
 export const calibration = { scale: 1, radiusMul: 1 };
 
+/** Apply a "Fit to my hands" result (or defaults) to live input. */
+export function applyCalibration(c?: { pinchScale: number; radiusMul: number; minCutoff: number }): void {
+  calibration.scale = c?.pinchScale ?? 1;
+  calibration.radiusMul = c?.radiusMul ?? 1;
+  const p = { ...PINCH.oneEuro, minCutoff: c?.minCutoff ?? PINCH.oneEuro.minCutoff };
+  hands.left.filter.setParams(p);
+  hands.right.filter.setParams(p);
+}
+
 const NOISE = new URLSearchParams(location.search).get('noise') === '1';
 
 function gauss(): number {

@@ -94,6 +94,14 @@ export class LoomView {
   private shuttleT = 0;
   private shuttleVel = 0;
   private squash = 0;
+  private shadowOn = true;
+
+  /** Contact-shadow decal on/off (frame guard). */
+  setShadow(on: boolean): void {
+    this.shadowOn = on;
+    const s = this.body.getObjectByName('ContactShadow');
+    if (s) s.visible = on;
+  }
   private side: 1 | -1 = 1;
   private pulse = 0;
 
@@ -257,6 +265,8 @@ export class LoomView {
     shadow.rotation.x = -Math.PI / 2;
     shadow.position.set(0.04, 0.0005, 0);
     shadow.renderOrder = -1;
+    shadow.name = 'ContactShadow';
+    shadow.visible = this.shadowOn;
     add(shadow);
     for (let k = 0; k < LEVERS; k++) this.placeKnob(k);
   }

@@ -31,6 +31,7 @@ export function mountLanding(world: World): void {
     </figure>
     <div id="settings">
       <button type="button" id="hc" role="switch" aria-checked="false">High contrast</button>
+      <button type="button" id="fit" aria-pressed="false">Fit to my hands</button>
       <div role="radiogroup" aria-label="Lever side" id="hand-pick">
         <span class="lbl">Levers</span>
         <button type="button" data-hand="auto" role="radio">Auto</button>
@@ -102,9 +103,16 @@ export function mountLanding(world: World): void {
   // Accessibility settings.
   const hc = el.querySelector<HTMLButtonElement>('#hc')!;
   const handPick = el.querySelector<HTMLElement>('#hand-pick')!;
+  const fit = el.querySelector<HTMLButtonElement>('#fit')!;
   const syncSettings = () => {
     const st = loadSettings();
     hc.setAttribute('aria-checked', String(st.highContrast));
+    fit.setAttribute('aria-pressed', String(st.calibrateNext));
+    fit.textContent = st.calibrateNext
+      ? 'Fitting on next entry'
+      : st.calibration
+        ? 'Refit my hands'
+        : 'Fit to my hands';
     for (const b of handPick.querySelectorAll<HTMLButtonElement>('button')) {
       b.setAttribute('aria-checked', String(b.dataset.hand === st.hand));
     }
@@ -115,6 +123,11 @@ export function mountLanding(world: World): void {
     saveSettings({ ...st, highContrast: !st.highContrast });
     syncSettings();
     changed();
+  });
+  fit.addEventListener('click', () => {
+    const st = loadSettings();
+    saveSettings({ ...st, calibrateNext: !st.calibrateNext });
+    syncSettings();
   });
   handPick.addEventListener('click', (e) => {
     const hand = (e.target as HTMLElement).dataset?.hand as HandPref | undefined;
