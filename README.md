@@ -34,7 +34,7 @@ That means real contact, no mid-air reaching, no arm fatigue, and none of the de
 | R2 | Seated, two-foot test | Every interactable sits within 60 cm of the seated head at the default desk height | `npm run check:reach` (worst case 59.3 cm) |
 | R3 | Easy in and out, clean pause | No login, no tutorial wall. Progress is saved. Play pauses on session blur and page hide, and audio suspends with it. | `src/app/game-system.ts`; blur pause is unit-level only (the emulator can't force blur) |
 | R4 | Satisfying in ≤ 10 minutes | The first row plays in under a minute. Levels are 4–12 rows (authored 4–6; generated grow slowly). | Level 1 E2E; real stopwatch timing on device is pending |
-| R5 | Original, not a wrapper | Game, geometry, textures and audio are all generated in this repo. Libraries are listed below. | Source, licences |
+| R5 | Original, not a wrapper | Game and models are built in this repo (Blender scripts in `tools/blender/`). Two CC0 photo textures from ambientCG are baked into the models. Libraries and assets are listed below. | Source, licences |
 | R6 | Free | No ads, IAP or paywalls | `npm run check:rules` |
 | R7 | No logos or people | Abstract loom; no brand names in the app | `npm run check:rules` |
 | R8 | HTTPS link, no login | Static build on GitHub Pages | https://or-6.github.io/loomsong/ |
@@ -108,6 +108,7 @@ Docs: `docs/IWSDK-NOTES.md` (platform findings, with evidence) and `docs/ART-DIR
 | `peerjs` 1.5.5 | Opt-in co-op (WebRTC), loaded on demand only | MIT |
 | Lilita One (Juan Montoreano) | Toy-style display font | SIL OFL 1.1 (`public/fonts/LilitaOne-OFL.txt`) |
 | Fraunces 72pt Soft SemiBold (The Fraunces Project Authors) | Workshop-style font, loaded on demand | SIL OFL 1.1 (`public/fonts/Fraunces-OFL.txt`) |
+| ambientCG Wood095, Fabric019 | Beech grain and knit yarn textures, baked into `public/models/loom.glb` | CC0 1.0 (ambientcg.com) |
 
 Dev only (not shipped): `@iwsdk/cli`, `@iwsdk/vite-plugin-dev`, `@iwsdk/reference`, `@meta-quest/metavr`, `vite`, `vitest`, `typescript`.
 
