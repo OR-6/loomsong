@@ -313,6 +313,7 @@ export class GameSystem extends createSystem({
       game: this,
       coop,
       hands,
+      audio,
       /** World positions of interactables, for E2E scripts. */
       targets: () => this.targets(),
     };
@@ -808,6 +809,8 @@ export class GameSystem extends createSystem({
     m.opacity = h.pinch.pinching ? 0.9 : 0.35;
   }
 
+  private lastHover = [-1, -1];
+
   private syncView(dt: number) {
     const c = this.controller;
     let hoverK = -1;
@@ -819,6 +822,12 @@ export class GameSystem extends createSystem({
       if (hov || held) hoverK = k;
     }
     this.view.setHoverLever(hoverK);
+    // A soft tick whenever a hand starts hovering something new.
+    const hl = targetCode(c.hover.left);
+    const hr = targetCode(c.hover.right);
+    if ((hl >= 0 && hl !== this.lastHover[0]) || (hr >= 0 && hr !== this.lastHover[1])) audio.tick();
+    this.lastHover[0] = hl;
+    this.lastHover[1] = hr;
     this.view.setShuttleT(c.shuttle.t, dt);
     const sh = (t: unknown) => (t as { kind?: string } | null)?.kind === 'shuttle';
     this.view.setShuttleHighlight(
@@ -888,6 +897,24 @@ export function insidePolygon(
     minD = Math.min(minD, Math.hypot(x - (a.x + t * ex), z - (a.z + t * ez)));
   }
   return inside || minD <= margin;
+}
+
+/** Small stable code for a hover target (no allocation): -1 = nothing. */
+function targetCode(t: unknown): number {
+  const x = t as { kind?: string; k?: number; dir?: number } | null;
+  if (!x) return -1;
+  switch (x.kind) {
+    case 'lever':
+      return x.k ?? 0;
+    case 'shuttle':
+      return 10;
+    case 'bobbin':
+      return 11;
+    case 'token':
+      return 12;
+    default:
+      return 13 + (x.dir ?? 0);
+  }
 }
 
 function isTarget(t: unknown, k: number): boolean {

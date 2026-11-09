@@ -1,11 +1,21 @@
 /**
- * Procedural audio (no audio files). One AudioContext, created on the first
- * user gesture (pinch/poke) with latencyHint 'interactive'.
+ * Audio. One AudioContext, created on the first user gesture (pinch/poke)
+ * with latencyHint 'interactive'.
  *
- * Voices: pluck = triangle + sine overtone → lowpass, exponential decay.
+ * Recorded CC0 samples (public/audio, built by tools/audio/build-audio.sh):
+ * a real kalimba for the threads (pitch-shifted from the nearest note),
+ * wooden clacks and cloth for the loom, a glockenspiel run for a finished
+ * picture. Until they've loaded (or if they fail) every voice falls back to
+ * the procedural synth: triangle + sine overtone → lowpass.
  * Reverb = convolver with a generated impulse. Master compressor.
  */
 import { WARPS } from '../config.js';
+
+const KALIMBA = [47, 49, 51, 54, 56, 59, 61, 63, 66, 69, 71];
+const FX: Record<string, number> = { 'wood-light': 5, plank: 5, 'wood-medium': 5, soft: 5, cloth: 4, flip: 3, tick: 3 };
+/** The glockenspiel run is in F♯ major pentatonic (pitch class 6). */
+const GLOCK_PC = 6;
+const audioUrl = (f: string) => `${import.meta.env.BASE_URL}audio/${f}`;
 
 /** Major pentatonic degrees in semitones. */
 const PENTA = [0, 2, 4, 7, 9];
@@ -28,6 +38,7 @@ class Synth {
   tone = 1;
   reverbOn = true;
   freqs: number[] = [];
+  private bufs = new Map<string, AudioBuffer>();
 
   constructor() {
     this.setRoot(62);
@@ -80,6 +91,73 @@ class Synth {
     this.dry.connect(this.master);
     this.wet.connect(conv).connect(this.master);
     this.master.connect(comp).connect(ctx.destination);
+    void this.load(ctx);
+  }
+
+  /** Fetch + decode every sample once (≈ 250 KB). Failures just keep the synth. */
+  private async load(ctx: AudioContext): Promise<void> {
+    const names = [
+      ...KALIMBA.map((m) => `kalimba/k${m}.ogg`),
+      ...Object.entries(FX).flatMap(([n, c]) => Array.from({ length: c }, (_, i) => `fx/${n}-${i}.ogg`)),
+      'fx/glock-gliss.ogg',
+    ];
+    await Promise.all(
+      names.map(async (n) => {
+        try {
+          const res = await fetch(audioUrl(n));
+          if (!res.ok) return;
+          this.bufs.set(n, await ctx.decodeAudioData(await res.arrayBuffer()));
+        } catch {
+          /* keep the synth voice */
+        }
+      }),
+    );
+  }
+
+  /** Play a decoded sample; false if it isn't available (caller falls back). */
+  private play(name: string, gain: number, when = 0, rate = 1, wet = true): boolean {
+    const ctx = this.ready();
+    const buf = this.bufs.get(name);
+    if (!ctx || !buf) return false;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = rate;
+    const g = ctx.createGain();
+    g.gain.value = gain;
+    src.connect(g);
+    if (wet) this.bus(g);
+    else g.connect(this.dry);
+    src.start(ctx.currentTime + when);
+    return true;
+  }
+
+  /** One of the numbered variants (`wood-light-0..4`), picked at random. */
+  private fx(name: string, gain: number, when = 0, wet = false): boolean {
+    const n = FX[name] ?? 1;
+    const i = Math.floor(Math.random() * n);
+    return this.play(`fx/${name}-${i}.ogg`, gain, when, 0.96 + Math.random() * 0.08, wet);
+  }
+
+  /** Kalimba note at a MIDI pitch from the nearest recorded note. */
+  private kalimba(midi: number, gain: number, when = 0): boolean {
+    let best = KALIMBA[0];
+    for (const m of KALIMBA) if (Math.abs(m - midi) < Math.abs(best - midi)) best = m;
+    return this.play(`kalimba/k${best}.ogg`, gain, when, Math.pow(2, (midi - best) / 12));
+  }
+
+  private midiOf(warp: number): number {
+    const oct = Math.floor(warp / PENTA.length);
+    return this.rootMidi + oct * 12 + PENTA[warp % PENTA.length];
+  }
+
+  /** Soft tick when a hand first hovers a control (no haptics on hands). */
+  tick(): void {
+    this.fx('tick', 0.15);
+  }
+
+  /** Plush hop / soft landing. */
+  hop(): void {
+    this.fx('soft', 0.5);
   }
 
   /**
@@ -103,6 +181,8 @@ class Synth {
   pluck(warp: number, speed = 0.3, when = 0, gain = 0.32): void {
     const ctx = this.ready();
     if (!ctx) return;
+    // Recorded kalimba; faster strums are a touch louder.
+    if (this.kalimba(this.midiOf(warp), gain * (0.95 + 0.45 * Math.min(1, speed / 0.6)), when)) return;
     const t = ctx.currentTime + when;
     const f = this.freqs[warp] ?? 440;
     const env = ctx.createGain();
@@ -138,6 +218,10 @@ class Synth {
     const ctx = this.ready();
     if (!ctx) return;
     const t = ctx.currentTime;
+    if (this.fx(latched ? 'plank' : 'wood-light', latched ? 0.45 : 0.32)) {
+      if (latched) this.kalimba(this.rootMidi + 12, 0.08, 0.01);
+      return;
+    }
     this.noiseBurst(ctx, t, 0.025, 2600, 0.18);
     if (latched) {
       const o = ctx.createOscillator();
@@ -158,6 +242,7 @@ class Synth {
   thud(): void {
     const ctx = this.ready();
     if (!ctx) return;
+    if (this.fx('wood-medium', 0.45)) return;
     const t = ctx.currentTime;
     const o = ctx.createOscillator();
     o.type = 'sine';
@@ -176,11 +261,13 @@ class Synth {
   /** Theme switch: a quick shimmer. */
   restyle(): void {
     this.resume();
+    this.fx('flip', 0.5);
     for (let i = 0; i < 4; i++) this.pluck(7 - i * 2, 0.6, i * 0.04, 0.12);
   }
 
   /** Unpick (undo): a quick falling pair. */
   unpick(): void {
+    this.fx('cloth', 0.45);
     this.pluck(5, 0.1, 0, 0.16);
     this.pluck(2, 0.1, 0.07, 0.14);
   }
@@ -193,6 +280,10 @@ class Synth {
   /** Level complete. */
   arpeggio(): void {
     for (let i = 0; i < WARPS; i++) this.pluck(i, 0.5, i * 0.07, 0.22);
+    // Glockenspiel run on top, shifted into the level's key (±6 semitones).
+    let shift = (((this.rootMidi - GLOCK_PC) % 12) + 12) % 12;
+    if (shift > 6) shift -= 12;
+    this.play('fx/glock-gliss.ogg', 0.28, 0.25, Math.pow(2, shift / 12));
   }
 
   private noiseBurst(ctx: AudioContext, t: number, dur: number, freq: number, gain: number) {
