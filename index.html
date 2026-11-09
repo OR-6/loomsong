@@ -7,6 +7,7 @@
     <title>Loomsong</title>
     <style>
       @font-face { font-family: 'Lilita One'; src: url('./fonts/LilitaOne-Regular.ttf') format('truetype'); font-display: swap; }
+      @font-face { font-family: 'Fraunces'; src: url('./fonts/Fraunces-SoftSemiBold.ttf') format('truetype'); font-display: swap; }
       html, body { margin: 0; height: 100%; background: #1f1712; color: #fff4e0;
         font-family: system-ui, -apple-system, sans-serif; }
       #scene-container { position: fixed; inset: 0; }
@@ -23,6 +24,7 @@
       #style-pick[hidden] { display: none; }
       #style-pick button { font: inherit; font-size: 15px; padding: 6px 16px; border-radius: 999px;
         border: 1.5px solid #f2b632; background: transparent; color: #fff6e8; cursor: pointer; }
+      #style-pick button[data-theme='workshop'] { font-family: 'Fraunces', Georgia, serif; }
       #style-pick button[aria-checked='true'] { background: #f2b632; color: #2b2118; }
       #enter-xr:disabled { opacity: 0.4; cursor: default; }
     </style>

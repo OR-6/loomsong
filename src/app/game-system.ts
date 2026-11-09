@@ -22,6 +22,7 @@ import { LevelFlow, type HintStep } from './level-flow.js';
 import { LEVELS } from '../puzzle/catalog.js';
 import { loadProgress, saveProgress, workshopUnlocked, type Progress } from '../persistence/progress.js';
 import { THEMES, otherTheme, type ThemeId } from '../ui/theme.js';
+import { loadFont } from '../ui/fonts.js';
 
 const params = new URLSearchParams(location.search);
 const FIXED_DESK = params.get('desk');
@@ -108,6 +109,7 @@ export class GameSystem extends createSystem({
     });
     this.controller.tokenEnabled = unlocked;
     this.view.token.visible = unlocked;
+    if (this.progress.theme === 'workshop') this.ensureWorkshopFont();
     audio.tone = THEMES[this.progress.theme].tone;
     this.placement = new Placement();
 
@@ -240,6 +242,17 @@ export class GameSystem extends createSystem({
     this.tokenPop = 0;
     this.debug.theme = id;
     if (this.notice) this.showNotice('', 0);
+    if (id === 'workshop') this.ensureWorkshopFont();
+  }
+
+  /** Fraunces loads on demand; restyle text once it arrives. */
+  private ensureWorkshopFont(): void {
+    void loadFont('Fraunces', 4000).then((ok) => {
+      if (!ok || this.progress.theme !== 'workshop') return;
+      const theme = THEMES.workshop;
+      this.view.card.setTheme(theme);
+      this.tutor.setTheme(theme);
+    });
   }
 
   /** First unlock: the token pops up with a short notice. */
@@ -249,6 +262,7 @@ export class GameSystem extends createSystem({
     this.tokenPop = 0;
     this.debug.workshopUnlocked = true;
     this.showNotice('New style unlocked', 6);
+    void loadFont('Fraunces', 4000); // warm the cache before the first switch
     window.dispatchEvent(new CustomEvent('loomsong:unlocked'));
   }
 

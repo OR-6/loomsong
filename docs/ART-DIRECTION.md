@@ -38,7 +38,7 @@ Level palettes vary the yarn pair, but always keep a luminance ratio of at least
 Same geometry, levels and motion, re-skinned as a grown-up workshop loom. It's defined in `src/ui/theme.ts`.
 
 - **Look:** squared honey-oak beams, walnut rails, brass knobs, a boxwood shuttle. Yarns are undyed linen and indigo (≥ 3:1 luminance contrast, enforced by a test). Paper is parchment.
-- **Type:** a serif face (Fraunces planned). Until it's bundled, it falls back to Georgia.
+- **Type:** Fraunces 72pt Soft SemiBold (SIL OFL), loaded on demand only when Workshop is unlocked or chosen.
 - **Sound:** the same voices with a warmer, darker pluck filter (`tone` 0.75).
 - **Unlock:** finish levels 1–3. The style token (a half-tomato, half-oak disc on the front beam) pops up with "New style unlocked". After that, poke or pinch the token to switch, or use the Toy/Workshop toggle on the 2D page. The choice is saved.
 - **Public materials** (video, screenshots, store art) lead with Toy. Workshop appears as the "earned it" beat.

@@ -80,7 +80,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     knobRoughness: 0.32,
     knobMetalness: 0.75,
     track: 0x3b2a20,
-    font: "'Fraunces', Georgia, 'Times New Roman', serif",
+    font: "'Fraunces', Georgia, 'Times New Roman', serif", // loaded on demand
     labelBg: 'rgba(59,42,32,0.86)',
     labelText: '#f1e6cf',
     paper: '#f1e6cf',
