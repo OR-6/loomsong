@@ -1,0 +1,10 @@
+{
+  "name": "Loomsong",
+  "tagline": "Weave on a tiny loom that sits on your real desk. Slide, pass the shuttle, hear your cloth play. Hands only.",
+  "track": "Gaming",
+  "division": "New Experience",
+  "buildPath": "IWSDK (WebXR)",
+  "hostedUrl": "https://or-6.github.io/loomsong/",
+  "videoUrl": null,
+  "targetLaunch": null
+}

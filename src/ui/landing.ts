@@ -39,7 +39,7 @@ export function mountLanding(world: World): void {
         <button type="button" data-hand="right" role="radio">Right</button>
       </div>
     </div>
-    <p class="small" id="xr-unsupported" hidden>WebXR AR is not available in this browser. Open this page in Meta Quest Browser.</p>`;
+    <p class="small" id="xr-unsupported" hidden>Mixed reality isn't available in this browser. Open this page in your headset's browser.</p>`;
   document.body.appendChild(el);
   const btn = el.querySelector<HTMLButtonElement>('#enter-xr')!;
   btn.addEventListener('click', () => {
