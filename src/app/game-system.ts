@@ -10,7 +10,7 @@ import {
   VisibilityState,
   XRPlane,
 } from '@iwsdk/core';
-import { BOBBIN, CARD, LEVER, LEVERS, PLACE, SHUTTLE, bobbinX, leverX } from '../config.js';
+import { BOBBIN, CARD, LEVER, LEVERS, PLACE, SHUTTLE, TOKEN, leverX, tokenX } from '../config.js';
 import { hands, calibration, type Side } from '../input/hands.js';
 import { LoomController, type HandInput } from '../loom/loom-controller.js';
 import { LoomModel } from '../loom/loom-model.js';
@@ -20,7 +20,8 @@ import { Label } from '../ui/label.js';
 import { audio } from '../audio/synth.js';
 import { LevelFlow, type HintStep } from './level-flow.js';
 import { LEVELS } from '../puzzle/catalog.js';
-import { loadProgress, saveProgress } from '../persistence/progress.js';
+import { loadProgress, saveProgress, workshopUnlocked, type Progress } from '../persistence/progress.js';
+import { THEMES, otherTheme, type ThemeId } from '../ui/theme.js';
 
 const params = new URLSearchParams(location.search);
 const FIXED_DESK = params.get('desk');
@@ -50,6 +51,9 @@ export interface GameDebug {
   flow: string;
   stars: number;
   hint: HintStep;
+  theme: ThemeId;
+  workshopUnlocked: boolean;
+  notice: string;
 }
 
 export class GameSystem extends createSystem({
@@ -79,10 +83,17 @@ export class GameSystem extends createSystem({
   private tutor!: Label;
   private hintLever = 0;
   private time = 0;
+  private progress!: Progress;
+  private notice = '';
+  private noticeTimer = 0;
+  private tokenPop = 1;
 
   init() {
     this.model = new LoomModel([]);
-    this.view = new LoomView();
+    this.progress = loadProgress();
+    const unlocked = workshopUnlocked(this.progress);
+    if (!unlocked) this.progress.theme = 'toy';
+    this.view = new LoomView(THEMES[this.progress.theme]);
     this.controller = new LoomController(this.model, {
       pluck: (i, speed) => {
         audio.pluck(i, speed);
@@ -93,14 +104,26 @@ export class GameSystem extends createSystem({
       grab: () => audio.resume(),
       pass: () => audio.thud(),
       undo: () => audio.unpick(),
+      token: () => this.setTheme(otherTheme(this.progress.theme)),
     });
+    this.controller.tokenEnabled = unlocked;
+    this.view.token.visible = unlocked;
+    audio.tone = THEMES[this.progress.theme].tone;
     this.placement = new Placement();
 
     // In-world tutorial label (child of the loom; faces the user).
     this.tutor = new Label(0.17, 0.036);
     this.tutor.mesh.rotation.x = -0.35;
     this.view.root.add(this.tutor.mesh);
+    this.tutor.setTheme(THEMES[this.progress.theme]);
     this.tutor.set('');
+
+    const onTheme = (e: Event) => {
+      const id = (e as CustomEvent<ThemeId>).detail;
+      if (id === 'toy' || (id === 'workshop' && workshopUnlocked(this.progress))) this.setTheme(id);
+    };
+    window.addEventListener('loomsong:theme', onTheme);
+    this.cleanupFuncs.push(() => window.removeEventListener('loomsong:theme', onTheme));
 
     const loomEntity = this.world.createTransformEntity(this.view.root);
     loomEntity.object3D!.visible = false;
@@ -117,7 +140,7 @@ export class GameSystem extends createSystem({
       if (e.type === 'row' || e.type === 'undo') this.view.setRows(this.model.rows);
     });
 
-    this.flow = new LevelFlow(this.model, LEVELS, loadProgress(), {
+    this.flow = new LevelFlow(this.model, LEVELS, this.progress, {
       load: (level) => {
         this.controller.syncFromModel();
         this.controller.enabled = true;
@@ -140,6 +163,7 @@ export class GameSystem extends createSystem({
         audio.arpeggio();
         this.view.pulseWarp();
         if (this.debug) this.debug.stars = stars;
+        if (!this.controller.tokenEnabled && workshopUnlocked(this.progress)) this.revealWorkshop();
       },
       pluck: (i, delay) => {
         audio.pluck(i, 0.35, delay, 0.26);
@@ -172,6 +196,9 @@ export class GameSystem extends createSystem({
       flow: 'play',
       stars: 0,
       hint: 'none',
+      theme: this.progress.theme,
+      workshopUnlocked: unlocked,
+      notice: '',
     };
     this.flow.start();
     (window as unknown as { __loom: unknown }).__loom = {
@@ -197,6 +224,39 @@ export class GameSystem extends createSystem({
     const onVis = () => this.setPaused(document.visibilityState === 'hidden');
     document.addEventListener('visibilitychange', onVis);
     this.cleanupFuncs.push(() => document.removeEventListener('visibilitychange', onVis));
+  }
+
+  /** Switch the visual theme (Workshop only once unlocked). */
+  setTheme(id: ThemeId): void {
+    if (id === 'workshop' && !workshopUnlocked(this.progress)) return;
+    const theme = THEMES[id];
+    this.progress.theme = id;
+    saveProgress(this.progress);
+    this.view.setTheme(theme);
+    this.tutor.setTheme(theme);
+    audio.tone = theme.tone;
+    audio.restyle();
+    this.view.pulseWarp();
+    this.tokenPop = 0;
+    this.debug.theme = id;
+    if (this.notice) this.showNotice('', 0);
+  }
+
+  /** First unlock: the token pops up with a short notice. */
+  private revealWorkshop(): void {
+    this.controller.tokenEnabled = true;
+    this.view.token.visible = true;
+    this.tokenPop = 0;
+    this.debug.workshopUnlocked = true;
+    this.showNotice('New style unlocked', 6);
+    window.dispatchEvent(new CustomEvent('loomsong:unlocked'));
+  }
+
+  private showNotice(text: string, seconds: number): void {
+    this.notice = text;
+    this.noticeTimer = seconds;
+    this.debug.notice = text;
+    this.tutor.set(text);
   }
 
   setPaused(p: boolean): void {
@@ -263,6 +323,8 @@ export class GameSystem extends createSystem({
     out.bobbin = v.toArray();
     v.set(p.x, p.y, p.z + BOBBIN.pull).applyMatrix4(this.view.root.matrixWorld);
     out.bobbinPulled = v.toArray();
+    v.set(tokenX(this.controller.bankSide), TOKEN.y, TOKEN.z).applyMatrix4(this.view.root.matrixWorld);
+    out.token = v.toArray();
     out.head = this.head.toArray();
     return out;
   }
@@ -357,9 +419,15 @@ export class GameSystem extends createSystem({
   }
 
   /** Position the tutorial label over its target and pulse that target. */
-  private syncHint() {
+  private syncHint(dt: number) {
     const step = this.flow.hintStep;
     const m = this.tutor.mesh;
+    if (this.notice) {
+      this.noticeTimer -= dt;
+      m.position.set(tokenX(this.controller.bankSide), 0.06, TOKEN.z - 0.01);
+      if (this.noticeTimer <= 0) this.showNotice('', 0);
+      return;
+    }
     if (step === 'none') return;
     const side = this.controller.bankSide;
     const pulse = Math.sin(this.time * 6) > 0 ? 1 : 0;
@@ -426,8 +494,16 @@ export class GameSystem extends createSystem({
     this.view.setBobbinHighlight(
       bob(c.holding.left) || bob(c.holding.right) ? 2 : bob(c.hover.left) || bob(c.hover.right) ? 1 : 0,
     );
+    const tok = (t: unknown) => (t as { kind?: string } | null)?.kind === 'token';
+    this.view.setTokenHighlight(tok(c.hover.left) || tok(c.hover.right) ? 1 : 0);
+    if (this.tokenPop < 1) {
+      // springy pop-in (overshoot), then settle
+      this.tokenPop = Math.min(1, this.tokenPop + dt * 2.5);
+      const t = this.tokenPop;
+      this.view.token.scale.setScalar(1 + Math.sin(t * Math.PI * 2.5) * (1 - t) * 0.6);
+    }
     this.view.setPreview(this.model.shed, this.flow.phase === 'play');
-    this.syncHint();
+    this.syncHint(dt);
     this.view.update(dt);
     this.debug.shed = this.model.shed;
     this.debug.shuttleT = Math.round(c.shuttle.t * 1000) / 1000;

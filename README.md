@@ -4,7 +4,7 @@ A hands-only mixed-reality puzzle game for Meta Quest, built with Meta's Immersi
 
 **Play:** https://or-6.github.io/loomsong/ (open in Meta Quest Browser, hand tracking on). Milestone snapshots stay at https://or-6.github.io/loomsong/m0/ and https://or-6.github.io/loomsong/m1/.
 
-**Status:** M1. Three authored levels. Level 1 was played end to end in the emulator E2E; Levels 2 and 3 are unit-tested only. Features: set-the-table placement, pinch-slide or poke levers, shuttle passes that strum, target card, undo bobbin, stars, and the cloth plays back as a melody. Verified in the IWSDK emulator only; **not** yet run on a headset.
+**Status:** M1. Three authored levels. Level 1 was played end to end in the emulator E2E; Levels 2 and 3 are unit-tested only. Features: set-the-table placement, pinch-slide or poke levers, shuttle passes that strum, target card, undo bobbin, stars, and the cloth plays back as a melody. Finishing levels 1–3 unlocks the alternate Workshop style. Verified in the IWSDK emulator only; **not** yet run on a headset.
 
 ## Run
 

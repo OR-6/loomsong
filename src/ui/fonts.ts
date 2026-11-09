@@ -3,8 +3,6 @@
  * public/fonts with its licence). Loaded before the world starts so every
  * canvas-drawn label uses it; falls back to system fonts after a timeout.
  */
-export const DISPLAY_FONT = "'Lilita One', system-ui, -apple-system, sans-serif";
-
 export async function loadFonts(timeoutMs = 1500): Promise<boolean> {
   try {
     const url = `${import.meta.env.BASE_URL}fonts/LilitaOne-Regular.ttf`;

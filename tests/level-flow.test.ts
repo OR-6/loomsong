@@ -4,7 +4,7 @@ import { LoomModel } from '../src/loom/loom-model';
 import { LEVELS } from '../src/puzzle/catalog';
 import type { Progress } from '../src/persistence/progress';
 
-function setup(progress: Progress = { level: 0, best: {}, tutorialDone: false }) {
+function setup(progress: Progress = { level: 0, best: {}, tutorialDone: false, theme: 'toy' }) {
   const log: string[] = [];
   const plucks: number[] = [];
   const hooks: FlowHooks = {
@@ -48,7 +48,7 @@ describe('level flow', () => {
   });
 
   it('wrong rows never win; undo fixes them; extra flips cost stars', () => {
-    const { model, flow, log } = setup({ level: 0, best: {}, tutorialDone: true });
+    const { model, flow, log } = setup({ level: 0, best: {}, tutorialDone: true, theme: 'toy' });
     flow.start();
     weave(model, [[0, 1]]); // wrong first row
     expect(flow.phase).toBe('play');
@@ -60,7 +60,7 @@ describe('level flow', () => {
   });
 
   it('timing: playback starts after the win pause', () => {
-    const { model, flow, plucks } = setup({ level: 0, best: {}, tutorialDone: true });
+    const { model, flow, plucks } = setup({ level: 0, best: {}, tutorialDone: true, theme: 'toy' });
     flow.start();
     weave(model, [[1, 0], [1, 0], [1, 1], [0, 1]]);
     flow.update(TIMING.winPause - 0.1);

@@ -3,7 +3,7 @@
  * cap height ≥ 1.5 cm at the chosen world height.
  */
 import { CanvasTexture, Mesh, MeshBasicMaterial, PlaneGeometry } from '@iwsdk/core';
-import { DISPLAY_FONT } from './fonts.js';
+import { THEMES, type Theme } from './theme.js';
 
 export class Label {
   readonly mesh: Mesh;
@@ -11,6 +11,14 @@ export class Label {
   private ctx: CanvasRenderingContext2D;
   private tex: CanvasTexture;
   private text = '';
+  private theme: Theme = THEMES.toy;
+
+  setTheme(theme: Theme): void {
+    this.theme = theme;
+    const t = this.text;
+    this.text = '\u0000';
+    this.set(t);
+  }
 
   /** @param heightM world height of the label quad; cap height ≈ 0.5 × this. */
   constructor(public widthM = 0.2, public heightM = 0.035) {
@@ -31,11 +39,11 @@ export class Label {
     const { ctx, canvas } = this;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const h = canvas.height;
-    ctx.fillStyle = 'rgba(43,33,24,0.82)'; // ink
+    ctx.fillStyle = this.theme.labelBg;
     roundRect(ctx, 0, 0, canvas.width, h, h * 0.3);
     ctx.fill();
-    ctx.fillStyle = '#fff4e0';
-    ctx.font = `400 ${Math.round(h * 0.66)}px ${DISPLAY_FONT}`;
+    ctx.fillStyle = this.theme.labelText;
+    ctx.font = `400 ${Math.round(h * 0.66)}px ${this.theme.font}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(text, canvas.width / 2, h * 0.54);

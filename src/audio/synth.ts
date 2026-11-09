@@ -24,6 +24,8 @@ class Synth {
   private wet!: GainNode;
   private paused = false;
   rootMidi = 62;
+  /** Lowpass brightness multiplier (theme). */
+  tone = 1;
   reverbOn = true;
   freqs: number[] = [];
 
@@ -103,7 +105,7 @@ class Synth {
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
     const bright = Math.min(1, speed / 0.6);
-    lp.frequency.setValueAtTime(1800 + 3200 * bright, t);
+    lp.frequency.setValueAtTime((1800 + 3200 * bright) * this.tone, t);
     lp.frequency.exponentialRampToValueAtTime(600, t + 0.6);
     const o1 = ctx.createOscillator();
     o1.type = 'triangle';
@@ -162,6 +164,12 @@ class Synth {
     o.start(t);
     o.stop(t + 0.25);
     this.noiseBurst(ctx, t, 0.04, 900, 0.12);
+  }
+
+  /** Theme switch: a quick shimmer. */
+  restyle(): void {
+    this.resume();
+    for (let i = 0; i < 4; i++) this.pluck(7 - i * 2, 0.6, i * 0.04, 0.12);
   }
 
   /** Unpick (undo): a quick falling pair. */

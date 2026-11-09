@@ -19,6 +19,11 @@
       #landing .small { font-size: 14px; opacity: 0.8; }
       #enter-xr { font-family: 'Lilita One', system-ui, sans-serif; font-size: 24px; padding: 14px 36px; border-radius: 999px;
         border: 0; background: #e2563b; color: #fff6e8; cursor: pointer; margin-top: 8px; }
+      #style-pick { display: flex; gap: 6px; margin-top: 4px; }
+      #style-pick[hidden] { display: none; }
+      #style-pick button { font: inherit; font-size: 15px; padding: 6px 16px; border-radius: 999px;
+        border: 1.5px solid #f2b632; background: transparent; color: #fff6e8; cursor: pointer; }
+      #style-pick button[aria-checked='true'] { background: #f2b632; color: #2b2118; }
       #enter-xr:disabled { opacity: 0.4; cursor: default; }
     </style>
   </head>

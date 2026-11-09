@@ -30,7 +30,7 @@ export const TIMING = {
   rowTime: 0.42,
   noteGap: 0.05,
   afterPlayback: 1.6,
-  cardHint: 3,
+  cardHint: 4.5,
 } as const;
 
 export class LevelFlow {

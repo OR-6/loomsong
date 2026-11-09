@@ -8,8 +8,7 @@
  */
 import { CanvasTexture, Mesh, MeshBasicMaterial, PlaneGeometry, SRGBColorSpace } from '@iwsdk/core';
 import { CARD, WARPS } from '../config.js';
-import type { Palette } from '../loom/loom-view.js';
-import { DISPLAY_FONT } from './fonts.js';
+import type { Theme } from './theme.js';
 import type { RowStatus } from '../puzzle/session.js';
 import { isLifted, type Mask8 } from '../puzzle/tieup.js';
 
@@ -23,7 +22,9 @@ export class TargetCard {
   private geo: PlaneGeometry;
   heightM = 0.1;
 
-  constructor(private palette: Palette) {
+  private last: Parameters<TargetCard['draw']> | null = null;
+
+  constructor(private theme: Theme) {
     this.ctx = this.canvas.getContext('2d')!;
     this.tex = new CanvasTexture(this.canvas);
     this.tex.colorSpace = SRGBColorSpace;
@@ -39,6 +40,11 @@ export class TargetCard {
    * @param stars 0 while playing; 1–3 after a win.
    * @param highContrast thicker outlines and pure black/white cells.
    */
+  setTheme(theme: Theme): void {
+    this.theme = theme;
+    if (this.last) this.draw(...this.last);
+  }
+
   draw(
     title: string,
     target: readonly Mask8[],
@@ -46,6 +52,8 @@ export class TargetCard {
     stars: number,
     highContrast = false,
   ): void {
+    this.last = [title, [...target], [...status], stars, highContrast];
+    const th = this.theme;
     const cell = CARD.cell;
     const pad = 0.008;
     const markW = 0.012; // left arrow / right tick column
@@ -67,15 +75,15 @@ export class TargetCard {
     g.clearRect(0, 0, c.width, c.height);
 
     // Card body (linen paper).
-    g.fillStyle = highContrast ? '#ffffff' : '#fff6e8'; // cream paper
+    g.fillStyle = highContrast ? '#ffffff' : th.paper;
     roundRect(g, 0, 0, c.width, c.height, px(0.006));
     g.fill();
     g.lineWidth = px(highContrast ? 0.0015 : 0.0008);
-    g.strokeStyle = '#2b2118';
+    g.strokeStyle = th.ink;
     g.stroke();
 
     // Title or stars.
-    g.fillStyle = '#3b2a20';
+    g.fillStyle = th.ink;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     if (stars > 0) {
@@ -83,7 +91,7 @@ export class TargetCard {
         drawStar(g, c.width / 2 + (i - 1) * px(0.014), px(pad + titleH / 2), px(0.0055), i < stars);
       }
     } else {
-      g.font = `400 ${Math.round(px(0.0095))}px ${DISPLAY_FONT}`;
+      g.font = `400 ${Math.round(px(0.0095))}px ${th.font}`;
       g.fillText(title, c.width / 2, px(pad + titleH / 2));
     }
 
@@ -103,7 +111,7 @@ export class TargetCard {
         } else if (highContrast) {
           g.fillStyle = lifted ? '#ffffff' : '#000000';
         } else {
-          g.fillStyle = hex(lifted ? this.palette.warp : this.palette.weft);
+          g.fillStyle = hex(lifted ? th.palette.warp : th.palette.weft);
         }
         g.fillRect(px(x) + 1, px(y) + 1, px(cell) - 2, px(cell) - 2);
         if (highContrast) {

@@ -63,6 +63,14 @@ export const BOBBIN = {
   radius: 0.008,
 } as const;
 
+/** Style token: on the front beam's lever-side end. */
+export const TOKEN = {
+  x: 0.1,
+  y: 0.012,
+  z: 0.112,
+  radius: 0.011,
+} as const;
+
 /** Target card: stands at the back corner opposite the lever bank. */
 export const CARD = {
   x: 0.165,
@@ -112,6 +120,11 @@ export const MAX_REACH_M = 0.6;
 
 export function warpX(i: number): number {
   return (i - (WARPS - 1) / 2) * WARP_PITCH;
+}
+
+/** Token x: lever side, inboard of the bank. */
+export function tokenX(side: 1 | -1): number {
+  return side * TOKEN.x;
 }
 
 /** Bobbin x: opposite side from the lever bank. */

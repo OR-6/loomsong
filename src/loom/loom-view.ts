@@ -20,8 +20,11 @@ import {
   SphereGeometry,
   Vector3,
   AdditiveBlending,
+  CylinderGeometry,
+  Object3D,
 } from '@iwsdk/core';
 import { TargetCard } from '../ui/target-card.js';
+import { THEMES, type Palette, type Theme } from '../ui/theme.js';
 import {
   BOBBIN,
   CARD,
@@ -30,6 +33,8 @@ import {
   bobbinX,
   LOOM,
   SHUTTLE,
+  TOKEN,
+  tokenX,
   WARPS,
   WARP_PITCH,
   leverX,
@@ -37,30 +42,7 @@ import {
 } from '../config.js';
 import { isLifted, type Mask8 } from '../puzzle/tieup.js';
 
-export interface Palette {
-  /** Light yarn (lifted warp shows). */
-  warp: number;
-  /** Dark yarn (weft shows). */
-  weft: number;
-  /** Painted beams. */
-  wood: number;
-  /** Side rails and bobbin trim. */
-  rail: number;
-  /** Shuttle. */
-  shuttle: number;
-  /** One colour per lever knob. */
-  knobs: [number, number, number, number];
-}
-
-/** "Toy loom" palette (docs/ART-DIRECTION.md). */
-export const DEFAULT_PALETTE: Palette = {
-  warp: 0xfff6e8, // cream
-  weft: 0xe2563b, // tomato
-  wood: 0xf2b632, // mustard
-  rail: 0x2a9d8f, // teal
-  shuttle: 0x3d5a80, // navy
-  knobs: [0xe2563b, 0xf2b632, 0x2a9d8f, 0x3d5a80],
-};
+export type { Palette };
 
 const _m = new Matrix4();
 const _q = new Quaternion();
@@ -72,17 +54,23 @@ const _glow = new Color(0xffe2a8);
 
 export class LoomView {
   readonly root = new Group();
-  readonly levers: Mesh[] = [];
-  readonly shuttle: Mesh;
+  /** Theme-dependent meshes live here so a theme switch can rebuild them. */
+  private body = new Group();
+  levers: Mesh[] = [];
+  shuttle!: Mesh;
   readonly glows: Record<'left' | 'right', Mesh>;
-  private warps: InstancedMesh;
-  private cloth: InstancedMesh;
-  private tracks: InstancedMesh;
+  private warps!: InstancedMesh;
+  private cloth!: InstancedMesh;
+  private tracks!: InstancedMesh;
   private leverMats: MeshStandardMaterial[] = [];
-  private shuttleMat: MeshStandardMaterial;
-  readonly bobbin: Mesh;
+  private shuttleMat!: MeshStandardMaterial;
+  bobbin!: Mesh;
   readonly card: TargetCard;
-  private preview: InstancedMesh;
+  /** Style token: poke or pinch to switch theme. */
+  readonly token: Group;
+  private preview!: InstancedMesh;
+  palette!: Palette;
+  theme!: Theme;
   private activeLevers: number = LEVERS;
   private rowsCache: readonly Mask8[] = [];
   private glowRow = -1;
@@ -90,37 +78,81 @@ export class LoomView {
   private side: 1 | -1 = 1;
   private pulse = 0;
 
-  constructor(public palette: Palette = DEFAULT_PALETTE) {
+  constructor(theme: Theme = THEMES.toy) {
     this.root.name = 'Loom';
-    // Matte painted wood: high roughness, no metalness (toy, not tool).
-    const wood = new MeshStandardMaterial({ color: palette.wood, roughness: 0.75 });
-    const rail = new MeshStandardMaterial({ color: palette.rail, roughness: 0.75 });
+    this.root.add(this.body);
+    this.card = new TargetCard(theme);
+    this.root.add(this.card.mesh);
+    this.token = makeToken();
+    this.root.add(this.token);
 
-    // Frame: fat capsule beams, rounded rails, a slim heddle bar.
+    // Pinch glows (world-space; positioned by the game system).
+    const glowMat = new MeshBasicMaterial({
+      color: 0xffe2a8,
+      transparent: true,
+      opacity: 0.0,
+      blending: AdditiveBlending,
+      depthWrite: false,
+    });
+    const glowGeo = new SphereGeometry(0.006, 12, 8);
+    this.glows = { left: new Mesh(glowGeo, glowMat), right: new Mesh(glowGeo, glowMat.clone()) };
+
+    this.build(theme);
+    this.setSide(1);
+    this.setShed(0, true);
+    this.setShuttleT(0);
+  }
+
+  /** Swap the visual theme; gameplay state is re-applied by the caller's next sync. */
+  setTheme(theme: Theme): void {
+    if (theme === this.theme) return;
+    disposeTree(this.body);
+    this.body.clear();
+    this.levers = [];
+    this.leverMats = [];
+    this.build(theme);
+    this.card.setTheme(theme);
+    this.layoutLevers();
+    this.setBobbinT(0);
+    this.setShed(this.targetShed, true);
+    this.setRows(this.rowsCache);
+    this.placeCard();
+  }
+
+  private build(theme: Theme): void {
+    this.theme = theme;
+    const palette = (this.palette = theme.palette);
+    const add = (...o: Object3D[]) => this.body.add(...o);
+    const wood = new MeshStandardMaterial({ color: palette.wood, roughness: theme.woodRoughness });
+    const rail = new MeshStandardMaterial({ color: palette.rail, roughness: theme.woodRoughness });
+
+    // Frame: rounded capsules (toy) or squared timber (workshop).
     const w = LOOM.frameHalfWidth * 2;
-    const beamGeo = new CapsuleGeometry(0.009, w, 6, 16);
+    const len = LOOM.frontBeamZ - LOOM.backBeamZ;
+    const round = theme.beam === 'round';
+    const beamGeo = round ? new CapsuleGeometry(0.009, w, 6, 16) : new BoxGeometry(w + 0.03, 0.016, 0.016);
     const back = new Mesh(beamGeo, wood);
-    back.rotation.z = Math.PI / 2;
-    back.position.set(0, LOOM.beamY, LOOM.backBeamZ);
     const front = new Mesh(beamGeo, wood);
-    front.rotation.z = Math.PI / 2;
+    if (round) back.rotation.z = front.rotation.z = Math.PI / 2;
+    back.position.set(0, LOOM.beamY, LOOM.backBeamZ);
     front.position.set(0, LOOM.beamY - 0.004, LOOM.frontBeamZ);
-    const railGeo = new CapsuleGeometry(0.007, LOOM.frontBeamZ - LOOM.backBeamZ, 6, 12);
+    const railGeo = round ? new CapsuleGeometry(0.007, len, 6, 12) : new BoxGeometry(0.012, 0.012, len + 0.02);
     const railL = new Mesh(railGeo, rail);
-    railL.rotation.x = Math.PI / 2;
+    if (round) railL.rotation.x = Math.PI / 2;
     railL.position.set(-LOOM.frameHalfWidth - 0.012, 0.007, (LOOM.frontBeamZ + LOOM.backBeamZ) / 2);
     const railR = railL.clone();
     railR.position.x = -railL.position.x;
-    const heddle = new Mesh(new CapsuleGeometry(0.0025, w, 4, 8), rail);
-    heddle.rotation.z = Math.PI / 2;
+    const heddleGeo = round ? new CapsuleGeometry(0.0025, w, 4, 8) : new BoxGeometry(w, 0.004, 0.004);
+    const heddle = new Mesh(heddleGeo, rail);
+    if (round) heddle.rotation.z = Math.PI / 2;
     heddle.position.set(0, LOOM.liftedY + 0.006, LOOM.heddleZ);
-    this.root.add(back, front, railL, railR, heddle);
+    add(back, front, railL, railR, heddle);
 
     // Warps: 2 segments each (back beam → heddle → fell).
     const warpMat = new MeshStandardMaterial({ color: palette.warp, roughness: 0.9 });
     this.warps = new InstancedMesh(new BoxGeometry(0.003, 0.003, 1), warpMat, WARPS * 2);
     this.warps.name = 'Warps';
-    this.root.add(this.warps);
+    add(this.warps);
 
     // Cloth cells.
     const cellGeo = new BoxGeometry(WARP_PITCH * 0.92, 0.0025, LOOM.rowPitch * 0.9);
@@ -128,24 +160,28 @@ export class LoomView {
     this.cloth = new InstancedMesh(cellGeo, clothMat, WARPS * LOOM.visibleRows);
     this.cloth.name = 'Cloth';
     this.cloth.count = 0;
-    this.root.add(this.cloth);
+    add(this.cloth);
 
     // Lever tracks + knobs.
-    const trackMat = new MeshStandardMaterial({ color: 0x2b2118, roughness: 1 });
+    const trackMat = new MeshStandardMaterial({ color: theme.track, roughness: 1 });
     this.tracks = new InstancedMesh(
       new BoxGeometry(0.008, 0.004, LEVER.travel + 0.024),
       trackMat,
       LEVERS,
     );
-    this.root.add(this.tracks);
+    add(this.tracks);
     const knobGeo = new SphereGeometry(LEVER.knobRadius, 24, 16);
     for (let k = 0; k < LEVERS; k++) {
-      const mat = new MeshStandardMaterial({ color: palette.knobs[k], roughness: 0.6 });
+      const mat = new MeshStandardMaterial({
+        color: palette.knobs[k],
+        roughness: theme.knobRoughness,
+        metalness: theme.knobMetalness,
+      });
       this.leverMats.push(mat);
       const knob = new Mesh(knobGeo, mat);
       knob.name = `Lever${k}`;
       this.levers.push(knob);
-      this.root.add(knob);
+      add(knob);
     }
 
     // Shuttle: a capsule lying along X.
@@ -153,7 +189,7 @@ export class LoomView {
     this.shuttle = new Mesh(new CapsuleGeometry(0.0085, 0.04, 8, 16), this.shuttleMat);
     this.shuttle.rotation.z = Math.PI / 2;
     this.shuttle.name = 'Shuttle';
-    this.root.add(this.shuttle);
+    add(this.shuttle);
 
     // Live preview of the next row (ghost cells at the fell).
     this.preview = new InstancedMesh(
@@ -162,18 +198,14 @@ export class LoomView {
       WARPS,
     );
     this.preview.name = 'PreviewRow';
-    this.root.add(this.preview);
+    add(this.preview);
 
     // Undo bobbin: a small spool lying along X.
     const bobGeo = new CapsuleGeometry(BOBBIN.radius, 0.014, 4, 12);
     this.bobbin = new Mesh(bobGeo, new MeshStandardMaterial({ color: palette.weft, roughness: 0.8 }));
     this.bobbin.rotation.z = Math.PI / 2;
     this.bobbin.name = 'Bobbin';
-    this.root.add(this.bobbin);
-
-    // Target card.
-    this.card = new TargetCard(palette);
-    this.root.add(this.card.mesh);
+    add(this.bobbin);
 
     // Contact shadow decal.
     const shadow = new Mesh(
@@ -189,27 +221,13 @@ export class LoomView {
     shadow.rotation.x = -Math.PI / 2;
     shadow.position.set(0.04, 0.0005, 0);
     shadow.renderOrder = -1;
-    this.root.add(shadow);
-
-    // Pinch glows (world-space children of the loom root's parent; set by system).
-    const glowMat = new MeshBasicMaterial({
-      color: 0xffe2a8,
-      transparent: true,
-      opacity: 0.0,
-      blending: AdditiveBlending,
-      depthWrite: false,
-    });
-    const glowGeo = new SphereGeometry(0.006, 12, 8);
-    this.glows = { left: new Mesh(glowGeo, glowMat), right: new Mesh(glowGeo, glowMat.clone()) };
-
-    this.setSide(1);
-    this.setShed(0, true);
-    this.setLeverT(0, 0);
-    this.setShuttleT(0);
+    add(shadow);
+    for (let k = 0; k < LEVERS; k++) this.setLeverT(k, 0);
   }
 
   setSide(side: 1 | -1): void {
     this.side = side;
+    this.token.position.set(tokenX(side), TOKEN.y, TOKEN.z);
     this.layoutLevers();
     this.setBobbinT(0);
     this.placeCard();
@@ -236,6 +254,11 @@ export class LoomView {
   setBobbinT(t: number): void {
     this.bobbin.position.set(bobbinX(this.side), BOBBIN.y, BOBBIN.z + BOBBIN.pull * t);
     this.bobbin.rotation.x = t * Math.PI * 3; // unspools as you pull
+  }
+
+  setTokenHighlight(level: 0 | 1 | 2): void {
+    const s = level === 2 ? 1.25 : level === 1 ? 1.12 : 1;
+    this.token.scale.setScalar(s);
   }
 
   setBobbinHighlight(level: 0 | 1 | 2): void {
@@ -379,6 +402,40 @@ export class LoomView {
     _m.compose(_p, _q, _s.set(1, 1, len));
     this.warps.setMatrixAt(idx, _m);
   }
+}
+
+/** Style token: a flat disc, half toy-painted, half oiled oak. */
+function makeToken(): Group {
+  const g = new Group();
+  g.name = 'StyleToken';
+  const half = (color: number, start: number, rough: number, metal = 0) => {
+    const m = new Mesh(
+      new CylinderGeometry(TOKEN.radius, TOKEN.radius, 0.006, 24, 1, false, start, Math.PI),
+      new MeshStandardMaterial({ color, roughness: rough, metalness: metal }),
+    );
+    g.add(m);
+  };
+  half(0xe2563b, 0, 0.6); // toy tomato
+  half(0xb07a4f, Math.PI, 0.5); // workshop oak
+  const rim = new Mesh(
+    new CylinderGeometry(TOKEN.radius * 0.35, TOKEN.radius * 0.35, 0.0075, 16),
+    new MeshStandardMaterial({ color: 0xc9a14a, roughness: 0.35, metalness: 0.7 }),
+  );
+  g.add(rim);
+  return g;
+}
+
+function disposeTree(o: Object3D): void {
+  o.traverse((n) => {
+    const m = n as Mesh;
+    if (m.geometry) m.geometry.dispose();
+    const mat = m.material as MeshStandardMaterial | MeshStandardMaterial[] | undefined;
+    if (Array.isArray(mat)) mat.forEach((x) => x.dispose());
+    else if (mat) {
+      mat.map?.dispose();
+      mat.dispose();
+    }
+  });
 }
 
 function radialTexture(): CanvasTexture {
