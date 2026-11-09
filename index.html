@@ -6,20 +6,23 @@
     <link rel="icon" href="data:," />
     <title>Loomsong</title>
     <style>
+      @font-face { font-family: 'Lilita One'; src: url('./fonts/LilitaOne-Regular.ttf') format('truetype'); font-display: swap; }
       html, body { margin: 0; height: 100%; background: #1f1712; color: #fff4e0;
         font-family: system-ui, -apple-system, sans-serif; }
       #scene-container { position: fixed; inset: 0; }
       #landing { position: fixed; inset: 0; display: flex; flex-direction: column;
         align-items: center; justify-content: center; gap: 12px; padding: 16px;
-        text-align: center; background: radial-gradient(circle at 50% 40%, #3b2a20cc, #1f1712f2); }
-      #landing h1 { font-size: 48px; margin: 0; letter-spacing: 0.02em; }
+        text-align: center; background: #2b2118; }
+      #landing h1 { font-family: 'Lilita One', system-ui, sans-serif; font-weight: 400; font-size: 64px;
+        margin: 0; color: #f2b632; letter-spacing: 0.01em; }
       #landing p { margin: 0; font-size: 18px; max-width: 32em; }
       #landing .small { font-size: 14px; opacity: 0.8; }
-      #enter-xr { font: inherit; font-size: 22px; padding: 14px 36px; border-radius: 999px;
-        border: 0; background: #c9a14a; color: #1f1712; cursor: pointer; margin-top: 8px; }
+      #enter-xr { font-family: 'Lilita One', system-ui, sans-serif; font-size: 24px; padding: 14px 36px; border-radius: 999px;
+        border: 0; background: #e2563b; color: #fff6e8; cursor: pointer; margin-top: 8px; }
       #enter-xr:disabled { opacity: 0.4; cursor: default; }
     </style>
-    <script type="module" crossorigin src="./assets/index-Cgwz64AW.js"></script>
+    <script type="module" crossorigin src="./assets/index-DK4cnBp9.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/light-system-Bn37UuIG.js">
   </head>
   <body>
     <div id="scene-container"></div>
