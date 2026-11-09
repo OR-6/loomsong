@@ -6,7 +6,10 @@
  */
 
 import { iwsdkDev } from '@iwsdk/vite-plugin-dev';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
+
+const lucideSlim = fileURLToPath(new URL('./src/vendor/lucide-slim.ts', import.meta.url));
 
 export default defineConfig({
   plugins: [iwsdkDev()],
@@ -22,6 +25,8 @@ export default defineConfig({
   // (three@0.185 vs app super-three@0.181). Duplicate Component classes break
   // instanceof checks → "Only pmndrs/uikit components can be added as children".
   resolve: {
+    // Loomsong uses no UIKit panels: ship 2 Lucide icons instead of ~1,600.
+    alias: [{ find: /^@pmndrs\/uikit-lucide$/, replacement: lucideSlim }],
     dedupe: [
       'three',
       '@pmndrs/uikit',
