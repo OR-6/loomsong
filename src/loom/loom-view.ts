@@ -22,11 +22,13 @@ import {
   AdditiveBlending,
   CylinderGeometry,
   Object3D,
+  type Material,
 } from '@iwsdk/core';
 import { TargetCard } from '../ui/target-card.js';
 import { THEMES, type Palette, type Theme } from '../ui/theme.js';
 import { PLAQUE, Plaque } from '../ui/plaque.js';
 import { grainTexture, weaveTexture } from './textures.js';
+import { cloneModel, loomModels, materialOf } from './models.js';
 import {
   BOBBIN,
   CARD,
@@ -60,15 +62,21 @@ export class LoomView {
   readonly root = new Group();
   /** Theme-dependent meshes live here so a theme switch can rebuild them. */
   private body = new Group();
-  levers: Mesh[] = [];
-  shuttle!: Mesh;
+  levers: Object3D[] = [];
+  shuttle!: Object3D;
+  /** Pip parts animated in update(). */
+  private pipWings: Object3D[] = [];
+  private pipEyes: Object3D[] = [];
+  private pipFacing = 1;
+  private blinkIn = 2.5;
+  private frameNode: Object3D | null = null;
   readonly glows: Record<'left' | 'right', Mesh>;
   private warps!: InstancedMesh;
   private cloth!: InstancedMesh;
-  private tracks!: InstancedMesh;
+  private tracks: InstancedMesh | null = null;
   private leverMats: MeshStandardMaterial[] = [];
   private shuttleMat!: MeshStandardMaterial;
-  bobbin!: Mesh;
+  bobbin!: Object3D;
   readonly card: TargetCard;
   /** Style token: poke or pinch to switch theme. */
   readonly token: Group;
@@ -160,27 +168,18 @@ export class LoomView {
     const wood = new MeshStandardMaterial({ color: palette.wood, roughness: theme.woodRoughness, map: grain });
     const rail = new MeshStandardMaterial({ color: palette.rail, roughness: theme.woodRoughness, map: grain });
 
-    // Frame: rounded capsules (toy) or squared timber (workshop).
-    const w = LOOM.frameHalfWidth * 2;
-    const len = LOOM.frontBeamZ - LOOM.backBeamZ;
-    const round = theme.beam === 'round';
-    const beamGeo = round ? new CapsuleGeometry(0.009, w, 6, 16) : new BoxGeometry(w + 0.03, 0.016, 0.016);
-    const back = new Mesh(beamGeo, wood);
-    const front = new Mesh(beamGeo, wood);
-    if (round) back.rotation.z = front.rotation.z = Math.PI / 2;
-    back.position.set(0, LOOM.beamY, LOOM.backBeamZ);
-    front.position.set(0, LOOM.beamY - 0.004, LOOM.frontBeamZ);
-    const railGeo = round ? new CapsuleGeometry(0.007, len, 6, 12) : new BoxGeometry(0.012, 0.012, len + 0.02);
-    const railL = new Mesh(railGeo, rail);
-    if (round) railL.rotation.x = Math.PI / 2;
-    railL.position.set(-LOOM.frameHalfWidth - 0.012, 0.007, (LOOM.frontBeamZ + LOOM.backBeamZ) / 2);
-    const railR = railL.clone();
-    railR.position.x = -railL.position.x;
-    const heddleGeo = round ? new CapsuleGeometry(0.0025, w, 4, 8) : new BoxGeometry(w, 0.004, 0.004);
-    const heddle = new Mesh(heddleGeo, rail);
-    if (round) heddle.rotation.z = Math.PI / 2;
-    heddle.position.set(0, LOOM.liftedY + 0.006, LOOM.heddleZ);
-    add(back, front, railL, railR, heddle);
+    const models = loomModels();
+    // Wood tint per theme: natural beech (toy) or honey oak (workshop).
+    const woodTint = theme.id === 'workshop' ? 0xc9905e : 0xffffff;
+    const tint = (m: Material, name: string) => {
+      if (name === 'Beech') (m as MeshStandardMaterial).color.setHex(woodTint);
+    };
+    this.frameNode = null;
+    if (models) {
+      this.frameNode = cloneModel(models.frame, tint);
+      add(this.frameNode);
+    } else this.buildProceduralFrame(theme, wood, rail, add);
+
 
     // Warps: 2 segments each (back beam → heddle → fell).
     const warpMat = new MeshStandardMaterial({ color: palette.warp, roughness: 0.9 });
@@ -204,17 +203,28 @@ export class LoomView {
     this.cloth.frustumCulled = false;
     this.warps.frustumCulled = false;
 
-    // Lever tracks + knobs.
-    const trackMat = new MeshStandardMaterial({ color: theme.track, roughness: 1 });
-    this.tracks = new InstancedMesh(
-      new BoxGeometry(0.008, 0.004, LEVER.travel + 0.024),
-      trackMat,
-      LEVERS,
-    );
-    this.tracks.frustumCulled = false;
-    add(this.tracks);
+    // Lever knobs (turned wood stem + painted cap). Tracks only without models.
+    this.tracks = null;
+    if (!models) {
+      const trackMat = new MeshStandardMaterial({ color: theme.track, roughness: 1 });
+      this.tracks = new InstancedMesh(new BoxGeometry(0.008, 0.004, LEVER.travel + 0.024), trackMat, LEVERS);
+      this.tracks.frustumCulled = false;
+      add(this.tracks);
+    }
     const knobGeo = new SphereGeometry(LEVER.knobRadius, 24, 16);
     for (let k = 0; k < LEVERS; k++) {
+      if (models) {
+        const knob = cloneModel(models.knob, tint);
+        const cap = materialOf(knob, 'Cap') as MeshStandardMaterial;
+        cap.color.setHex(palette.knobs[k]);
+        cap.roughness = theme.knobRoughness;
+        cap.metalness = theme.knobMetalness;
+        this.leverMats.push(cap);
+        knob.name = `Lever${k}`;
+        this.levers.push(knob);
+        add(knob);
+        continue;
+      }
       const mat = new MeshStandardMaterial({
         color: palette.knobs[k],
         roughness: theme.knobRoughness,
@@ -228,9 +238,27 @@ export class LoomView {
     }
 
     // Shuttle: a capsule lying along X.
-    this.shuttleMat = new MeshStandardMaterial({ color: palette.shuttle, roughness: 0.55 });
-    this.shuttle = new Mesh(new CapsuleGeometry(0.0085, 0.04, 8, 16), this.shuttleMat);
-    this.shuttle.rotation.z = Math.PI / 2;
+    this.pipWings = [];
+    this.pipEyes = [];
+    if (models?.pip) {
+      // Pip, the shuttle songbird (faces its direction of travel).
+      this.shuttle = cloneModel(models.pip);
+      this.shuttleMat = materialOf(this.shuttle, 'Body') as MeshStandardMaterial;
+      for (const n of ['WingL', 'WingR']) {
+        const w = this.shuttle.getObjectByName(n);
+        if (w) this.pipWings.push(w);
+      }
+      for (const n of ['EyeL', 'EyeR']) {
+        const e = this.shuttle.getObjectByName(n);
+        if (e) this.pipEyes.push(e);
+      }
+    } else {
+      this.shuttleMat = new MeshStandardMaterial({ color: palette.shuttle, roughness: 0.55 });
+      const cap = new Mesh(new CapsuleGeometry(0.0085, 0.04, 8, 16), this.shuttleMat);
+      cap.rotation.z = Math.PI / 2;
+      this.shuttle = new Group();
+      this.shuttle.add(cap);
+    }
     this.shuttle.name = 'Shuttle';
     add(this.shuttle);
 
@@ -245,9 +273,16 @@ export class LoomView {
     add(this.preview);
 
     // Undo bobbin: a small spool lying along X.
-    const bobGeo = new CapsuleGeometry(BOBBIN.radius, 0.014, 4, 12);
-    this.bobbin = new Mesh(bobGeo, new MeshStandardMaterial({ color: palette.weft, roughness: 0.8 }));
-    this.bobbin.rotation.z = Math.PI / 2;
+    if (models) {
+      this.bobbin = cloneModel(models.bobbin, tint);
+      const yarn = materialOf(this.bobbin, 'Wound') as MeshStandardMaterial | null;
+      yarn?.color.setHex(palette.weft);
+    } else {
+      const bobMesh = new Mesh(new CapsuleGeometry(BOBBIN.radius, 0.014, 4, 12), new MeshStandardMaterial({ color: palette.weft, roughness: 0.8 }));
+      bobMesh.rotation.z = Math.PI / 2;
+      this.bobbin = new Group();
+      this.bobbin.add(bobMesh);
+    }
     this.bobbin.name = 'Bobbin';
     add(this.bobbin);
 
@@ -269,6 +304,30 @@ export class LoomView {
     shadow.visible = this.shadowOn;
     add(shadow);
     for (let k = 0; k < LEVERS; k++) this.placeKnob(k);
+  }
+
+  /** Fallback frame when the Blender models are unavailable. */
+  private buildProceduralFrame(theme: Theme, wood: MeshStandardMaterial, rail: MeshStandardMaterial, add: (...o: Object3D[]) => void): void {
+    const w = LOOM.frameHalfWidth * 2;
+    const len = LOOM.frontBeamZ - LOOM.backBeamZ;
+    const round = theme.beam === 'round';
+    const beamGeo = round ? new CapsuleGeometry(0.009, w, 6, 16) : new BoxGeometry(w + 0.03, 0.016, 0.016);
+    const back = new Mesh(beamGeo, wood);
+    const front = new Mesh(beamGeo, wood);
+    if (round) back.rotation.z = front.rotation.z = Math.PI / 2;
+    back.position.set(0, LOOM.beamY, LOOM.backBeamZ);
+    front.position.set(0, LOOM.beamY - 0.004, LOOM.frontBeamZ);
+    const railGeo = round ? new CapsuleGeometry(0.007, len, 6, 12) : new BoxGeometry(0.012, 0.012, len + 0.02);
+    const railL = new Mesh(railGeo, rail);
+    if (round) railL.rotation.x = Math.PI / 2;
+    railL.position.set(-LOOM.frameHalfWidth - 0.012, 0.007, (LOOM.frontBeamZ + LOOM.backBeamZ) / 2);
+    const railR = railL.clone();
+    railR.position.x = -railL.position.x;
+    const heddleGeo = round ? new CapsuleGeometry(0.0025, w, 4, 8) : new BoxGeometry(w, 0.004, 0.004);
+    const heddle = new Mesh(heddleGeo, rail);
+    if (round) heddle.rotation.z = Math.PI / 2;
+    heddle.position.set(0, LOOM.liftedY + 0.006, LOOM.heddleZ);
+    add(back, front, railL, railR, heddle);
   }
 
   setSide(side: 1 | -1): void {
@@ -296,10 +355,29 @@ export class LoomView {
       const on = k < this.activeLevers;
       _p.set(leverX(k, this.side), 0.002, zc);
       _m.compose(_p, _q.identity(), _s.setScalar(on ? 1 : 0));
-      this.tracks.setMatrixAt(k, _m);
+      this.tracks?.setMatrixAt(k, _m);
       this.levers[k].visible = on;
     }
-    this.tracks.instanceMatrix.needsUpdate = true;
+    if (this.tracks) this.tracks.instanceMatrix.needsUpdate = true;
+    this.mirrorFrame();
+  }
+
+  /**
+   * The model's lever block sits on the right; the card stand on the left.
+   * Mirror both to match the player's lever side.
+   */
+  private mirrorFrame(): void {
+    const f = this.frameNode;
+    if (!f) return;
+    for (const child of f.children) {
+      const n = child.name;
+      const toBank = n.startsWith('LeverBlock') || n.startsWith('SlotFloor');
+      const toCard = n.startsWith('CardStand') || n.startsWith('CardSlot');
+      if (!toBank && !toCard) continue;
+      const sgn = toBank ? this.side : -this.side;
+      child.position.x = Math.abs(child.position.x) * sgn;
+      child.scale.x = Math.abs(child.scale.x) * sgn;
+    }
   }
 
   setBobbinT(t: number): void {
@@ -313,8 +391,11 @@ export class LoomView {
   }
 
   setBobbinHighlight(level: 0 | 1 | 2): void {
-    const m = this.bobbin.material as MeshStandardMaterial;
-    m.emissive.copy(m.color).multiplyScalar(level === 2 ? 0.45 : level === 1 ? 0.22 : 0);
+    const k = level === 2 ? 0.45 : level === 1 ? 0.22 : 0;
+    this.bobbin.traverse((n) => {
+      const m = (n as Mesh).material as MeshStandardMaterial | undefined;
+      if (m?.emissive) m.emissive.copy(m.color).multiplyScalar(k);
+    });
   }
 
   /** Redraw the card, then stand it at the back corner opposite the bank. */
@@ -322,7 +403,8 @@ export class LoomView {
     const m = this.card.mesh;
     const tilt = (CARD.tiltDeg * Math.PI) / 180;
     const h = this.card.heightM;
-    m.position.set(-this.side * CARD.x, 0.004 + (h / 2) * Math.cos(tilt), CARD.z - (h / 2) * Math.sin(tilt));
+    // Stands in the slot of the card stand (top of the stand ≈ 8 mm).
+    m.position.set(-this.side * CARD.x, 0.009 + (h / 2) * Math.cos(tilt), CARD.z - (h / 2) * Math.sin(tilt));
     m.rotation.set(-tilt, 0, 0);
   }
 
@@ -364,7 +446,27 @@ export class LoomView {
   }
 
   private placeKnob(k: number): void {
-    this.levers[k]?.position.set(leverX(k, this.side), LEVER.knobY, LEVER.restZ - LEVER.travel * this.leverX[k]);
+    // Model knobs include their stem (origin on the block); the fallback
+    // sphere is centred at knob height.
+    const y = this.tracks ? LEVER.knobY : 0;
+    this.levers[k]?.position.set(leverX(k, this.side), y, LEVER.restZ - LEVER.travel * this.leverX[k]);
+  }
+
+  /** Pip faces where it's flying, flaps while moving, and blinks now and then. */
+  private animatePip(dt: number): void {
+    const speed = Math.abs(this.shuttleVel);
+    if (speed > 0.05) this.pipFacing = this.shuttleVel > 0 ? 1 : -1;
+    const want = this.pipFacing > 0 ? 0 : Math.PI;
+    this.shuttle.rotation.y += (want - this.shuttle.rotation.y) * Math.min(1, dt * 10);
+    const flap = Math.min(1, speed * 1.5);
+    for (let i = 0; i < this.pipWings.length; i++) {
+      const w = this.pipWings[i];
+      w.rotation.x = (i === 0 ? 1 : -1) * Math.sin(this.clock * 32) * 0.55 * flap;
+    }
+    this.blinkIn -= dt;
+    const closed = this.blinkIn < 0 && this.blinkIn > -0.12;
+    for (const e of this.pipEyes) e.scale.y = closed ? 0.15 : 1;
+    if (this.blinkIn <= -0.12) this.blinkIn = 2.5 + Math.random() * 3;
   }
 
   /** Visual twin for one plucked warp: it twangs. */
@@ -463,10 +565,12 @@ export class LoomView {
     if (this.squash > 0) {
       this.squash = Math.max(0, this.squash - dt * 3.2);
       const s = Math.sin((1 - this.squash) * Math.PI * 3) * this.squash;
-      this.shuttle.scale.set(1 + 0.18 * s, 1 - 0.28 * s, 1 + 0.18 * s);
-    } else if (this.shuttle.scale.y !== 1) {
+      // Squash along the body (Pip's length is X), bulge across it.
+      this.shuttle.scale.set(1 - 0.28 * s, 1 + 0.18 * s, 1 + 0.18 * s);
+    } else if (this.shuttle.scale.x !== 1) {
       this.shuttle.scale.set(1, 1, 1);
     }
+    this.animatePip(dt);
     // Twang decay.
     for (let i = 0; i < WARPS; i++) {
       if (this.twang[i] > 0) {

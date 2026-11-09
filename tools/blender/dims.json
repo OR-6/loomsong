@@ -1,0 +1,55 @@
+{
+  "LOOM": {
+    "backBeamZ": -0.085,
+    "heddleZ": -0.05,
+    "fellZ": -0.012,
+    "frontBeamZ": 0.088,
+    "beamY": 0.022,
+    "frameHalfWidth": 0.115,
+    "liftedY": 0.03,
+    "loweredY": 0.004,
+    "shedY": 0.017,
+    "rowPitch": 0.0075,
+    "visibleRows": 12
+  },
+  "LEVER": {
+    "firstX": 0.142,
+    "spacing": 0.028,
+    "restZ": 0.075,
+    "travel": 0.05,
+    "knobY": 0.024,
+    "knobRadius": 0.011,
+    "magnet": 0.3
+  },
+  "LEVERS": 4,
+  "SHUTTLE": {
+    "z": -0.031,
+    "y": 0.017,
+    "minX": -0.135,
+    "maxX": 0.135,
+    "completeAt": 0.6,
+    "autoThrowSpeed": 0.35
+  },
+  "BOBBIN": {
+    "x": 0.128,
+    "y": 0.014,
+    "z": 0.072,
+    "pull": 0.03,
+    "radius": 0.008
+  },
+  "CARD": {
+    "x": 0.165,
+    "z": -0.07,
+    "width": 0.075,
+    "cell": 0.0075,
+    "tiltDeg": 14
+  },
+  "TOKEN": {
+    "x": 0.1,
+    "y": 0.012,
+    "z": 0.112,
+    "radius": 0.011
+  },
+  "WARPS": 8,
+  "WARP_PITCH": 0.024
+}

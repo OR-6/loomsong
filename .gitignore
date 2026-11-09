@@ -45,3 +45,4 @@ pids/
 .codex/config.toml
 artifacts/
 tools/.goto-share.mjs
+__pycache__/
