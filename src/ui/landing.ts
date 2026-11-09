@@ -9,6 +9,7 @@ import { THEMES, type ThemeId } from './theme.js';
 import { clothDataUrl } from './cloth-image.js';
 import { clothFromHash, shareUrl } from '../net/share.js';
 import { loadSettings, saveSettings, type HandPref } from '../persistence/settings.js';
+import { coop, type CoopStatus } from '../net/coop.js';
 
 export function mountLanding(world: World): void {
   const el = document.createElement('div');
@@ -99,6 +100,30 @@ export function mountLanding(world: World): void {
   });
   window.addEventListener('loomsong:cloth', syncCloth);
   syncCloth();
+
+  // Co-op (hidden behind a disclosure; never in the first-run flow).
+  const status = el.querySelector<HTMLElement>('#coop-status')!;
+  const codeIn = el.querySelector<HTMLInputElement>('#coop-code')!;
+  const leaveBtn = el.querySelector<HTMLButtonElement>('#coop-leave')!;
+  el.querySelector('#coop-host')!.addEventListener('click', () => void coop.host());
+  el.querySelector('#coop-join')!.addEventListener('click', () => void coop.join(codeIn.value));
+  codeIn.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') void coop.join(codeIn.value);
+  });
+  leaveBtn.addEventListener('click', () => coop.leave());
+  const showCoop = (st: CoopStatus) => {
+    const msg: Record<CoopStatus['state'], string> = {
+      idle: '',
+      hosting: `Your code: ${st.code ?? ''}. ${st.message ?? ''}`,
+      joining: st.message ?? 'Connecting…',
+      connected: st.role === 'host' ? `Connected (${st.code}). You work the levers. Enter XR.` : `Connected (${st.code}). You throw the shuttle. Enter XR.`,
+      error: st.message ?? 'Something went wrong',
+      closed: st.message ?? 'Disconnected',
+    };
+    status.textContent = msg[st.state];
+    leaveBtn.hidden = st.state === 'idle' || st.state === 'error' || st.state === 'closed';
+  };
+  window.addEventListener('loomsong:coop', (e) => showCoop((e as CustomEvent<CoopStatus>).detail));
 
   // Accessibility settings.
   const hc = el.querySelector<HTMLButtonElement>('#hc')!;

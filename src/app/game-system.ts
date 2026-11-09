@@ -29,6 +29,8 @@ import { loadSettings, saveSettings, type Settings } from '../persistence/settin
 import { clothFromHash, clothLevel } from '../net/share.js';
 import { FrameGuard } from './frame-guard.js';
 import { occluderState } from '../input/occluders.js';
+import { coop, type CoopStatus } from '../net/coop.js';
+import { CoopGuest, CoopHost } from '../net/coop-protocol.js';
 import { loadFont } from '../ui/fonts.js';
 
 const params = new URLSearchParams(location.search);
@@ -69,6 +71,7 @@ export interface GameDebug {
   challenge: boolean;
   degrade: number;
   calibrating: string;
+  coop: string;
 }
 
 export class GameSystem extends createSystem({
@@ -107,6 +110,7 @@ export class GameSystem extends createSystem({
   private settings: Settings = loadSettings();
   private guard = new FrameGuard();
   private calibrator: Calibrator | null = null;
+  private coopLink: CoopHost | CoopGuest | null = null;
   private calSide: Side = 'right';
   /** `?degrade=n` forces a quality level (testing). */
   private forcedDegrade = Number(new URLSearchParams(location.search).get('degrade') ?? NaN);
@@ -161,6 +165,9 @@ export class GameSystem extends createSystem({
       this.flow.refresh();
     };
     window.addEventListener('loomsong:settings', onSettings);
+    const onCoop = (e: Event) => this.onCoop((e as CustomEvent<CoopStatus>).detail);
+    window.addEventListener('loomsong:coop', onCoop);
+    this.cleanupFuncs.push(() => window.removeEventListener('loomsong:coop', onCoop));
     this.cleanupFuncs.push(() => window.removeEventListener('loomsong:settings', onSettings));
 
     this.loomEntity = this.world.createTransformEntity(this.view.root);
@@ -175,7 +182,7 @@ export class GameSystem extends createSystem({
 
     this.model.on((e) => {
       if (e.type === 'lever') this.view.setShed(e.shed);
-      if (e.type === 'row' || e.type === 'undo') this.view.setRows(this.model.rows);
+      if (e.type === 'row' || e.type === 'undo' || e.type === 'sync') this.view.setRows(this.model.rows);
     });
 
     this.flow = new LevelFlow(this.model, levelAt, this.progress, {
@@ -257,6 +264,7 @@ export class GameSystem extends createSystem({
       challenge: false,
       degrade: 0,
       calibrating: '',
+      coop: 'solo',
     };
     applyCalibration(this.settings.calibration);
     const shared = clothFromHash(location.hash);
@@ -266,6 +274,7 @@ export class GameSystem extends createSystem({
     (window as unknown as { __loom: unknown }).__loom = {
       debug: this.debug,
       game: this,
+      coop,
       hands,
       /** World positions of interactables, for E2E scripts. */
       targets: () => this.targets(),
@@ -350,6 +359,28 @@ export class GameSystem extends createSystem({
     this.showNotice('New style unlocked', 6);
     void loadFont('Fraunces', 4000); // warm the cache before the first switch
     window.dispatchEvent(new CustomEvent('loomsong:unlocked'));
+  }
+
+  /** Co-op connected / left: switch roles and the authority model. */
+  private onCoop(st: CoopStatus): void {
+    const side = { model: this.model, controller: this.controller, flow: this.flow };
+    if (st.state === 'connected' && coop.transport && !this.coopLink) {
+      this.coopLink = st.role === 'host' ? new CoopHost(side, coop.transport) : new CoopGuest(side, coop.transport);
+      this.debug.coop = st.role ?? 'solo';
+      if (this.placement.phase === 'placed') {
+        this.showNotice(st.role === 'host' ? 'You work the levers' : 'You throw the shuttle', 6, 'centre');
+      }
+    } else if ((st.state === 'closed' || st.state === 'idle') && this.coopLink) {
+      const wasGuest = this.coopLink instanceof CoopGuest;
+      this.coopLink = null;
+      this.controller.allow = { levers: true, shuttle: true };
+      this.controller.mirror = false;
+      this.controller.hooks.request = undefined;
+      this.flow.mirror = false;
+      if (wasGuest) this.flow.start(); // back to your own progress
+      this.debug.coop = 'solo';
+      if (this.placement.phase === 'placed') this.showNotice('Back to solo', 4, 'centre');
+    }
   }
 
   /** "Fit to my hands": pinch ×3, then hold still 2 s (≤ 20 s total). */
@@ -471,6 +502,7 @@ export class GameSystem extends createSystem({
     this.controller.radiusMul = calibration.radiusMul;
     this.controller.update(this.handInputs, dt);
     this.flow.update(dt);
+    this.coopLink?.tick(dt);
     this.time += dt;
     this.syncView(dt);
     this.debug.flow = this.flow.phase;
@@ -615,7 +647,8 @@ export class GameSystem extends createSystem({
     const fallback = this.placement.source === 'default';
     this.controller.nudgeEnabled = fallback;
     this.view.nudges.visible = fallback;
-    if (this.settings.calibrateNext) this.startCalibration(hand);
+    if (this.coopLink) this.showNotice(this.coopLink instanceof CoopHost ? 'You work the levers' : 'You throw the shuttle', 6, 'centre');
+    else if (this.settings.calibrateNext) this.startCalibration(hand);
     else if (fallback) this.showNotice('Nudge to your desk', 7, 'nudge');
     else if (this.flow.challenge) this.showNotice('Weave this cloth', 6);
     audio.bloom();

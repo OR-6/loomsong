@@ -41,6 +41,8 @@ export interface ControllerHooks {
   grab?(target: Exclude<Target, null>): void;
   pass?(row: number): void;
   undo?(): void;
+  /** Co-op guest: ask the host to act. */
+  request?(what: 'throw' | 'undo'): void;
   /** Style token pressed (poke or pinch). */
   token?(): void;
   /** Desk-height nudge pressed. */
@@ -76,6 +78,13 @@ export class LoomController {
   tokenEnabled = false;
   /** Nudge arrows present (default placement)? */
   nudgeEnabled = false;
+  /** Co-op role gating: which controls this player may touch. */
+  allow = { levers: true, shuttle: true };
+  /**
+   * Co-op guest: the host is authoritative. Local shuttle drags are a
+   * preview only (no commits); undo/throw become requests to the host.
+   */
+  mirror = false;
   private pokeArmed: Record<Side, boolean> = { left: true, right: true };
   private prevShuttleX: number = SHUTTLE.minX;
 
@@ -122,7 +131,7 @@ export class LoomController {
     // Settling (levers to detents; shuttle throw/return).
     for (const l of this.levers) l.settle(dt, LEVER_SETTLE);
     this.bobbin.settle(dt, LEVER_SETTLE);
-    if (!this.shuttle.held && this.shuttle.t !== this.shuttle.target) {
+    if (!this.mirror && !this.shuttle.held && this.shuttle.t !== this.shuttle.target) {
       const range = SHUTTLE.maxX - SHUTTLE.minX;
       const toFar = this.shuttle.target !== this.model.shuttleSide;
       const speed = (toFar ? SHUTTLE.autoThrowSpeed : SHUTTLE_RETURN) / range;
@@ -205,6 +214,7 @@ export class LoomController {
   /** Auto-throw the shuttle across (poke mode / accessibility). */
   throwShuttle(): void {
     if (this.shuttle.held) return;
+    if (this.mirror) this.hooks.request?.('throw');
     this.autoThrow = true;
     this.shuttle.target = this.model.shuttleSide === 0 ? 1 : 0;
   }
@@ -218,11 +228,41 @@ export class LoomController {
 
   /** Unpick the last row (always available, never penalised). */
   doUndo(): void {
+    if (this.mirror) {
+      this.hooks.request?.('undo');
+      return;
+    }
     if (this.shuttle.held || this.autoThrow) return;
     if (this.model.undo() === undefined) return;
     this.shuttle.setImmediate(this.model.shuttleSide);
     this.prevShuttleX = this.shuttleX();
     this.hooks.undo?.();
+  }
+
+  /** Co-op: apply a lever state decided elsewhere (slider springs there). */
+  applyLatched(k: number, v: boolean): void {
+    if (this.model.latched[k] === v) return;
+    this.levers[k].target = v ? 1 : 0;
+    this.setLatched(k, v);
+  }
+
+  /**
+   * Co-op host: the guest's hand drives the shuttle. `t` is the guest's
+   * slider position; `held` whether their pinch is closed.
+   */
+  remoteShuttle(t: number, held: boolean): void {
+    const s = this.shuttle;
+    if (held) {
+      if (!s.held) {
+        s.held = true;
+        s.startT = s.t;
+      }
+      s.t = Math.min(1, Math.max(0, t));
+      this.checkPassWhileHeld();
+    } else if (s.held) {
+      s.t = Math.min(1, Math.max(0, t));
+      s.release();
+    }
   }
 
   private setLatched(k: number, v: boolean): void {
@@ -245,6 +285,7 @@ export class LoomController {
   }
 
   private commit(): void {
+    if (this.mirror) return; // the host commits; we follow its snapshots
     const before = this.model.rows.length;
     this.model.commitRow();
     this.shuttle.target = this.model.shuttleSide;
@@ -309,7 +350,7 @@ export class LoomController {
   nearest(p: Vec3Like, r: number): Target {
     let best: Target = null;
     let bestD = r;
-    for (let k = 0; k < this.activeLevers; k++) {
+    for (let k = 0; k < (this.allow.levers ? this.activeLevers : 0); k++) {
       const c = this.leverPos(k, this.tmp);
       const d = Math.hypot(p.x - c.x, p.y - c.y, p.z - c.z);
       if (d < bestD) {
@@ -321,7 +362,7 @@ export class LoomController {
     const sx = this.shuttleX();
     const half = 0.026;
     const cx = Math.min(sx + half, Math.max(sx - half, p.x));
-    const d = Math.hypot(p.x - cx, p.y - SHUTTLE.y, p.z - SHUTTLE.z);
+    const d = this.allow.shuttle ? Math.hypot(p.x - cx, p.y - SHUTTLE.y, p.z - SHUTTLE.z) : Infinity;
     if (d < bestD) {
       bestD = d;
       best = { kind: 'shuttle' };

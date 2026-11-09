@@ -43,6 +43,8 @@ export class LevelFlow {
   hintStep: HintStep = 'none';
   /** Playing a shared cloth ("weave this"): progress is not advanced. */
   challenge = false;
+  /** Co-op guest: the host decides wins and level changes. */
+  mirror = false;
   private timer = 0;
   private playRow = 0;
   private hintTimer = 0;
@@ -111,7 +113,10 @@ export class LevelFlow {
       }
       return;
     }
-    if (this.phase === 'between') this.start(this.challenge ? this.progress.level : this.index + 1);
+    if (this.phase === 'between') {
+      if (this.mirror) return; // wait for the host's next level
+      this.start(this.challenge ? this.progress.level : this.index + 1);
+    }
   }
 
   /** Rows alternate direction, like the shuttle did. */
@@ -126,8 +131,30 @@ export class LevelFlow {
     }
   }
 
+  /** Co-op guest: load the host's level without touching saved progress. */
+  mirrorStart(index: number): void {
+    this.challenge = false;
+    this.index = Math.max(0, Math.floor(index));
+    this.load(this.levelAt(this.index));
+    this.setHint('none');
+  }
+
+  /** Co-op guest: the host won; play the same win + melody locally. */
+  mirrorWin(stars: number): void {
+    if (this.phase !== 'play') return;
+    this.phase = 'won';
+    this.timer = TIMING.winPause;
+    this.lastStars = stars;
+    this.emitStatus();
+    this.hooks.win(stars);
+  }
+
   private onModel(e: LoomEvent): void {
     if (!this.level) return;
+    if (this.mirror) {
+      if (e.type === 'sync' || e.type === 'lever') this.emitStatus();
+      return;
+    }
     if (e.type === 'lever' && this.hintStep === 'lever' && e.latched) this.setHint('shuttle');
     if (e.type === 'row' && this.hintStep === 'shuttle') {
       this.setHint('card');

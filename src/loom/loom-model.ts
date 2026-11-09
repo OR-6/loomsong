@@ -44,6 +44,16 @@ export class LoomModel {
     return row;
   }
 
+  /** Co-op: replace rows and shuttle side from the host's snapshot. */
+  syncRows(rows: readonly Mask8[], side: 0 | 1): void {
+    const same = rows.length === this.rows.length && rows.every((r, i) => r === this.rows[i]);
+    this.shuttleSide = side;
+    if (same) return;
+    this.rows.length = 0;
+    this.rows.push(...rows);
+    this.emit({ type: 'sync' });
+  }
+
   undo(): Mask8 | undefined {
     const row = this.rows.pop();
     if (row !== undefined) {
@@ -66,4 +76,5 @@ export class LoomModel {
 export type LoomEvent =
   | { type: 'lever'; lever: number; latched: boolean; shed: Mask8 }
   | { type: 'row'; row: Mask8; index: number }
-  | { type: 'undo'; row: Mask8; index: number };
+  | { type: 'undo'; row: Mask8; index: number }
+  | { type: 'sync' };

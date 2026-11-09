@@ -140,3 +140,9 @@ None of a–e blocks the design. No fallback from §9 is needed at this stage.
 - **External hosts in the build** are library strings only: schema IDs, an unused avatar default, an unused Draco decoder path, and the WebXR input-profiles CDN for **controllers**. `npm run check:rules` pins this list.
 - **Glasses FoV, visually confirmed:** with `dev.emulator.device = "metaVRGlasses"`, a seated head pitched about 45° down at the placed loom keeps the loom, the target card, the lever bank and the nameplate inside the visibility mask with margin (`docs/storyboard/contact-sheet.png`, last tile). This matches §h.
 - **Storyboard capture:** `node tools/storyboard.mjs` (with `dev up ... --screenshot-width 1280 --screenshot-height 720`) re-shoots every video beat. `xr set-device-state {fov: 55}` acts as a capture lens; reset it afterwards.
+
+## Co-op (M4, beta)
+
+- **Transport:** `peerjs` 1.5.5 (MIT), dynamically imported by `src/net/coop.ts` only, so it lands in its own 24 kB gzip chunk. The peer id is `loomsong-v1-<CODE>` (4 letters from `CDFHJKMNPRTVWXY`), with JSON serialisation and a reliable data channel.
+- **Authority:** the host (Warden) owns the model and flow and sends 20 Hz snapshots (level, latched bitmask, rows, shuttle side and t, phase, stars). The guest (Shuttler) runs in mirror mode: its local shuttle drag is a preview with no commits, it streams the hand `t` at 30 Hz, and it sends throw/undo as requests. All received messages are schema-validated (`validSnapshot`, `validGuestMsg`).
+- **Evidence:** `tests/coop.test.ts` (in-memory JSON pipe). `tools/e2e-coop.mjs` runs two tabs in the managed emulator browser over the real PeerJS broker: code, join, mirrored level and levers, guest drag → host row → mirrored back, throw and undo requests, and "partner left" back to solo. All 12 checks pass. Two-headset play is unverified.

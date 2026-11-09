@@ -42,7 +42,13 @@ const AUDIO = ['.mp3', '.wav', '.ogg', '.m4a', '.flac', '.aac', '.opus', '.webm'
 const audio = [...walk('public'), ...walk('dist')].filter((f) => AUDIO.includes(extname(f).toLowerCase()));
 audio.length ? audio.forEach((f) => fail('audio file: ' + f)) : pass('no audio files (all sound synthesised)');
 
-// 3. network
+// 3. network — the only exception is opt-in co-op: PeerJS may be imported
+// only by src/net/coop.ts, and only lazily (dynamic import).
+const peerImports = Object.entries(code).filter(([, s]) => /from\s+['"]peerjs['"]|import\(\s*['"]peerjs['"]\s*\)/.test(s));
+const badPeer = peerImports.filter(([f, s]) => f !== 'src/net/coop.ts' || /from\s+['"]peerjs['"]/.test(s));
+badPeer.length
+  ? badPeer.forEach(([f]) => fail('peerjs must be lazily imported only in src/net/coop.ts: ' + f))
+  : pass('network only via opt-in co-op (peerjs lazily imported in src/net/coop.ts)');
 const NET = /\b(fetch|XMLHttpRequest|WebSocket|EventSource|sendBeacon|RTCPeerConnection)\b\s*\(|new\s+(WebSocket|EventSource|XMLHttpRequest|RTCPeerConnection)\b|https?:\/\/(?!localhost|127\.0\.0\.1)[a-z0-9.-]+/gi;
 const netHits = [];
 for (const [f, s] of Object.entries(code)) for (const m of s.matchAll(NET)) netHits.push(`${f}: ${m[0]}`);

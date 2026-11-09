@@ -53,6 +53,7 @@ That means real contact, no mid-air reaching, no arm fatigue, and none of the de
 - **Sound.** Everything is synthesised with Web Audio: plucked threads on a pentatonic scale that changes per level, lever clicks, the beat thud and a completion arpeggio. Every sound has a visual twin: warps twang, the cloth glows and the stars light up.
 - **Sharing.** A finished cloth becomes a `#w=` link. Opening it starts a "weave this" challenge.
 - **Styles.** "Toy loom" is the default; "Workshop" unlocks after levels 1–3.
+- **Play together (beta).** Two people at two desks share one loom. The host works the levers and the guest throws the shuttle; both see and hear the same cloth. Open "Play together" on the 2D page: one player hosts and reads out a 4-letter code, the other joins with it, and both enter XR. Co-op is never part of the first-run flow.
 
 ## Accessibility
 
@@ -64,6 +65,12 @@ That means real contact, no mid-air reaching, no arm fatigue, and none of the de
 
 **Honest caveat:** these features have **not** been validated with disabled players. Calibration's tremor handling is unit-tested with synthetic jitter only, because the emulator's hand is perfectly steady. Feedback is very welcome.
 
+## Privacy
+
+There are no accounts, no analytics and no voice. Progress and settings stay in your browser's local storage.
+
+Co-op is the only feature that uses the network, and only after you open it. It connects the two players directly over WebRTC, using PeerJS's public signalling server (`0.peerjs.com`), a public STUN server and PeerJS's TURN relay if a direct link fails. As with any peer-to-peer connection, each player's IP address is visible to the other player and to those servers. Only game state is sent: lever states, shuttle position and rows.
+
 ## Run and build
 
 ```bash
@@ -73,6 +80,7 @@ npm test             # unit tests (vitest)
 npm run check:reach  # R2 reach check
 npm run check:rules  # brands, audio files, network, monetisation, tagline
 npm run test:e2e     # emulator E2E (needs: npx @iwsdk/cli dev up --ai-mode agent --headless --allow-browser-automation)
+npm run test:e2e:coop  # two-tab co-op E2E over the real PeerJS broker (needs internet)
 npm run build        # static build in dist/
 ```
 
@@ -97,6 +105,7 @@ Docs: `docs/IWSDK-NOTES.md` (platform findings, with evidence) and `docs/ART-DIR
 | `elics`, `@preact/signals-core`, `zod`, `three-mesh-bvh`, `yoga-layout` | Pulled in by IWSDK | MIT |
 | `@pmndrs/uikit`, `uikit-horizon`, `uikit-lucide`, `handle` | Pulled in by IWSDK's UI layer (Loomsong renders no UIKit panels and ships only 2 icons) | MIT |
 | `@drawcall/uikitml` | Pulled in by IWSDK's UI layer | **No licence declared in its package**; it ships as part of Meta's IWSDK distribution |
+| `peerjs` 1.5.5 | Opt-in co-op (WebRTC), loaded on demand only | MIT |
 | Lilita One (Juan Montoreano) | Toy-style display font | SIL OFL 1.1 (`public/fonts/LilitaOne-OFL.txt`) |
 | Fraunces 72pt Soft SemiBold (The Fraunces Project Authors) | Workshop-style font, loaded on demand | SIL OFL 1.1 (`public/fonts/Fraunces-OFL.txt`) |
 
@@ -107,4 +116,5 @@ Dev only (not shipped): `@iwsdk/cli`, `@iwsdk/vite-plugin-dev`, `@iwsdk/referenc
 - **Not yet run on a headset.** Hand-tracking feel, audio latency, real frame rate, placement accuracy on real desks and persistent-anchor behaviour in Quest Browser are all unverified.
 - The headless emulator runs at about 60 fps against a 72 Hz target, so the frame guard degrades there by design. Real-device timing is unknown.
 - If controllers are connected, IWSDK may fetch controller models from `cdn.jsdelivr.net` (a library default). Hands-only play makes no external requests.
-- Bundle: about 0.95 MB gzip in total; the main chunk is 632 kB.
+- **Co-op is a beta.** It has been tested between two tabs of the emulator over the real PeerJS broker, never between two headsets. It depends on PeerJS's free public servers, which can be busy or unavailable; if they are, the 2D page says so and solo play is unaffected.
+- Bundle: about 0.95 MB gzip in total; the main chunk is 632 kB. Co-op adds a 24 kB chunk, loaded only when used.
