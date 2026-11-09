@@ -1,0 +1,297 @@
+/**
+ * Procedural loom visuals. Pure Three.js (imported via @iwsdk/core).
+ * Draw-call budget: frame (1 merged-ish group of 5), warps (1 instanced),
+ * cloth (1 instanced), levers (4 knobs + 1 instanced track), shuttle (1),
+ * shadow (1), glow (2).
+ */
+import {
+  BoxGeometry,
+  CanvasTexture,
+  CapsuleGeometry,
+  Color,
+  Group,
+  InstancedMesh,
+  Matrix4,
+  Mesh,
+  MeshBasicMaterial,
+  MeshStandardMaterial,
+  PlaneGeometry,
+  Quaternion,
+  SphereGeometry,
+  Vector3,
+  AdditiveBlending,
+} from '@iwsdk/core';
+import {
+  LEVER,
+  LEVERS,
+  LOOM,
+  SHUTTLE,
+  WARPS,
+  WARP_PITCH,
+  leverX,
+  warpX,
+} from '../config.js';
+import { isLifted, type Mask8 } from '../puzzle/tieup.js';
+
+export interface Palette {
+  warp: number;
+  weft: number;
+  wood: number;
+  brass: number;
+}
+
+export const DEFAULT_PALETTE: Palette = {
+  warp: 0xf2e6cf, // light linen
+  weft: 0x7a2e3a, // deep madder
+  wood: 0x8a5a3b,
+  brass: 0xc9a14a,
+};
+
+const _m = new Matrix4();
+const _q = new Quaternion();
+const _p = new Vector3();
+const _s = new Vector3();
+const _c = new Color();
+const UP = new Vector3(0, 1, 0);
+
+export class LoomView {
+  readonly root = new Group();
+  readonly levers: Mesh[] = [];
+  readonly shuttle: Mesh;
+  readonly glows: Record<'left' | 'right', Mesh>;
+  private warps: InstancedMesh;
+  private cloth: InstancedMesh;
+  private tracks: InstancedMesh;
+  private leverMats: MeshStandardMaterial[] = [];
+  private shuttleMat: MeshStandardMaterial;
+  private warpLift = new Float32Array(WARPS); // animated 0..1
+  private side: 1 | -1 = 1;
+  private pulse = 0;
+
+  constructor(public palette: Palette = DEFAULT_PALETTE) {
+    this.root.name = 'Loom';
+    const wood = new MeshStandardMaterial({ color: palette.wood, roughness: 0.85 });
+    const brass = new MeshStandardMaterial({
+      color: palette.brass,
+      roughness: 0.4,
+      metalness: 0.6,
+    });
+
+    // Frame: back beam, front (cloth) beam, side rails, heddle bar.
+    const w = LOOM.frameHalfWidth * 2;
+    const beamGeo = new BoxGeometry(w + 0.02, 0.014, 0.016);
+    const back = new Mesh(beamGeo, wood);
+    back.position.set(0, LOOM.beamY, LOOM.backBeamZ);
+    const front = new Mesh(beamGeo, wood);
+    front.position.set(0, LOOM.beamY - 0.006, LOOM.frontBeamZ);
+    const railGeo = new BoxGeometry(0.012, 0.01, LOOM.frontBeamZ - LOOM.backBeamZ + 0.02);
+    const railL = new Mesh(railGeo, wood);
+    railL.position.set(-LOOM.frameHalfWidth - 0.006, 0.005, (LOOM.frontBeamZ + LOOM.backBeamZ) / 2);
+    const railR = railL.clone();
+    railR.position.x = -railL.position.x;
+    const heddle = new Mesh(new BoxGeometry(w, 0.003, 0.004), brass);
+    heddle.position.set(0, LOOM.liftedY + 0.006, LOOM.heddleZ);
+    this.root.add(back, front, railL, railR, heddle);
+
+    // Warps: 2 segments each (back beam → heddle → fell).
+    const warpMat = new MeshStandardMaterial({ color: palette.warp, roughness: 0.9 });
+    this.warps = new InstancedMesh(new BoxGeometry(0.0022, 0.0022, 1), warpMat, WARPS * 2);
+    this.warps.name = 'Warps';
+    this.root.add(this.warps);
+
+    // Cloth cells.
+    const cellGeo = new BoxGeometry(WARP_PITCH * 0.92, 0.0025, LOOM.rowPitch * 0.9);
+    const clothMat = new MeshStandardMaterial({ roughness: 0.95 });
+    this.cloth = new InstancedMesh(cellGeo, clothMat, WARPS * LOOM.visibleRows);
+    this.cloth.name = 'Cloth';
+    this.cloth.count = 0;
+    this.root.add(this.cloth);
+
+    // Lever tracks + knobs.
+    const trackMat = new MeshStandardMaterial({ color: 0x3b2a20, roughness: 1 });
+    this.tracks = new InstancedMesh(
+      new BoxGeometry(0.006, 0.004, LEVER.travel + 0.02),
+      trackMat,
+      LEVERS,
+    );
+    this.root.add(this.tracks);
+    const knobGeo = new SphereGeometry(LEVER.knobRadius, 20, 14);
+    for (let k = 0; k < LEVERS; k++) {
+      const mat = brass.clone();
+      this.leverMats.push(mat);
+      const knob = new Mesh(knobGeo, mat);
+      knob.name = `Lever${k}`;
+      this.levers.push(knob);
+      this.root.add(knob);
+    }
+
+    // Shuttle: a capsule lying along X.
+    this.shuttleMat = new MeshStandardMaterial({ color: 0xd9b382, roughness: 0.6 });
+    this.shuttle = new Mesh(new CapsuleGeometry(0.0065, 0.04, 6, 14), this.shuttleMat);
+    this.shuttle.rotation.z = Math.PI / 2;
+    this.shuttle.name = 'Shuttle';
+    this.root.add(this.shuttle);
+
+    // Contact shadow decal.
+    const shadow = new Mesh(
+      new PlaneGeometry(0.42, 0.3),
+      new MeshBasicMaterial({
+        map: radialTexture(),
+        transparent: true,
+        depthWrite: false,
+        color: 0x000000,
+        opacity: 0.45,
+      }),
+    );
+    shadow.rotation.x = -Math.PI / 2;
+    shadow.position.set(0.04, 0.0005, 0);
+    shadow.renderOrder = -1;
+    this.root.add(shadow);
+
+    // Pinch glows (world-space children of the loom root's parent; set by system).
+    const glowMat = new MeshBasicMaterial({
+      color: 0xffe2a8,
+      transparent: true,
+      opacity: 0.0,
+      blending: AdditiveBlending,
+      depthWrite: false,
+    });
+    const glowGeo = new SphereGeometry(0.006, 12, 8);
+    this.glows = { left: new Mesh(glowGeo, glowMat), right: new Mesh(glowGeo, glowMat.clone()) };
+
+    this.setSide(1);
+    this.setShed(0, true);
+    this.setLeverT(0, 0);
+    this.setShuttleT(0);
+  }
+
+  setSide(side: 1 | -1): void {
+    this.side = side;
+    const zc = LEVER.restZ - LEVER.travel / 2;
+    for (let k = 0; k < LEVERS; k++) {
+      _p.set(leverX(k, side), 0.002, zc);
+      _m.compose(_p, _q.identity(), _s.set(1, 1, 1));
+      this.tracks.setMatrixAt(k, _m);
+    }
+    this.tracks.instanceMatrix.needsUpdate = true;
+  }
+
+  /** Lever k at t ∈ [0,1] (0 = rest, 1 = latched/away). */
+  setLeverT(k: number, t: number): void {
+    const knob = this.levers[k];
+    knob.position.set(leverX(k, this.side), LEVER.knobY, LEVER.restZ - LEVER.travel * t);
+  }
+
+  setLeverHighlight(k: number, level: 0 | 1 | 2, latched: boolean): void {
+    const mat = this.leverMats[k];
+    mat.emissive.setHex(latched ? 0x6b4a10 : 0x000000);
+    if (level === 1) mat.emissive.setHex(0x40361c);
+    if (level === 2) mat.emissive.setHex(0x8a6a22);
+  }
+
+  setShuttleT(t: number): void {
+    this.shuttle.position.set(
+      SHUTTLE.minX + (SHUTTLE.maxX - SHUTTLE.minX) * t,
+      SHUTTLE.y,
+      SHUTTLE.z,
+    );
+  }
+
+  setShuttleHighlight(level: 0 | 1 | 2): void {
+    this.shuttleMat.emissive.setHex(level === 2 ? 0x5a4020 : level === 1 ? 0x2a2010 : 0);
+  }
+
+  /** Set the target shed; `immediate` skips the lift animation. */
+  setShed(mask: Mask8, immediate = false): void {
+    this.targetShed = mask;
+    if (immediate) {
+      for (let i = 0; i < WARPS; i++) this.warpLift[i] = isLifted(mask, i) ? 1 : 0;
+      this.writeWarps();
+    }
+  }
+  private targetShed: Mask8 = 0;
+
+  /** Rows, oldest first; only the last `visibleRows` are drawn. */
+  setRows(rows: readonly Mask8[]): void {
+    const n = Math.min(rows.length, LOOM.visibleRows);
+    const start = rows.length - n;
+    let idx = 0;
+    for (let r = 0; r < n; r++) {
+      const row = rows[start + r];
+      // newest row sits at the fell; older rows move toward the user.
+      const z = LOOM.fellZ + (n - 1 - r) * LOOM.rowPitch + LOOM.rowPitch / 2;
+      for (let i = 0; i < WARPS; i++) {
+        _p.set(warpX(i), 0.006, z);
+        _m.compose(_p, _q.identity(), _s.set(1, 1, 1));
+        this.cloth.setMatrixAt(idx, _m);
+        // warp visible if lifted in that row, else weft visible
+        _c.setHex(isLifted(row, i) ? this.palette.warp : this.palette.weft);
+        this.cloth.setColorAt(idx, _c);
+        idx++;
+      }
+    }
+    this.cloth.count = idx;
+    this.cloth.instanceMatrix.needsUpdate = true;
+    if (this.cloth.instanceColor) this.cloth.instanceColor.needsUpdate = true;
+  }
+
+  /** Brief visual twin for every sound (deaf/HoH accessibility). */
+  pulseWarp(): void {
+    this.pulse = 1;
+  }
+
+  update(dt: number): void {
+    let dirty = false;
+    const k = Math.min(1, dt * 14);
+    for (let i = 0; i < WARPS; i++) {
+      const target = isLifted(this.targetShed, i) ? 1 : 0;
+      const d = target - this.warpLift[i];
+      if (Math.abs(d) > 1e-4) {
+        this.warpLift[i] += d * k;
+        dirty = true;
+      }
+    }
+    if (this.pulse > 0) {
+      this.pulse = Math.max(0, this.pulse - dt * 4);
+      (this.warps.material as MeshStandardMaterial).emissive.setScalar(this.pulse * 0.25);
+    }
+    if (dirty) this.writeWarps();
+  }
+
+  private writeWarps(): void {
+    const fellY = 0.006;
+    for (let i = 0; i < WARPS; i++) {
+      const x = warpX(i);
+      const hy = LOOM.loweredY + (LOOM.liftedY - LOOM.loweredY) * this.warpLift[i];
+      this.segment(i * 2, x, LOOM.beamY + 0.007, LOOM.backBeamZ, hy, LOOM.heddleZ);
+      this.segment(i * 2 + 1, x, hy, LOOM.heddleZ, fellY, LOOM.fellZ);
+    }
+    this.warps.instanceMatrix.needsUpdate = true;
+  }
+
+  /** Instance `idx` as a unit-Z box stretched from (x,y0,z0) to (x,y1,z1). */
+  private segment(idx: number, x: number, y0: number, z0: number, y1: number, z1: number) {
+    const dy = y1 - y0;
+    const dz = z1 - z0;
+    const len = Math.hypot(dy, dz);
+    _p.set(x, (y0 + y1) / 2, (z0 + z1) / 2);
+    _q.setFromAxisAngle(_s.set(1, 0, 0), -Math.atan2(dy, dz));
+    _m.compose(_p, _q, _s.set(1, 1, len));
+    this.warps.setMatrixAt(idx, _m);
+  }
+}
+
+function radialTexture(): CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d')!;
+  const grad = g.createRadialGradient(64, 64, 4, 64, 64, 64);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 128, 128);
+  const t = new CanvasTexture(c);
+  return t;
+}
+
+export { UP };
