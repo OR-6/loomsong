@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="data:," />
+    <title>Loomsong</title>
+    <style>
+      @font-face { font-family: 'Lilita One'; src: url('./fonts/LilitaOne-Regular.ttf') format('truetype'); font-display: swap; }
+      @font-face { font-family: 'Fraunces'; src: url('./fonts/Fraunces-SoftSemiBold.ttf') format('truetype'); font-display: swap; }
+      html, body { margin: 0; height: 100%; background: #1f1712; color: #fff4e0;
+        font-family: system-ui, -apple-system, sans-serif; }
+      #scene-container { position: fixed; inset: 0; }
+      #landing { position: fixed; inset: 0; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; gap: 12px; padding: 16px;
+        text-align: center; background: #2b2118; }
+      #landing h1 { font-family: 'Lilita One', system-ui, sans-serif; font-weight: 400; font-size: 64px;
+        margin: 0; color: #f2b632; letter-spacing: 0.01em; }
+      #landing p { margin: 0; font-size: 18px; max-width: 32em; }
+      #landing .small { font-size: 14px; opacity: 0.8; }
+      #enter-xr { font-family: 'Lilita One', system-ui, sans-serif; font-size: 24px; padding: 14px 36px; border-radius: 999px;
+        border: 0; background: #e2563b; color: #fff6e8; cursor: pointer; margin-top: 8px; }
+      #style-pick { display: flex; gap: 6px; margin-top: 4px; }
+      #style-pick[hidden] { display: none; }
+      #style-pick button { font: inherit; font-size: 15px; padding: 6px 16px; border-radius: 999px;
+        border: 1.5px solid #f2b632; background: transparent; color: #fff6e8; cursor: pointer; }
+      #style-pick button[data-theme='workshop'] { font-family: 'Fraunces', Georgia, serif; }
+      #style-pick button[aria-checked='true'] { background: #f2b632; color: #2b2118; }
+      #share-card { margin: 8px 0 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+      #share-card[hidden] { display: none; }
+      #cloth-img { max-width: min(220px, 60vw); border-radius: 10px; border: 2px solid #fff6e8; image-rendering: auto; }
+      #share-btn { font-family: 'Lilita One', system-ui, sans-serif; font-size: 18px; padding: 8px 22px; border-radius: 999px;
+        border: 0; background: #2a9d8f; color: #fff6e8; cursor: pointer; }
+      #share-note { display: block; font-size: 13px; opacity: 0.85; max-width: 90vw; word-break: break-all; }
+      #settings { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center;
+        margin-top: 10px; font-size: 14px; }
+      #settings button { font: inherit; padding: 6px 14px; border-radius: 999px; border: 1.5px solid #fff6e8aa;
+        background: transparent; color: #fff6e8; cursor: pointer; }
+      #settings button[aria-checked='true'], #settings button[aria-pressed='true'] { background: #fff6e8; color: #2b2118; border-color: #fff6e8; }
+      #hand-pick { display: flex; gap: 4px; align-items: center; }
+      #hand-pick .lbl { opacity: 0.8; margin-right: 4px; }
+      #enter-xr:disabled { opacity: 0.4; cursor: default; }
+    </style>
+    <script type="module" crossorigin src="./assets/index-D3LLzzW4.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/light-system-hIagsZwB.js">
+  </head>
+  <body>
+    <div id="scene-container"></div>
+  </body>
+</html>
