@@ -6,7 +6,7 @@
 import { CanvasTexture, Mesh, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace } from '@iwsdk/core';
 import { THEMES, type Theme } from './theme.js';
 
-export const PLAQUE = { width: 0.12, height: 0.034, tiltDeg: 55 } as const;
+export const PLAQUE = { width: 0.15, height: 0.034, tiltDeg: 55 } as const;
 
 export class Plaque {
   readonly mesh: Mesh;
@@ -17,7 +17,7 @@ export class Plaque {
   private stars = 0;
 
   constructor() {
-    this.canvas.width = 512;
+    this.canvas.width = 640;
     this.canvas.height = Math.round((512 * PLAQUE.height) / PLAQUE.width);
     this.tex = new CanvasTexture(this.canvas);
     this.tex.colorSpace = SRGBColorSpace;
@@ -62,7 +62,7 @@ export class Plaque {
     const right = c.width - h * 0.35;
     g.fillText(String(this.stars), right, h * 0.54);
     const w = g.measureText(String(this.stars)).width;
-    star(g, right - w - h * 0.38, h * 0.5, h * 0.28, th.palette.knobs[1]);
+    star(g, right - w - h * 0.45, h * 0.5, h * 0.3, th.palette.knobs[1]);
     this.tex.needsUpdate = true;
   }
 }

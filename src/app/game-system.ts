@@ -113,7 +113,7 @@ export class GameSystem extends createSystem({
     this.controller = new LoomController(this.model, {
       pluck: (i, speed) => {
         audio.pluck(i, speed);
-        this.view.pulseWarp();
+        this.view.pluckWarp(i);
         this.debug.plucks++;
       },
       leverClick: (_k, latched) => audio.click(latched),
@@ -192,7 +192,7 @@ export class GameSystem extends createSystem({
       },
       pluck: (i, delay) => {
         audio.pluck(i, 0.35, delay, 0.26);
-        this.view.pulseWarp();
+        setTimeout(() => this.view.pluckWarp(i), delay * 1000);
       },
       glowRow: (r) => this.view.setGlowRow(r),
       hint: (step, lever) => {
@@ -359,7 +359,9 @@ export class GameSystem extends createSystem({
     // Bloom-in animation.
     if (this.bloom < 1) {
       this.bloom = Math.min(1, this.bloom + dt / 0.6);
-      const e = 1 - Math.pow(1 - this.bloom, 3);
+      // easeOutBack: the loom unfolds with a little bounce
+      const b = this.bloom - 1;
+      const e = 1 + 2.2 * b * b * b + 1.2 * b * b;
       this.view.root.scale.setScalar(0.05 + 0.95 * e);
       this.view.root.updateMatrixWorld();
     }
@@ -578,12 +580,12 @@ export class GameSystem extends createSystem({
   private syncView(dt: number) {
     const c = this.controller;
     for (let k = 0; k < LEVERS; k++) {
-      this.view.setLeverT(k, c.levers[k].t);
+      this.view.setLeverT(k, c.levers[k].t, c.levers[k].held);
       const hov = isTarget(c.hover.left, k) || isTarget(c.hover.right, k);
       const held = isTarget(c.holding.left, k) || isTarget(c.holding.right, k);
       this.view.setLeverHighlight(k, held ? 2 : hov ? 1 : 0, this.model.latched[k]);
     }
-    this.view.setShuttleT(c.shuttle.t);
+    this.view.setShuttleT(c.shuttle.t, dt);
     const sh = (t: unknown) => (t as { kind?: string } | null)?.kind === 'shuttle';
     this.view.setShuttleHighlight(
       sh(c.holding.left) || sh(c.holding.right) ? 2 : sh(c.hover.left) || sh(c.hover.right) ? 1 : 0,

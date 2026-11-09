@@ -26,6 +26,7 @@ import {
 import { TargetCard } from '../ui/target-card.js';
 import { THEMES, type Palette, type Theme } from '../ui/theme.js';
 import { PLAQUE, Plaque } from '../ui/plaque.js';
+import { grainTexture, weaveTexture } from './textures.js';
 import {
   BOBBIN,
   CARD,
@@ -82,6 +83,17 @@ export class LoomView {
   private rowsCache: readonly Mask8[] = [];
   private glowRow = -1;
   private warpLift = new Float32Array(WARPS); // animated 0..1
+  /** Per-warp twang amplitude (pluck visual twin). */
+  private twang = new Float32Array(WARPS);
+  private clock = 0;
+  /** Lever spring state (visual only; logic lives in the controller). */
+  private leverX = new Float32Array(LEVERS);
+  private leverV = new Float32Array(LEVERS);
+  private leverTarget = new Float32Array(LEVERS);
+  private leverHeld = new Uint8Array(LEVERS);
+  private shuttleT = 0;
+  private shuttleVel = 0;
+  private squash = 0;
   private side: 1 | -1 = 1;
   private pulse = 0;
 
@@ -125,6 +137,7 @@ export class LoomView {
     this.card.setTheme(theme);
     this.plaque.setTheme(theme);
     this.layoutLevers();
+    for (let k = 0; k < LEVERS; k++) this.placeKnob(k);
     this.setBobbinT(0);
     this.setShed(this.targetShed, true);
     this.setRows(this.rowsCache);
@@ -135,8 +148,9 @@ export class LoomView {
     this.theme = theme;
     const palette = (this.palette = theme.palette);
     const add = (...o: Object3D[]) => this.body.add(...o);
-    const wood = new MeshStandardMaterial({ color: palette.wood, roughness: theme.woodRoughness });
-    const rail = new MeshStandardMaterial({ color: palette.rail, roughness: theme.woodRoughness });
+    const grain = grainTexture();
+    const wood = new MeshStandardMaterial({ color: palette.wood, roughness: theme.woodRoughness, map: grain });
+    const rail = new MeshStandardMaterial({ color: palette.rail, roughness: theme.woodRoughness, map: grain });
 
     // Frame: rounded capsules (toy) or squared timber (workshop).
     const w = LOOM.frameHalfWidth * 2;
@@ -162,17 +176,25 @@ export class LoomView {
 
     // Warps: 2 segments each (back beam → heddle → fell).
     const warpMat = new MeshStandardMaterial({ color: palette.warp, roughness: 0.9 });
-    this.warps = new InstancedMesh(new BoxGeometry(0.003, 0.003, 1), warpMat, WARPS * 2);
+    // Round yarn: a thin cylinder along Z, stretched per segment.
+    const warpGeo = new CylinderGeometry(0.0017, 0.0017, 1, 8, 1, true);
+    warpGeo.rotateX(Math.PI / 2);
+    this.warps = new InstancedMesh(warpGeo, warpMat, WARPS * 2);
     this.warps.name = 'Warps';
     add(this.warps);
 
     // Cloth cells.
-    const cellGeo = new BoxGeometry(WARP_PITCH * 0.92, 0.0025, LOOM.rowPitch * 0.9);
-    const clothMat = new MeshStandardMaterial({ roughness: 0.95 });
+    const cellGeo = new BoxGeometry(WARP_PITCH * 0.96, 0.003, LOOM.rowPitch * 0.94);
+    const clothMat = new MeshStandardMaterial({ roughness: 0.95, map: weaveTexture() });
     this.cloth = new InstancedMesh(cellGeo, clothMat, WARPS * LOOM.visibleRows);
     this.cloth.name = 'Cloth';
     this.cloth.count = 0;
     add(this.cloth);
+    // InstancedMesh caches its bounding sphere on first use; the cloth starts
+    // empty (radius -1) and would be culled forever. These parts are tiny and
+    // always in view, so skip culling for every instanced loom part.
+    this.cloth.frustumCulled = false;
+    this.warps.frustumCulled = false;
 
     // Lever tracks + knobs.
     const trackMat = new MeshStandardMaterial({ color: theme.track, roughness: 1 });
@@ -181,6 +203,7 @@ export class LoomView {
       trackMat,
       LEVERS,
     );
+    this.tracks.frustumCulled = false;
     add(this.tracks);
     const knobGeo = new SphereGeometry(LEVER.knobRadius, 24, 16);
     for (let k = 0; k < LEVERS; k++) {
@@ -206,10 +229,11 @@ export class LoomView {
     // Live preview of the next row (ghost cells at the fell).
     this.preview = new InstancedMesh(
       cellGeo,
-      new MeshStandardMaterial({ transparent: true, opacity: 0.45, roughness: 1, depthWrite: false }),
+      new MeshStandardMaterial({ transparent: true, opacity: 0.45, roughness: 1, depthWrite: false, map: weaveTexture() }),
       WARPS,
     );
     this.preview.name = 'PreviewRow';
+    this.preview.frustumCulled = false;
     add(this.preview);
 
     // Undo bobbin: a small spool lying along X.
@@ -234,7 +258,7 @@ export class LoomView {
     shadow.position.set(0.04, 0.0005, 0);
     shadow.renderOrder = -1;
     add(shadow);
-    for (let k = 0; k < LEVERS; k++) this.setLeverT(k, 0);
+    for (let k = 0; k < LEVERS; k++) this.placeKnob(k);
   }
 
   setSide(side: 1 | -1): void {
@@ -315,10 +339,27 @@ export class LoomView {
     this.setRows(this.rowsCache);
   }
 
-  /** Lever k at t ∈ [0,1] (0 = rest, 1 = latched/away). */
-  setLeverT(k: number, t: number): void {
-    const knob = this.levers[k];
-    knob.position.set(leverX(k, this.side), LEVER.knobY, LEVER.restZ - LEVER.travel * t);
+  /**
+   * Lever k at logical t ∈ [0,1] (0 = rest, 1 = latched). Held levers track
+   * the hand exactly; released ones spring there with a little overshoot.
+   */
+  setLeverT(k: number, t: number, held = false): void {
+    this.leverTarget[k] = t;
+    this.leverHeld[k] = held ? 1 : 0;
+    if (held) {
+      this.leverX[k] = t;
+      this.leverV[k] = 0;
+    }
+    this.placeKnob(k);
+  }
+
+  private placeKnob(k: number): void {
+    this.levers[k]?.position.set(leverX(k, this.side), LEVER.knobY, LEVER.restZ - LEVER.travel * this.leverX[k]);
+  }
+
+  /** Visual twin for one plucked warp: it twangs. */
+  pluckWarp(i: number): void {
+    this.twang[i] = 1;
   }
 
   setLeverHighlight(k: number, level: 0 | 1 | 2, latched: boolean): void {
@@ -327,7 +368,15 @@ export class LoomView {
     mat.emissive.copy(mat.color).multiplyScalar(e);
   }
 
-  setShuttleT(t: number): void {
+  setShuttleT(t: number, dt = 0): void {
+    if (dt > 0) {
+      const v = (t - this.shuttleT) / dt;
+      // Arriving at an end with speed: squash on impact.
+      const atEnd = (t <= 0 || t >= 1) && t !== this.shuttleT;
+      if (atEnd && Math.abs(this.shuttleVel) > 0.4) this.squash = 1;
+      this.shuttleVel = v;
+    }
+    this.shuttleT = t;
     this.shuttle.position.set(
       SHUTTLE.minX + (SHUTTLE.maxX - SHUTTLE.minX) * t,
       SHUTTLE.y,
@@ -382,6 +431,39 @@ export class LoomView {
 
   update(dt: number): void {
     let dirty = false;
+    this.clock += dt;
+    const h = Math.min(dt, 1 / 60);
+    // Lever springs: ω≈30 rad/s, ζ≈0.45 → one visible overshoot.
+    for (let k = 0; k < LEVERS; k++) {
+      if (this.leverHeld[k]) continue;
+      const x = this.leverX[k];
+      const d = this.leverTarget[k] - x;
+      if (Math.abs(d) < 1e-4 && Math.abs(this.leverV[k]) < 1e-3) {
+        if (x !== this.leverTarget[k]) {
+          this.leverX[k] = this.leverTarget[k];
+          this.placeKnob(k);
+        }
+        continue;
+      }
+      this.leverV[k] += (900 * d - 27 * this.leverV[k]) * h;
+      this.leverX[k] += this.leverV[k] * h;
+      this.placeKnob(k);
+    }
+    // Shuttle squash-and-stretch (capsule's local Y is its length).
+    if (this.squash > 0) {
+      this.squash = Math.max(0, this.squash - dt * 3.2);
+      const s = Math.sin((1 - this.squash) * Math.PI * 3) * this.squash;
+      this.shuttle.scale.set(1 + 0.18 * s, 1 - 0.28 * s, 1 + 0.18 * s);
+    } else if (this.shuttle.scale.y !== 1) {
+      this.shuttle.scale.set(1, 1, 1);
+    }
+    // Twang decay.
+    for (let i = 0; i < WARPS; i++) {
+      if (this.twang[i] > 0) {
+        this.twang[i] = Math.max(0, this.twang[i] - dt * 2.2);
+        dirty = true;
+      }
+    }
     const k = Math.min(1, dt * 14);
     for (let i = 0; i < WARPS; i++) {
       const target = isLifted(this.targetShed, i) ? 1 : 0;
@@ -401,7 +483,8 @@ export class LoomView {
   private writeWarps(): void {
     const fellY = 0.006;
     for (let i = 0; i < WARPS; i++) {
-      const x = warpX(i);
+      const a = this.twang[i];
+      const x = warpX(i) + (a > 0 ? Math.sin(this.clock * 85 + i) * 0.0014 * a * a : 0);
       const hy = LOOM.loweredY + (LOOM.liftedY - LOOM.loweredY) * this.warpLift[i];
       this.segment(i * 2, x, LOOM.beamY + 0.007, LOOM.backBeamZ, hy, LOOM.heddleZ);
       this.segment(i * 2 + 1, x, hy, LOOM.heddleZ, fellY, LOOM.fellZ);
@@ -467,13 +550,15 @@ function disposeTree(o: Object3D): void {
     const mat = m.material as MeshStandardMaterial | MeshStandardMaterial[] | undefined;
     if (Array.isArray(mat)) mat.forEach((x) => x.dispose());
     else if (mat) {
-      mat.map?.dispose();
+      // shared procedural textures (weave, grain) are kept
       mat.dispose();
     }
   });
 }
 
+let radialTex: CanvasTexture | null = null;
 function radialTexture(): CanvasTexture {
+  if (radialTex) return radialTex;
   const c = document.createElement('canvas');
   c.width = c.height = 128;
   const g = c.getContext('2d')!;
@@ -482,8 +567,8 @@ function radialTexture(): CanvasTexture {
   grad.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = grad;
   g.fillRect(0, 0, 128, 128);
-  const t = new CanvasTexture(c);
-  return t;
+  radialTex = new CanvasTexture(c);
+  return radialTex;
 }
 
 export { UP };
