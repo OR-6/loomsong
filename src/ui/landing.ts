@@ -40,7 +40,19 @@ export function mountLanding(world: World): void {
         <button type="button" data-hand="right" role="radio">Right</button>
       </div>
     </div>
-    <p class="small" id="xr-unsupported" hidden>Mixed reality isn't available in this browser. Open this page in your headset's browser.</p>`;
+    <p class="small" id="xr-unsupported" hidden>Mixed reality isn't available in this browser. Open this page in your headset's browser.</p>
+    <details id="coop">
+      <summary>Play together (beta)</summary>
+      <p class="small">Two desks, one loom: the host works the levers, the guest throws the shuttle.</p>
+      <div class="row">
+        <button type="button" id="coop-host">Host a loom</button>
+        <input id="coop-code" maxlength="4" placeholder="CODE" aria-label="Room code" autocomplete="off" />
+        <button type="button" id="coop-join">Join</button>
+        <button type="button" id="coop-leave" hidden>Leave</button>
+      </div>
+      <p id="coop-status" role="status"></p>
+      <p class="small">Connects you directly to the other player (WebRTC, via a public PeerJS server). No accounts, no voice.</p>
+    </details>`;
   document.body.appendChild(el);
   const btn = el.querySelector<HTMLButtonElement>('#enter-xr')!;
   btn.addEventListener('click', () => {
