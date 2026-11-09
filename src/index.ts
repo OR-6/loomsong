@@ -7,8 +7,11 @@ import projectOptions from 'virtual:iwsdk-project';
 import { GameSystem } from './app/game-system.js';
 import { HandTrackerSystem } from './input/hands.js';
 import { mountLanding } from './ui/landing.js';
+import { loadFonts } from './ui/fonts.js';
 
 const container = document.getElementById('scene-container') as HTMLDivElement;
+
+await loadFonts();
 
 World.create(container, projectOptions).then((world) => {
   world.registerSystem(HandTrackerSystem, { priority: -5 });

@@ -28,3 +28,9 @@ Dev URL params:
 - `docs/ART-DIRECTION.md`: the "toy loom" visual direction.
 
 The full README (hard requirements, libraries and licences, accessibility statement, known limits, judge instructions) will be written before submission.
+
+## Credits and licences
+
+- Display font: **Lilita One** by Juan Montoreano, SIL Open Font License 1.1. It is bundled unmodified; the licence is in `public/fonts/LilitaOne-OFL.txt`.
+- Built on Meta's Immersive Web SDK (`@iwsdk/core`, MIT) and Three.js (MIT, via `super-three`).
+- All geometry, textures and audio are generated in code. There are no image or audio files.

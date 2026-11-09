@@ -9,6 +9,7 @@
 import { CanvasTexture, Mesh, MeshBasicMaterial, PlaneGeometry, SRGBColorSpace } from '@iwsdk/core';
 import { CARD, WARPS } from '../config.js';
 import type { Palette } from '../loom/loom-view.js';
+import { DISPLAY_FONT } from './fonts.js';
 import type { RowStatus } from '../puzzle/session.js';
 import { isLifted, type Mask8 } from '../puzzle/tieup.js';
 
@@ -66,11 +67,11 @@ export class TargetCard {
     g.clearRect(0, 0, c.width, c.height);
 
     // Card body (linen paper).
-    g.fillStyle = highContrast ? '#ffffff' : '#f4ead8';
+    g.fillStyle = highContrast ? '#ffffff' : '#fff6e8'; // cream paper
     roundRect(g, 0, 0, c.width, c.height, px(0.006));
     g.fill();
     g.lineWidth = px(highContrast ? 0.0015 : 0.0008);
-    g.strokeStyle = '#3b2a20';
+    g.strokeStyle = '#2b2118';
     g.stroke();
 
     // Title or stars.
@@ -82,7 +83,7 @@ export class TargetCard {
         drawStar(g, c.width / 2 + (i - 1) * px(0.014), px(pad + titleH / 2), px(0.0055), i < stars);
       }
     } else {
-      g.font = `700 ${Math.round(px(0.0085))}px system-ui, sans-serif`;
+      g.font = `400 ${Math.round(px(0.0095))}px ${DISPLAY_FONT}`;
       g.fillText(title, c.width / 2, px(pad + titleH / 2));
     }
 

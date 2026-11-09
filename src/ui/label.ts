@@ -3,6 +3,7 @@
  * cap height ≥ 1.5 cm at the chosen world height.
  */
 import { CanvasTexture, Mesh, MeshBasicMaterial, PlaneGeometry } from '@iwsdk/core';
+import { DISPLAY_FONT } from './fonts.js';
 
 export class Label {
   readonly mesh: Mesh;
@@ -30,11 +31,11 @@ export class Label {
     const { ctx, canvas } = this;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const h = canvas.height;
-    ctx.fillStyle = 'rgba(30,22,16,0.72)';
+    ctx.fillStyle = 'rgba(43,33,24,0.82)'; // ink
     roundRect(ctx, 0, 0, canvas.width, h, h * 0.3);
     ctx.fill();
     ctx.fillStyle = '#fff4e0';
-    ctx.font = `600 ${Math.round(h * 0.62)}px system-ui, -apple-system, sans-serif`;
+    ctx.font = `400 ${Math.round(h * 0.66)}px ${DISPLAY_FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(text, canvas.width / 2, h * 0.54);
