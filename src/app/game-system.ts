@@ -28,6 +28,7 @@ import { THEMES, highContrast, otherTheme, type Theme, type ThemeId } from '../u
 import { loadSettings, saveSettings, type Settings } from '../persistence/settings.js';
 import { clothFromHash, clothLevel } from '../net/share.js';
 import { FrameGuard } from './frame-guard.js';
+import { occluderState } from '../input/occluders.js';
 import { loadFont } from '../ui/fonts.js';
 
 const params = new URLSearchParams(location.search);
@@ -312,6 +313,7 @@ export class GameSystem extends createSystem({
     this.debug.degrade = lvl;
     audio.setReverb(lvl < 1);
     this.view.setShadow(lvl < 1);
+    occluderState.enabled = lvl < 2; // spec §6: drop occluders under load
     try {
       this.renderer.xr.setFoveation(lvl >= 2 ? 1 : 0.5);
     } catch {
