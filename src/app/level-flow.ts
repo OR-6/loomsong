@@ -41,6 +41,8 @@ export class LevelFlow {
   level!: Level;
   lastStars = 0;
   hintStep: HintStep = 'none';
+  /** Playing a shared cloth ("weave this"): progress is not advanced. */
+  challenge = false;
   private timer = 0;
   private playRow = 0;
   private hintTimer = 0;
@@ -55,15 +57,28 @@ export class LevelFlow {
   }
 
   start(index = this.progress.level): void {
+    this.challenge = false;
     this.index = Math.max(0, Math.floor(index));
-    this.level = this.levelAt(this.index);
+    this.load(this.levelAt(this.index));
+    this.setHint(this.index === 0 && !this.progress.tutorialDone ? 'lever' : 'none');
+  }
+
+  /** Weave someone else's cloth; afterwards resume normal progression. */
+  startChallenge(level: Level): void {
+    this.challenge = true;
+    this.index = this.progress.level;
+    this.load(level);
+    this.setHint('none');
+  }
+
+  private load(level: Level): void {
+    this.level = level;
     this.model.reset([...this.level.tieUp]);
     this.phase = 'play';
     this.lastStars = 0;
     this.hooks.load(this.level, this.index);
     this.hooks.totals?.(totalStars(this.progress), this.index);
     this.emitStatus();
-    this.setHint(this.index === 0 && !this.progress.tutorialDone ? 'lever' : 'none');
   }
 
   /** Re-emit the card status (e.g. after a settings change). */
@@ -96,7 +111,7 @@ export class LevelFlow {
       }
       return;
     }
-    if (this.phase === 'between') this.start(this.index + 1);
+    if (this.phase === 'between') this.start(this.challenge ? this.progress.level : this.index + 1);
   }
 
   /** Rows alternate direction, like the shuttle did. */
@@ -130,10 +145,17 @@ export class LevelFlow {
     this.phase = 'won';
     this.timer = TIMING.winPause;
     this.lastStars = stars(this.level.par, this.model.leverFlips);
-    const id = this.level.id;
-    this.progress.best[id] = Math.max(this.progress.best[id] ?? 0, this.lastStars);
-    this.progress.level = this.index + 1;
-    this.progress.tutorialDone = true;
+    if (!this.challenge) {
+      const id = this.level.id;
+      this.progress.best[id] = Math.max(this.progress.best[id] ?? 0, this.lastStars);
+      this.progress.level = this.index + 1;
+      this.progress.tutorialDone = true;
+    }
+    this.progress.lastCloth = {
+      tieUp: [...this.level.tieUp],
+      rows: [...this.model.rows],
+      rootMidi: this.level.rootMidi,
+    };
     this.hooks.save(this.progress);
     this.emitStatus();
     this.hooks.win(this.lastStars);

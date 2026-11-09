@@ -5,7 +5,9 @@
 import { VisibilityState, type World } from '@iwsdk/core';
 import { audio } from '../audio/synth.js';
 import { loadProgress, workshopUnlocked } from '../persistence/progress.js';
-import type { ThemeId } from './theme.js';
+import { THEMES, type ThemeId } from './theme.js';
+import { clothDataUrl } from './cloth-image.js';
+import { clothFromHash, shareUrl } from '../net/share.js';
 import { loadSettings, saveSettings, type HandPref } from '../persistence/settings.js';
 
 export function mountLanding(world: World): void {
@@ -13,13 +15,20 @@ export function mountLanding(world: World): void {
   el.id = 'landing';
   el.innerHTML = `
     <h1>Loomsong</h1>
-    <p>A tiny loom on your real desk. Hands only.</p>
+    <p id="tagline">A tiny loom on your real desk. Hands only.</p>
     <button id="enter-xr" type="button">Enter XR</button>
     <div id="style-pick" role="radiogroup" aria-label="Loom style" hidden>
       <button type="button" data-theme="toy" role="radio">Toy</button>
       <button type="button" data-theme="workshop" role="radio">Workshop</button>
     </div>
     <p class="small">Sit at a desk, controllers down, hand tracking on.</p>
+    <figure id="share-card" hidden>
+      <img id="cloth-img" alt="Your last woven cloth" />
+      <figcaption>
+        <button type="button" id="share-btn">Share this cloth</button>
+        <span id="share-note" role="status"></span>
+      </figcaption>
+    </figure>
     <div id="settings">
       <button type="button" id="hc" role="switch" aria-checked="false">High contrast</button>
       <div role="radiogroup" aria-label="Lever side" id="hand-pick">
@@ -57,6 +66,39 @@ export function mountLanding(world: World): void {
   window.addEventListener('loomsong:unlocked', sync);
   sync();
 
+  // Shared cloth arriving by link.
+  if (clothFromHash(location.hash)) {
+    el.querySelector<HTMLElement>('#tagline')!.textContent = 'Someone sent you a cloth. Weave it.';
+  }
+
+  // Share card: the last finished cloth.
+  const card = el.querySelector<HTMLElement>('#share-card')!;
+  const img = el.querySelector<HTMLImageElement>('#cloth-img')!;
+  const note = el.querySelector<HTMLElement>('#share-note')!;
+  const syncCloth = () => {
+    const p = loadProgress();
+    card.hidden = !p.lastCloth;
+    if (p.lastCloth) img.src = clothDataUrl(p.lastCloth.rows, THEMES[p.theme]);
+  };
+  el.querySelector('#share-btn')!.addEventListener('click', async () => {
+    const c = loadProgress().lastCloth;
+    if (!c) return;
+    const url = shareUrl(c);
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Loomsong', text: 'Can you weave my cloth?', url });
+        note.textContent = '';
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      note.textContent = 'Link copied';
+    } catch {
+      note.textContent = url; // last resort: show it to copy by hand
+    }
+  });
+  window.addEventListener('loomsong:cloth', syncCloth);
+  syncCloth();
+
   // Accessibility settings.
   const hc = el.querySelector<HTMLButtonElement>('#hc')!;
   const handPick = el.querySelector<HTMLElement>('#hand-pick')!;
@@ -84,6 +126,9 @@ export function mountLanding(world: World): void {
   syncSettings();
   world.visibilityState.subscribe((s) => {
     el.style.display = s === VisibilityState.NonImmersive ? '' : 'none';
-    if (s === VisibilityState.NonImmersive) sync();
+    if (s === VisibilityState.NonImmersive) {
+      sync();
+      syncCloth();
+    }
   });
 }

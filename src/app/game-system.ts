@@ -25,6 +25,7 @@ import { levelAt } from '../puzzle/catalog.js';
 import { loadProgress, saveProgress, workshopUnlocked, type Progress } from '../persistence/progress.js';
 import { THEMES, highContrast, otherTheme, type Theme, type ThemeId } from '../ui/theme.js';
 import { loadSettings, type Settings } from '../persistence/settings.js';
+import { clothFromHash, clothLevel } from '../net/share.js';
 import { loadFont } from '../ui/fonts.js';
 
 const params = new URLSearchParams(location.search);
@@ -62,6 +63,7 @@ export interface GameDebug {
   highContrast: boolean;
   bankSide: number;
   plaque: string;
+  challenge: boolean;
 }
 
 export class GameSystem extends createSystem({
@@ -189,6 +191,15 @@ export class GameSystem extends createSystem({
         this.view.pulseWarp();
         if (this.debug) this.debug.stars = stars;
         if (!this.controller.tokenEnabled && workshopUnlocked(this.progress)) this.revealWorkshop();
+        window.dispatchEvent(new CustomEvent('loomsong:cloth'));
+        // A finished challenge shouldn't restart on the next reload.
+        if (this.flow.challenge && location.hash) {
+          try {
+            history.replaceState(null, '', location.pathname + location.search);
+          } catch {
+            /* ignore */
+          }
+        }
       },
       pluck: (i, delay) => {
         audio.pluck(i, 0.35, delay, 0.26);
@@ -232,8 +243,12 @@ export class GameSystem extends createSystem({
       highContrast: this.settings.highContrast,
       bankSide: 1,
       plaque: '',
+      challenge: false,
     };
-    this.flow.start();
+    const shared = clothFromHash(location.hash);
+    if (shared) this.flow.startChallenge(clothLevel(shared));
+    else this.flow.start();
+    this.debug.challenge = this.flow.challenge;
     (window as unknown as { __loom: unknown }).__loom = {
       debug: this.debug,
       game: this,
@@ -374,6 +389,7 @@ export class GameSystem extends createSystem({
     this.time += dt;
     this.syncView(dt);
     this.debug.flow = this.flow.phase;
+    this.debug.challenge = this.flow.challenge;
     this.debug.anchored = this.loomEntity.hasComponent(XRAnchor) && this.loomEntity.getValue(XRAnchor, 'attached') === true;
     this.debug.levelIndex = this.flow.index;
   }
@@ -515,6 +531,7 @@ export class GameSystem extends createSystem({
     this.controller.nudgeEnabled = fallback;
     this.view.nudges.visible = fallback;
     if (fallback) this.showNotice('Nudge to your desk', 7, 'nudge');
+    else if (this.flow.challenge) this.showNotice('Weave this cloth', 6);
     audio.bloom();
   }
 

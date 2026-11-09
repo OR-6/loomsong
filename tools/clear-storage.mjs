@@ -1,6 +1,6 @@
 // Clears this origin's localStorage (fresh first-run state for E2E).
 export default async function run({ page, frame }) {
   return await (frame ?? page).evaluate(() => {
-    try { localStorage.clear(); return 'cleared'; } catch (e) { return String(e); }
+    try { localStorage.clear(); history.replaceState(null, '', location.pathname + location.search); return 'cleared'; } catch (e) { return String(e); }
   });
 }

@@ -7,6 +7,8 @@ export interface Progress {
   tutorialDone: boolean;
   /** Chosen visual theme (only 'workshop' once unlocked). */
   theme: 'toy' | 'workshop';
+  /** Most recently finished cloth (for the share card). */
+  lastCloth?: { tieUp: number[]; rows: number[]; rootMidi: number };
 }
 
 /** Workshop unlocks after the three authored levels are finished. */
@@ -25,9 +27,22 @@ export function loadProgress(): Progress {
     best: p.best && typeof p.best === 'object' ? p.best : {},
     tutorialDone: p.tutorialDone === true,
     theme: p.theme === 'workshop' ? 'workshop' : 'toy',
+    lastCloth: validCloth(p.lastCloth) ? p.lastCloth : undefined,
   };
 }
 
 export function saveProgress(p: Progress): void {
   save(KEY, p);
+}
+
+function validCloth(c: unknown): c is NonNullable<Progress['lastCloth']> {
+  const x = c as Progress['lastCloth'];
+  return (
+    !!x &&
+    Array.isArray(x.tieUp) &&
+    Array.isArray(x.rows) &&
+    x.rows.length > 0 &&
+    x.rows.length <= 12 &&
+    typeof x.rootMidi === 'number'
+  );
 }
