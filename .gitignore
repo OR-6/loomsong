@@ -46,3 +46,4 @@ pids/
 artifacts/
 tools/.goto-share.mjs
 __pycache__/
+assets-src/

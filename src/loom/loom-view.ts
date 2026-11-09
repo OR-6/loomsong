@@ -22,6 +22,8 @@ import {
   AdditiveBlending,
   CylinderGeometry,
   Object3D,
+  DirectionalLight,
+  ShadowMaterial,
   type Material,
 } from '@iwsdk/core';
 import { TargetCard } from '../ui/target-card.js';
@@ -118,7 +120,12 @@ export class LoomView {
     this.shadowOn = on;
     const s = this.body.getObjectByName('ContactShadow');
     if (s) s.visible = on;
+    this.key.castShadow = on;
+    this.catcher.visible = on;
   }
+  /** Warm key light (moves with the loom) and a desk shadow catcher. */
+  private key = new DirectionalLight(0xfff0dc, 1.6);
+  private catcher = new Mesh(new PlaneGeometry(0.8, 0.6), new ShadowMaterial({ opacity: 0.34, depthWrite: false }));
   private side: 1 | -1 = 1;
   private pulse = 0;
 
@@ -144,6 +151,30 @@ export class LoomView {
     });
     const glowGeo = new SphereGeometry(0.006, 12, 8);
     this.glows = { left: new Mesh(glowGeo, glowMat), right: new Mesh(glowGeo, glowMat.clone()) };
+
+    // Key light from front-left and above, soft shadow onto the real desk.
+    this.key.name = 'KeyLight';
+    this.key.position.set(-0.34, 0.36, 0.26);
+    this.key.target.position.set(0, 0, -0.02);
+    this.key.castShadow = true;
+    const sh = this.key.shadow;
+    sh.mapSize.set(1024, 1024);
+    sh.camera.left = -0.32;
+    sh.camera.right = 0.32;
+    sh.camera.top = 0.32;
+    sh.camera.bottom = -0.32;
+    sh.camera.near = 0.05;
+    sh.camera.far = 1.4;
+    sh.bias = -0.0004;
+    sh.normalBias = 0.0015;
+    sh.radius = 3;
+    this.root.add(this.key, this.key.target);
+    this.catcher.name = 'ShadowCatcher';
+    this.catcher.rotation.x = -Math.PI / 2;
+    this.catcher.position.set(0.03, 0.0003, -0.01);
+    this.catcher.receiveShadow = true;
+    this.catcher.renderOrder = -1;
+    this.root.add(this.catcher);
 
     this.build(theme);
     this.setSide(1);
@@ -263,6 +294,9 @@ export class LoomView {
       // Pip, the shuttle songbird (faces its direction of travel).
       this.shuttle = cloneModel(models.pip);
       this.shuttleMat = materialOf(this.shuttle, 'Body') as MeshStandardMaterial;
+      // Head shares the body's material so the hover glow covers all of Pip.
+      const head = this.shuttle.getObjectByName('Head') as Mesh | undefined;
+      if (head) head.material = this.shuttleMat;
       for (const n of ['WingL', 'WingR']) {
         const w = this.shuttle.getObjectByName(n);
         if (w) this.pipWings.push(w);
@@ -313,7 +347,7 @@ export class LoomView {
         transparent: true,
         depthWrite: false,
         color: 0x000000,
-        opacity: 0.45,
+        opacity: 0.3,
       }),
     );
     shadow.rotation.x = -Math.PI / 2;
@@ -323,6 +357,13 @@ export class LoomView {
     shadow.visible = this.shadowOn;
     add(shadow);
     for (let k = 0; k < LEVERS; k++) this.placeKnob(k);
+    // Everything on the loom casts; the wood also receives (self-shadow = depth).
+    this.body.traverse((o) => {
+      if (!(o as Mesh).isMesh || o.name === 'ContactShadow') return;
+      o.castShadow = true;
+      o.receiveShadow = !(o as InstancedMesh).isInstancedMesh;
+    });
+    this.card.mesh.castShadow = true;
   }
 
   /** Fallback frame when the Blender models are unavailable. */
@@ -355,7 +396,7 @@ export class LoomView {
     this.nudges.position.set(nudgeX(side), NUDGE.y, 0);
     // Plaque leans on the front beam, shifted away from the token.
     const tilt = (PLAQUE.tiltDeg * Math.PI) / 180;
-    this.plaque.mesh.position.set(-side * 0.035, 0.016, LOOM.frontBeamZ + 0.014);
+    this.plaque.mesh.position.set(-side * 0.035, 0.012, LOOM.frontBeamZ + 0.04);
     this.plaque.mesh.rotation.set(-tilt, 0, 0);
     this.layoutLevers();
     this.setBobbinT(0);
@@ -422,8 +463,8 @@ export class LoomView {
     const m = this.card.mesh;
     const tilt = (CARD.tiltDeg * Math.PI) / 180;
     const h = this.card.heightM;
-    // Stands in the slot of the card stand (top of the stand ≈ 8 mm).
-    m.position.set(-this.side * CARD.x, 0.009 + (h / 2) * Math.cos(tilt), CARD.z - (h / 2) * Math.sin(tilt));
+    // Stands on the easel ledge behind the heddle.
+    m.position.set(-this.side * CARD.x, CARD.baseY + (h / 2) * Math.cos(tilt), CARD.z - (h / 2) * Math.sin(tilt));
     m.rotation.set(-tilt, 0, 0);
   }
 

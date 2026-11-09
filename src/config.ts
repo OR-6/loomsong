@@ -87,8 +87,11 @@ export function nudgeX(side: 1 | -1): number {
 
 /** Target card: stands at the back corner opposite the lever bank. */
 export const CARD = {
-  x: 0.18,
-  z: -0.07,
+  /** Centred behind the heddle on a music-stand easel (like sheet music). */
+  x: 0,
+  z: -0.118,
+  /** Height of the easel ledge the card stands on. */
+  baseY: 0.094,
   width: 0.075,
   /** Cell pitch on the card (≥ 7 mm). */
   cell: 0.0105,

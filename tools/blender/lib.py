@@ -200,21 +200,38 @@ def mat_tex(name, img, tint=(1, 1, 1, 1), rough=0.6, clearcoat=0.0):
     mul.data_type = 'RGBA'
     mul.blend_type = 'MULTIPLY'
     mul.inputs['Factor'].default_value = 1.0
-    mul.inputs['B'].default_value = tint
+    mul.inputs['B'].default_value = (*lin(tint[:3]), 1) if not isinstance(tint, int) else (*lin(tint), 1)
     nt.links.new(tex.outputs['Color'], mul.inputs['A'])
     # glTF exports a texture × base-colour factor; keep the factor = tint.
-    nt.links.new(tex.outputs['Color'], bsdf.inputs['Base Color'])
+    nt.links.new(mul.outputs['Result'], bsdf.inputs['Base Color'])
     bsdf.inputs['Roughness'].default_value = rough
     if 'Coat Weight' in bsdf.inputs:
         bsdf.inputs['Coat Weight'].default_value = clearcoat
     return m
 
 
+def lin(c):
+    """sRGB 0..1 (or 0xRRGGBB) → linear RGB tuple. Blender colours are linear."""
+    if isinstance(c, int):
+        c = ((c >> 16 & 255) / 255, (c >> 8 & 255) / 255, (c & 255) / 255)
+    f = lambda v: v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4
+    return tuple(f(v) for v in c)
+
+
+def load_image(path, size=512):
+    """Load a texture file and downscale it for the web (exported as WEBP)."""
+    img = bpy.data.images.load(os.path.abspath(path))
+    if max(img.size) > size:
+        img.scale(size, size)
+    return img
+
+
 def mat_paint(name, rgb, rough=0.45, clearcoat=0.25):
+    """Painted toy finish. `rgb` is sRGB (tuple 0..1 or 0xRRGGBB)."""
     m = bpy.data.materials.new(name)
     m.use_nodes = True
     bsdf = m.node_tree.nodes['Principled BSDF']
-    bsdf.inputs['Base Color'].default_value = (*rgb, 1)
+    bsdf.inputs['Base Color'].default_value = (*lin(rgb), 1)
     bsdf.inputs['Roughness'].default_value = rough
     if 'Coat Weight' in bsdf.inputs:
         bsdf.inputs['Coat Weight'].default_value = clearcoat

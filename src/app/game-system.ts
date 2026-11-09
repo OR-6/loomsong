@@ -15,6 +15,7 @@ import {
   XRAnchor,
   XRPlane,
   type Entity,
+  PCFSoftShadowMap,
 } from '@iwsdk/core';
 import { BOBBIN, CARD, LEVER, LEVERS, NUDGE, PLACE, SHUTTLE, TOKEN, leverX, nudgeX, tokenX } from '../config.js';
 import { applyCalibration, hands, calibration, type Side } from '../input/hands.js';
@@ -137,6 +138,9 @@ export class GameSystem extends createSystem({
     this.progress = loadProgress();
     const unlocked = workshopUnlocked(this.progress);
     if (!unlocked) this.progress.theme = 'toy';
+    // Soft real-time shadow from the loom's key light (dropped by the frame guard).
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = PCFSoftShadowMap;
     this.view = new LoomView(this.shown());
     this.controller = new LoomController(this.model, {
       pluck: (i, speed) => {
@@ -768,7 +772,7 @@ export class GameSystem extends createSystem({
         this.view.setShuttleHighlight(pulse as 0 | 1);
       }
     } else {
-      m.position.set(-side * CARD.x, this.view.card.heightM + 0.035, CARD.z);
+      m.position.set(-side * CARD.x, CARD.baseY + this.view.card.heightM + 0.03, CARD.z);
     }
   }
 
