@@ -167,3 +167,40 @@ describe('geometry sanity', () => {
     expect(leverX(0, 1)).toBeGreaterThan(LOOM.frameHalfWidth);
   });
 });
+
+describe('undo bobbin', () => {
+  const bob = (dz = 0) => ({ x: -0.128, y: 0.014, z: 0.072 + dz });
+  it('pinch-and-pull unpicks the last row and returns', () => {
+    const m = new LoomModel([...TIE]);
+    const c = new LoomController(m);
+    c.toggleLever(0);
+    c.throwShuttle();
+    for (let i = 0; i < 144; i++) c.update({ left: idle(), right: idle() }, DT);
+    expect(m.rows.length).toBe(1);
+    expect(m.shuttleSide).toBe(1);
+    run(c, 'right', slide(bob(), bob(0.035), 0.4));
+    expect(m.rows.length).toBe(0);
+    expect(m.shuttleSide).toBe(0);
+    expect(c.bobbin.t).toBe(0);
+    expect(c.shuttle.t).toBe(0);
+  });
+  it('a short pull does nothing; a poke undoes', () => {
+    const m = new LoomModel([...TIE]);
+    const c = new LoomController(m);
+    m.commitRow();
+    run(c, 'right', slide(bob(), bob(0.01), 0.3));
+    expect(m.rows.length).toBe(1);
+    const p = bob();
+    run(c, 'right', [
+      { ...idle(), tracked: true, index: { ...p, y: p.y + 0.05 }, indexVel: { x: 0, y: -0.3, z: 0 } },
+      { ...idle(), tracked: true, index: { ...p, y: p.y + 0.004 }, indexVel: { x: 0, y: -0.3, z: 0 } },
+    ]);
+    expect(m.rows.length).toBe(0);
+  });
+  it('inactive levers cannot be grabbed (2-lever level)', () => {
+    const m = new LoomModel([0b1111, 0b11110000]);
+    const c = new LoomController(m);
+    run(c, 'right', slide(knob(3), knob(3, LEVER.restZ - 0.05), 0.4));
+    expect(m.latched[3]).toBeFalsy();
+  });
+});

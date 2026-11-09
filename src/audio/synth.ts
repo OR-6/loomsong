@@ -164,6 +164,12 @@ class Synth {
     this.noiseBurst(ctx, t, 0.04, 900, 0.12);
   }
 
+  /** Unpick (undo): a quick falling pair. */
+  unpick(): void {
+    this.pluck(5, 0.1, 0, 0.16);
+    this.pluck(2, 0.1, 0.07, 0.14);
+  }
+
   /** Loom unfolds: soft rising arpeggio. */
   bloom(): void {
     for (let i = 0; i < 4; i++) this.pluck(i * 2, 0.2, i * 0.09, 0.18);

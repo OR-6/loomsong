@@ -10,7 +10,7 @@ import {
   VisibilityState,
   XRPlane,
 } from '@iwsdk/core';
-import { LEVER, LEVERS, PLACE, SHUTTLE } from '../config.js';
+import { BOBBIN, CARD, LEVER, LEVERS, PLACE, SHUTTLE, bobbinX, leverX } from '../config.js';
 import { hands, calibration, type Side } from '../input/hands.js';
 import { LoomController, type HandInput } from '../loom/loom-controller.js';
 import { LoomModel } from '../loom/loom-model.js';
@@ -18,12 +18,19 @@ import { LoomView } from '../loom/loom-view.js';
 import { Placement, loomPose } from './placement.js';
 import { Label } from '../ui/label.js';
 import { audio } from '../audio/synth.js';
+import { LevelFlow, type HintStep } from './level-flow.js';
+import { LEVELS } from '../puzzle/catalog.js';
+import { loadProgress, saveProgress } from '../persistence/progress.js';
 
 const params = new URLSearchParams(location.search);
 const FIXED_DESK = params.get('desk');
 
-/** M0 tie-up: four straight-ish lifts covering all warps. */
-const M0_TIEUP = [0b00010001, 0b00100010, 0b01000100, 0b10001000];
+const HINT_TEXT: Record<HintStep, string> = {
+  lever: 'Slide it away',
+  shuttle: 'Slide across',
+  card: 'Match the card',
+  none: '',
+};
 
 export interface GameDebug {
   phase: string;
@@ -38,6 +45,11 @@ export interface GameDebug {
   hover: Record<Side, unknown>;
   plucks: number;
   paused: boolean;
+  level: string;
+  levelIndex: number;
+  flow: string;
+  stars: number;
+  hint: HintStep;
 }
 
 export class GameSystem extends createSystem({
@@ -63,9 +75,13 @@ export class GameSystem extends createSystem({
     right: mkInput(),
   };
   private firstHand: Side | null = null;
+  flow!: LevelFlow;
+  private tutor!: Label;
+  private hintLever = 0;
+  private time = 0;
 
   init() {
-    this.model = new LoomModel([...M0_TIEUP]);
+    this.model = new LoomModel([]);
     this.view = new LoomView();
     this.controller = new LoomController(this.model, {
       pluck: (i, speed) => {
@@ -76,8 +92,15 @@ export class GameSystem extends createSystem({
       leverClick: (_k, latched) => audio.click(latched),
       grab: () => audio.resume(),
       pass: () => audio.thud(),
+      undo: () => audio.unpick(),
     });
     this.placement = new Placement();
+
+    // In-world tutorial label (child of the loom; faces the user).
+    this.tutor = new Label(0.17, 0.036);
+    this.tutor.mesh.rotation.x = -0.35;
+    this.view.root.add(this.tutor.mesh);
+    this.tutor.set('');
 
     const loomEntity = this.world.createTransformEntity(this.view.root);
     loomEntity.object3D!.visible = false;
@@ -94,6 +117,43 @@ export class GameSystem extends createSystem({
       if (e.type === 'row' || e.type === 'undo') this.view.setRows(this.model.rows);
     });
 
+    this.flow = new LevelFlow(this.model, LEVELS, loadProgress(), {
+      load: (level) => {
+        this.controller.syncFromModel();
+        this.controller.enabled = true;
+        this.view.setActiveLevers(level.tieUp.length);
+        this.view.setShed(0, true);
+        this.view.setRows(this.model.rows);
+        this.view.setGlowRow(-1);
+        audio.setRoot(level.rootMidi);
+        if (this.debug) {
+          this.debug.level = level.id;
+          this.debug.levelIndex = this.flow?.index ?? 0;
+        }
+      },
+      status: (level, statuses, stars) => {
+        this.view.card.draw(level.name, level.target, statuses, stars);
+        this.view.placeCard();
+      },
+      win: (stars) => {
+        this.controller.enabled = false;
+        audio.arpeggio();
+        this.view.pulseWarp();
+        if (this.debug) this.debug.stars = stars;
+      },
+      pluck: (i, delay) => {
+        audio.pluck(i, 0.35, delay, 0.26);
+        this.view.pulseWarp();
+      },
+      glowRow: (r) => this.view.setGlowRow(r),
+      hint: (step, lever) => {
+        this.hintLever = lever;
+        this.tutor.set(HINT_TEXT[step]);
+        if (this.debug) this.debug.hint = step;
+      },
+      save: (p) => saveProgress(p),
+    });
+
     this.debug = {
       phase: 'waiting',
       deskY: null,
@@ -107,7 +167,13 @@ export class GameSystem extends createSystem({
       hover: this.controller.hover,
       plucks: 0,
       paused: false,
+      level: '',
+      levelIndex: 0,
+      flow: 'play',
+      stars: 0,
+      hint: 'none',
     };
+    this.flow.start();
     (window as unknown as { __loom: unknown }).__loom = {
       debug: this.debug,
       game: this,
@@ -164,7 +230,11 @@ export class GameSystem extends createSystem({
     for (const side of ['left', 'right'] as const) this.fillInput(side);
     this.controller.radiusMul = calibration.radiusMul;
     this.controller.update(this.handInputs, dt);
+    this.flow.update(dt);
+    this.time += dt;
     this.syncView(dt);
+    this.debug.flow = this.flow.phase;
+    this.debug.levelIndex = this.flow.index;
   }
 
   /** World-space positions of every interactable (E2E + check:reach). */
@@ -188,6 +258,11 @@ export class GameSystem extends createSystem({
     }
     v.set(0, 0, LEVER.restZ - LEVER.travel).applyMatrix4(this.view.root.matrixWorld);
     out.leverLatchedZRef = v.toArray();
+    this.controller.bobbinPos(p);
+    v.set(p.x, p.y, p.z).applyMatrix4(this.view.root.matrixWorld);
+    out.bobbin = v.toArray();
+    v.set(p.x, p.y, p.z + BOBBIN.pull).applyMatrix4(this.view.root.matrixWorld);
+    out.bobbinPulled = v.toArray();
     out.head = this.head.toArray();
     return out;
   }
@@ -281,6 +356,27 @@ export class GameSystem extends createSystem({
     audio.bloom();
   }
 
+  /** Position the tutorial label over its target and pulse that target. */
+  private syncHint() {
+    const step = this.flow.hintStep;
+    const m = this.tutor.mesh;
+    if (step === 'none') return;
+    const side = this.controller.bankSide;
+    const pulse = Math.sin(this.time * 6) > 0 ? 1 : 0;
+    if (step === 'lever') {
+      const k = this.hintLever;
+      m.position.set(leverX(k, side) - side * 0.03, 0.075, LEVER.restZ - LEVER.travel / 2);
+      if (!this.model.latched[k]) this.view.setLeverHighlight(k, pulse as 0 | 1, false);
+    } else if (step === 'shuttle') {
+      m.position.set(0, 0.07, SHUTTLE.z);
+      if (this.controller.hover.left === null && this.controller.hover.right === null) {
+        this.view.setShuttleHighlight(pulse as 0 | 1);
+      }
+    } else {
+      m.position.set(-side * CARD.x, this.view.card.heightM + 0.035, CARD.z);
+    }
+  }
+
   private forwardFlat(out: Vector3) {
     this.player.head.getWorldDirection(out);
     // Object3D.getWorldDirection returns +Z; the view looks down -Z.
@@ -325,6 +421,13 @@ export class GameSystem extends createSystem({
     this.view.setShuttleHighlight(
       sh(c.holding.left) || sh(c.holding.right) ? 2 : sh(c.hover.left) || sh(c.hover.right) ? 1 : 0,
     );
+    const bob = (t: unknown) => (t as { kind?: string } | null)?.kind === 'bobbin';
+    this.view.setBobbinT(c.bobbin.t);
+    this.view.setBobbinHighlight(
+      bob(c.holding.left) || bob(c.holding.right) ? 2 : bob(c.hover.left) || bob(c.hover.right) ? 1 : 0,
+    );
+    this.view.setPreview(this.model.shed, this.flow.phase === 'play');
+    this.syncHint();
     this.view.update(dt);
     this.debug.shed = this.model.shed;
     this.debug.shuttleT = Math.round(c.shuttle.t * 1000) / 1000;
@@ -332,6 +435,7 @@ export class GameSystem extends createSystem({
 }
 
 const UPV = new Vector3(0, 1, 0);
+
 
 function mkInput(): HandInput {
   return {

@@ -21,9 +21,13 @@ import {
   Vector3,
   AdditiveBlending,
 } from '@iwsdk/core';
+import { TargetCard } from '../ui/target-card.js';
 import {
+  BOBBIN,
+  CARD,
   LEVER,
   LEVERS,
+  bobbinX,
   LOOM,
   SHUTTLE,
   WARPS,
@@ -34,17 +38,28 @@ import {
 import { isLifted, type Mask8 } from '../puzzle/tieup.js';
 
 export interface Palette {
+  /** Light yarn (lifted warp shows). */
   warp: number;
+  /** Dark yarn (weft shows). */
   weft: number;
+  /** Painted beams. */
   wood: number;
-  brass: number;
+  /** Side rails and bobbin trim. */
+  rail: number;
+  /** Shuttle. */
+  shuttle: number;
+  /** One colour per lever knob. */
+  knobs: [number, number, number, number];
 }
 
+/** "Toy loom" palette (docs/ART-DIRECTION.md). */
 export const DEFAULT_PALETTE: Palette = {
-  warp: 0xf2e6cf, // light linen
-  weft: 0x7a2e3a, // deep madder
-  wood: 0x8a5a3b,
-  brass: 0xc9a14a,
+  warp: 0xfff6e8, // cream
+  weft: 0xe2563b, // tomato
+  wood: 0xf2b632, // mustard
+  rail: 0x2a9d8f, // teal
+  shuttle: 0x3d5a80, // navy
+  knobs: [0xe2563b, 0xf2b632, 0x2a9d8f, 0x3d5a80],
 };
 
 const _m = new Matrix4();
@@ -53,6 +68,7 @@ const _p = new Vector3();
 const _s = new Vector3();
 const _c = new Color();
 const UP = new Vector3(0, 1, 0);
+const _glow = new Color(0xffe2a8);
 
 export class LoomView {
   readonly root = new Group();
@@ -64,38 +80,45 @@ export class LoomView {
   private tracks: InstancedMesh;
   private leverMats: MeshStandardMaterial[] = [];
   private shuttleMat: MeshStandardMaterial;
+  readonly bobbin: Mesh;
+  readonly card: TargetCard;
+  private preview: InstancedMesh;
+  private activeLevers: number = LEVERS;
+  private rowsCache: readonly Mask8[] = [];
+  private glowRow = -1;
   private warpLift = new Float32Array(WARPS); // animated 0..1
   private side: 1 | -1 = 1;
   private pulse = 0;
 
   constructor(public palette: Palette = DEFAULT_PALETTE) {
     this.root.name = 'Loom';
-    const wood = new MeshStandardMaterial({ color: palette.wood, roughness: 0.85 });
-    const brass = new MeshStandardMaterial({
-      color: palette.brass,
-      roughness: 0.4,
-      metalness: 0.6,
-    });
+    // Matte painted wood: high roughness, no metalness (toy, not tool).
+    const wood = new MeshStandardMaterial({ color: palette.wood, roughness: 0.75 });
+    const rail = new MeshStandardMaterial({ color: palette.rail, roughness: 0.75 });
 
-    // Frame: back beam, front (cloth) beam, side rails, heddle bar.
+    // Frame: fat capsule beams, rounded rails, a slim heddle bar.
     const w = LOOM.frameHalfWidth * 2;
-    const beamGeo = new BoxGeometry(w + 0.02, 0.014, 0.016);
+    const beamGeo = new CapsuleGeometry(0.009, w, 6, 16);
     const back = new Mesh(beamGeo, wood);
+    back.rotation.z = Math.PI / 2;
     back.position.set(0, LOOM.beamY, LOOM.backBeamZ);
     const front = new Mesh(beamGeo, wood);
-    front.position.set(0, LOOM.beamY - 0.006, LOOM.frontBeamZ);
-    const railGeo = new BoxGeometry(0.012, 0.01, LOOM.frontBeamZ - LOOM.backBeamZ + 0.02);
-    const railL = new Mesh(railGeo, wood);
-    railL.position.set(-LOOM.frameHalfWidth - 0.006, 0.005, (LOOM.frontBeamZ + LOOM.backBeamZ) / 2);
+    front.rotation.z = Math.PI / 2;
+    front.position.set(0, LOOM.beamY - 0.004, LOOM.frontBeamZ);
+    const railGeo = new CapsuleGeometry(0.007, LOOM.frontBeamZ - LOOM.backBeamZ, 6, 12);
+    const railL = new Mesh(railGeo, rail);
+    railL.rotation.x = Math.PI / 2;
+    railL.position.set(-LOOM.frameHalfWidth - 0.012, 0.007, (LOOM.frontBeamZ + LOOM.backBeamZ) / 2);
     const railR = railL.clone();
     railR.position.x = -railL.position.x;
-    const heddle = new Mesh(new BoxGeometry(w, 0.003, 0.004), brass);
+    const heddle = new Mesh(new CapsuleGeometry(0.0025, w, 4, 8), rail);
+    heddle.rotation.z = Math.PI / 2;
     heddle.position.set(0, LOOM.liftedY + 0.006, LOOM.heddleZ);
     this.root.add(back, front, railL, railR, heddle);
 
     // Warps: 2 segments each (back beam → heddle → fell).
     const warpMat = new MeshStandardMaterial({ color: palette.warp, roughness: 0.9 });
-    this.warps = new InstancedMesh(new BoxGeometry(0.0022, 0.0022, 1), warpMat, WARPS * 2);
+    this.warps = new InstancedMesh(new BoxGeometry(0.003, 0.003, 1), warpMat, WARPS * 2);
     this.warps.name = 'Warps';
     this.root.add(this.warps);
 
@@ -108,16 +131,16 @@ export class LoomView {
     this.root.add(this.cloth);
 
     // Lever tracks + knobs.
-    const trackMat = new MeshStandardMaterial({ color: 0x3b2a20, roughness: 1 });
+    const trackMat = new MeshStandardMaterial({ color: 0x2b2118, roughness: 1 });
     this.tracks = new InstancedMesh(
-      new BoxGeometry(0.006, 0.004, LEVER.travel + 0.02),
+      new BoxGeometry(0.008, 0.004, LEVER.travel + 0.024),
       trackMat,
       LEVERS,
     );
     this.root.add(this.tracks);
-    const knobGeo = new SphereGeometry(LEVER.knobRadius, 20, 14);
+    const knobGeo = new SphereGeometry(LEVER.knobRadius, 24, 16);
     for (let k = 0; k < LEVERS; k++) {
-      const mat = brass.clone();
+      const mat = new MeshStandardMaterial({ color: palette.knobs[k], roughness: 0.6 });
       this.leverMats.push(mat);
       const knob = new Mesh(knobGeo, mat);
       knob.name = `Lever${k}`;
@@ -126,11 +149,31 @@ export class LoomView {
     }
 
     // Shuttle: a capsule lying along X.
-    this.shuttleMat = new MeshStandardMaterial({ color: 0xd9b382, roughness: 0.6 });
-    this.shuttle = new Mesh(new CapsuleGeometry(0.0065, 0.04, 6, 14), this.shuttleMat);
+    this.shuttleMat = new MeshStandardMaterial({ color: palette.shuttle, roughness: 0.55 });
+    this.shuttle = new Mesh(new CapsuleGeometry(0.0085, 0.04, 8, 16), this.shuttleMat);
     this.shuttle.rotation.z = Math.PI / 2;
     this.shuttle.name = 'Shuttle';
     this.root.add(this.shuttle);
+
+    // Live preview of the next row (ghost cells at the fell).
+    this.preview = new InstancedMesh(
+      cellGeo,
+      new MeshStandardMaterial({ transparent: true, opacity: 0.45, roughness: 1, depthWrite: false }),
+      WARPS,
+    );
+    this.preview.name = 'PreviewRow';
+    this.root.add(this.preview);
+
+    // Undo bobbin: a small spool lying along X.
+    const bobGeo = new CapsuleGeometry(BOBBIN.radius, 0.014, 4, 12);
+    this.bobbin = new Mesh(bobGeo, new MeshStandardMaterial({ color: palette.weft, roughness: 0.8 }));
+    this.bobbin.rotation.z = Math.PI / 2;
+    this.bobbin.name = 'Bobbin';
+    this.root.add(this.bobbin);
+
+    // Target card.
+    this.card = new TargetCard(palette);
+    this.root.add(this.card.mesh);
 
     // Contact shadow decal.
     const shadow = new Mesh(
@@ -167,13 +210,69 @@ export class LoomView {
 
   setSide(side: 1 | -1): void {
     this.side = side;
+    this.layoutLevers();
+    this.setBobbinT(0);
+    this.placeCard();
+  }
+
+  /** Show only the levers this level uses. */
+  setActiveLevers(n: number): void {
+    this.activeLevers = n;
+    this.layoutLevers();
+  }
+
+  private layoutLevers(): void {
     const zc = LEVER.restZ - LEVER.travel / 2;
     for (let k = 0; k < LEVERS; k++) {
-      _p.set(leverX(k, side), 0.002, zc);
-      _m.compose(_p, _q.identity(), _s.set(1, 1, 1));
+      const on = k < this.activeLevers;
+      _p.set(leverX(k, this.side), 0.002, zc);
+      _m.compose(_p, _q.identity(), _s.setScalar(on ? 1 : 0));
       this.tracks.setMatrixAt(k, _m);
+      this.levers[k].visible = on;
     }
     this.tracks.instanceMatrix.needsUpdate = true;
+  }
+
+  setBobbinT(t: number): void {
+    this.bobbin.position.set(bobbinX(this.side), BOBBIN.y, BOBBIN.z + BOBBIN.pull * t);
+    this.bobbin.rotation.x = t * Math.PI * 3; // unspools as you pull
+  }
+
+  setBobbinHighlight(level: 0 | 1 | 2): void {
+    const m = this.bobbin.material as MeshStandardMaterial;
+    m.emissive.copy(m.color).multiplyScalar(level === 2 ? 0.45 : level === 1 ? 0.22 : 0);
+  }
+
+  /** Redraw the card, then stand it at the back corner opposite the bank. */
+  placeCard(): void {
+    const m = this.card.mesh;
+    const tilt = (CARD.tiltDeg * Math.PI) / 180;
+    const h = this.card.heightM;
+    m.position.set(-this.side * CARD.x, 0.004 + (h / 2) * Math.cos(tilt), CARD.z - (h / 2) * Math.sin(tilt));
+    m.rotation.set(-tilt, 0, 0);
+  }
+
+  /** Ghost cells for the row the next pass would weave. */
+  setPreview(mask: Mask8, visible: boolean): void {
+    this.preview.visible = visible;
+    if (!visible) return;
+    const z = LOOM.fellZ - LOOM.rowPitch * 0.6;
+    for (let i = 0; i < WARPS; i++) {
+      _p.set(warpX(i), 0.0065, z);
+      _m.compose(_p, _q.identity(), _s.set(1, 1, 1));
+      this.preview.setMatrixAt(i, _m);
+      _c.setHex(isLifted(mask, i) ? this.palette.warp : this.palette.weft);
+      this.preview.setColorAt(i, _c);
+    }
+    this.preview.instanceMatrix.needsUpdate = true;
+    if (this.preview.instanceColor) this.preview.instanceColor.needsUpdate = true;
+  }
+
+  /** Highlight one woven row (playback), -1 for none. */
+  setGlowRow(r: number): void {
+    if (r === this.glowRow) return;
+    this.glowRow = r;
+    this.setRows(this.rowsCache);
   }
 
   /** Lever k at t ∈ [0,1] (0 = rest, 1 = latched/away). */
@@ -184,9 +283,8 @@ export class LoomView {
 
   setLeverHighlight(k: number, level: 0 | 1 | 2, latched: boolean): void {
     const mat = this.leverMats[k];
-    mat.emissive.setHex(latched ? 0x6b4a10 : 0x000000);
-    if (level === 1) mat.emissive.setHex(0x40361c);
-    if (level === 2) mat.emissive.setHex(0x8a6a22);
+    const e = level === 2 ? 0.45 : level === 1 ? 0.22 : latched ? 0.1 : 0;
+    mat.emissive.copy(mat.color).multiplyScalar(e);
   }
 
   setShuttleT(t: number): void {
@@ -198,7 +296,7 @@ export class LoomView {
   }
 
   setShuttleHighlight(level: 0 | 1 | 2): void {
-    this.shuttleMat.emissive.setHex(level === 2 ? 0x5a4020 : level === 1 ? 0x2a2010 : 0);
+    this.shuttleMat.emissive.copy(this.shuttleMat.color).multiplyScalar(level === 2 ? 0.6 : level === 1 ? 0.3 : 0);
   }
 
   /** Set the target shed; `immediate` skips the lift animation. */
@@ -213,6 +311,7 @@ export class LoomView {
 
   /** Rows, oldest first; only the last `visibleRows` are drawn. */
   setRows(rows: readonly Mask8[]): void {
+    this.rowsCache = rows;
     const n = Math.min(rows.length, LOOM.visibleRows);
     const start = rows.length - n;
     let idx = 0;
@@ -226,6 +325,7 @@ export class LoomView {
         this.cloth.setMatrixAt(idx, _m);
         // warp visible if lifted in that row, else weft visible
         _c.setHex(isLifted(row, i) ? this.palette.warp : this.palette.weft);
+        if (start + r === this.glowRow) _c.lerp(_glow, 0.55);
         this.cloth.setColorAt(idx, _c);
         idx++;
       }

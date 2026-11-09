@@ -9,6 +9,7 @@ export default async function run({ page, frame }) {
       pinchMm: L.hands[s].pinchDist === null ? null : Math.round(L.hands[s].pinchDist * 1000),
       pinchPoint: L.hands[s].pinchPoint.toArray(),
       upDot: L.hands[s].upDot,
+      indexTip: L.hands[s].indexTip.toArray(),
     });
     return JSON.parse(JSON.stringify({ debug: L.debug, right: h('right'), left: h('left'), targets: L.targets() }));
   });

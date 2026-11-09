@@ -2,9 +2,9 @@
 
 A hands-only mixed-reality puzzle game for Meta Quest, built with Meta's Immersive Web SDK (IWSDK 1.0.1, WebXR). A tiny loom sits on your real desk. Slide levers to lift threads, slide the shuttle across, and hear the cloth play.
 
-**Play:** https://or-6.github.io/loomsong/ (open in Meta Quest Browser, hand tracking on). The M0 snapshot stays at https://or-6.github.io/loomsong/m0/.
+**Play:** https://or-6.github.io/loomsong/ (open in Meta Quest Browser, hand tracking on). Milestone snapshots stay at https://or-6.github.io/loomsong/m0/ and https://or-6.github.io/loomsong/m1/.
 
-**Status:** M0 prototype. It has been verified in the IWSDK emulator only; it has **not** yet been run on a headset.
+**Status:** M1. Three authored levels. Level 1 was played end to end in the emulator E2E; Levels 2 and 3 are unit-tested only. Features: set-the-table placement, pinch-slide or poke levers, shuttle passes that strum, target card, undo bobbin, stars, and the cloth plays back as a melody. Verified in the IWSDK emulator only; **not** yet run on a headset.
 
 ## Run
 
@@ -25,5 +25,6 @@ Dev URL params:
 ## Docs
 
 - `docs/IWSDK-NOTES.md`: platform findings, with evidence.
+- `docs/ART-DIRECTION.md`: the "toy loom" visual direction.
 
 The full README (hard requirements, libraries and licences, accessibility statement, known limits, judge instructions) will be written before submission.

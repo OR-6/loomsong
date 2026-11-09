@@ -42,15 +42,35 @@ export const SHUTTLE = {
 /** Lever bank beside the loom (mirrored for left-handed play). */
 export const LEVER = {
   /** x of the first lever, measured outward from the loom centre. */
-  firstX: 0.138,
-  spacing: 0.024,
+  firstX: 0.142,
+  spacing: 0.028,
   /** Rest (unlatched) z — nearest the user. Latched = rest - travel. */
   restZ: 0.075,
   travel: 0.05,
-  knobY: 0.022,
-  knobRadius: 0.008,
+  knobY: 0.024,
+  /** ≥ 22 mm diameter touch target (Meta hands guidance). */
+  knobRadius: 0.011,
   /** Final fraction of travel that magnetically pulls to an end. */
   magnet: 0.3,
+} as const;
+
+/** Undo bobbin at the front corner opposite the lever bank. */
+export const BOBBIN = {
+  x: 0.128,
+  y: 0.014,
+  z: 0.072,
+  pull: 0.03,
+  radius: 0.008,
+} as const;
+
+/** Target card: stands at the back corner opposite the lever bank. */
+export const CARD = {
+  x: 0.165,
+  z: -0.07,
+  width: 0.075,
+  /** Cell pitch on the card (≥ 7 mm). */
+  cell: 0.0075,
+  tiltDeg: 14,
 } as const;
 
 /** Pinch / grab tuning (scaled by calibration multiplier). */
@@ -92,6 +112,11 @@ export const MAX_REACH_M = 0.6;
 
 export function warpX(i: number): number {
   return (i - (WARPS - 1) / 2) * WARP_PITCH;
+}
+
+/** Bobbin x: opposite side from the lever bank. */
+export function bobbinX(side: 1 | -1): number {
+  return -side * BOBBIN.x;
 }
 
 /** Lever x in loom-local space; `side` = +1 bank on the right, -1 on the left. */

@@ -15,6 +15,15 @@ export class LoomModel {
 
   constructor(public tieUp: Mask8[]) {}
 
+  /** Start a new level in place (arrays are shared with debug views). */
+  reset(tieUp: Mask8[]): void {
+    this.tieUp = tieUp;
+    this.latched.fill(false);
+    this.rows.length = 0;
+    this.shuttleSide = 0;
+    this.leverFlips = 0;
+  }
+
   get shed(): Mask8 {
     return shedMask(this.tieUp, this.latched);
   }

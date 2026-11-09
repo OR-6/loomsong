@@ -3,7 +3,7 @@
  * lever / shuttle motion and LoomModel changes. No Three.js, so unit tests
  * can drive it with synthetic joint streams.
  */
-import { LEVER, LEVERS, PINCH, POKE, SHUTTLE, leverX, warpX, WARPS } from '../config.js';
+import { BOBBIN, LEVER, LEVERS, PINCH, POKE, SHUTTLE, bobbinX, leverX, warpX, WARPS } from '../config.js';
 import type { PinchEdge } from '../input/pinch.js';
 import { Slider } from '../input/slider.js';
 import { isLifted } from '../puzzle/tieup.js';
@@ -27,13 +27,18 @@ export interface HandInput {
   indexVel: Vec3Like;
 }
 
-export type Target = { kind: 'lever'; k: number } | { kind: 'shuttle' } | null;
+export type Target =
+  | { kind: 'lever'; k: number }
+  | { kind: 'shuttle' }
+  | { kind: 'bobbin' }
+  | null;
 
 export interface ControllerHooks {
   pluck?(warp: number, speed: number): void;
   leverClick?(k: number, latched: boolean): void;
   grab?(target: Exclude<Target, null>): void;
   pass?(row: number): void;
+  undo?(): void;
 }
 
 /** Lever settle speed in t/s, shuttle return speed in m/s. */
@@ -46,6 +51,12 @@ export class LoomController {
     a0: SHUTTLE.minX,
     a1: SHUTTLE.maxX,
     release: { kind: 'throw', completeAt: SHUTTLE.completeAt },
+  });
+  /** Undo bobbin: pinch and pull toward the user (t 0 → 1). */
+  readonly bobbin = new Slider({
+    a0: BOBBIN.z,
+    a1: BOBBIN.z + BOBBIN.pull,
+    release: { kind: 'detents', magnet: 0 },
   });
   holding: Record<Side, Target> = { left: null, right: null };
   hover: Record<Side, Target> = { left: null, right: null };
@@ -72,6 +83,11 @@ export class LoomController {
   }
 
   /** Snap sliders to model state (after load/undo/level change). */
+  /** Number of levers this level uses (2–4); others are hidden and inert. */
+  get activeLevers(): number {
+    return this.model.tieUp.length;
+  }
+
   syncFromModel(): void {
     for (let k = 0; k < LEVERS; k++) this.levers[k].setImmediate(this.model.latched[k] ? 1 : 0);
     this.shuttle.setImmediate(this.model.shuttleSide);
@@ -95,6 +111,7 @@ export class LoomController {
 
     // Settling (levers to detents; shuttle throw/return).
     for (const l of this.levers) l.settle(dt, LEVER_SETTLE);
+    this.bobbin.settle(dt, LEVER_SETTLE);
     if (!this.shuttle.held && this.shuttle.t !== this.shuttle.target) {
       const range = SHUTTLE.maxX - SHUTTLE.minX;
       const toFar = this.shuttle.target !== this.model.shuttleSide;
@@ -131,6 +148,10 @@ export class LoomController {
       const s = this.sliderOf(held);
       s.release();
       if (held.kind === 'lever') this.setLatched(held.k, s.target === 1);
+      if (held.kind === 'bobbin') {
+        if (s.target === 1) this.doUndo();
+        s.target = 0;
+      }
       this.holding[side] = null;
     }
 
@@ -155,6 +176,8 @@ export class LoomController {
       const next = !this.model.latched[t.k];
       l.target = next ? 1 : 0;
       this.setLatched(t.k, next);
+    } else if (t.kind === 'bobbin') {
+      this.doUndo();
     } else if (!this.shuttle.held && !this.autoThrow) {
       this.throwShuttle();
     }
@@ -172,6 +195,15 @@ export class LoomController {
     const next = !this.model.latched[k];
     this.levers[k].target = next ? 1 : 0;
     this.setLatched(k, next);
+  }
+
+  /** Unpick the last row (always available, never penalised). */
+  doUndo(): void {
+    if (this.shuttle.held || this.autoThrow) return;
+    if (this.model.undo() === undefined) return;
+    this.shuttle.setImmediate(this.model.shuttleSide);
+    this.prevShuttleX = this.shuttleX();
+    this.hooks.undo?.();
   }
 
   private setLatched(k: number, v: boolean): void {
@@ -227,7 +259,7 @@ export class LoomController {
   private isHeld(t: Exclude<Target, null>): boolean {
     for (const s of ['left', 'right'] as const) {
       const h = this.holding[s];
-      if (h && h.kind === t.kind && (h.kind === 'shuttle' || (t.kind === 'lever' && h.k === t.k))) {
+      if (h && h.kind === t.kind && (h.kind !== 'lever' || (t.kind === 'lever' && h.k === t.k))) {
         return true;
       }
     }
@@ -235,11 +267,20 @@ export class LoomController {
   }
 
   private sliderOf(t: Exclude<Target, null>): Slider {
-    return t.kind === 'shuttle' ? this.shuttle : this.levers[t.k];
+    if (t.kind === 'shuttle') return this.shuttle;
+    if (t.kind === 'bobbin') return this.bobbin;
+    return this.levers[t.k];
   }
 
   private axisOf(t: Exclude<Target, null>, p: Vec3Like): number {
     return t.kind === 'shuttle' ? p.x : p.z;
+  }
+
+  bobbinPos(out: Vec3Like): Vec3Like {
+    out.x = bobbinX(this.bankSide);
+    out.y = BOBBIN.y;
+    out.z = this.bobbin.axisAt(this.bobbin.t);
+    return out;
   }
 
   private tmp: Vec3Like = { x: 0, y: 0, z: 0 };
@@ -248,7 +289,7 @@ export class LoomController {
   nearest(p: Vec3Like, r: number): Target {
     let best: Target = null;
     let bestD = r;
-    for (let k = 0; k < LEVERS; k++) {
+    for (let k = 0; k < this.activeLevers; k++) {
       const c = this.leverPos(k, this.tmp);
       const d = Math.hypot(p.x - c.x, p.y - c.y, p.z - c.z);
       if (d < bestD) {
@@ -261,7 +302,13 @@ export class LoomController {
     const half = 0.026;
     const cx = Math.min(sx + half, Math.max(sx - half, p.x));
     const d = Math.hypot(p.x - cx, p.y - SHUTTLE.y, p.z - SHUTTLE.z);
-    if (d < bestD) best = { kind: 'shuttle' };
+    if (d < bestD) {
+      bestD = d;
+      best = { kind: 'shuttle' };
+    }
+    const b = this.bobbinPos(this.tmp);
+    const db = Math.hypot(p.x - b.x, p.y - b.y, p.z - b.z);
+    if (db < bestD) best = { kind: 'bobbin' };
     return best;
   }
 }
