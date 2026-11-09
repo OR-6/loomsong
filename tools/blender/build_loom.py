@@ -80,8 +80,8 @@ for k in range(n):
                 bevel=0.0008, segs=1, mat=DARK, parent=frame)
 
 # ---------- Card stand: slotted base at the back corner opposite the bank ----------
-rounded_box('CardStand', (0.11, 0.008, 0.022), (-C['x'], 0.004, C['z']), bevel=0.003, mat=WOOD, parent=frame)
-rounded_box('CardSlot', (0.104, 0.002, 0.004), (-C['x'], 0.0085, C['z']), bevel=0.0008, segs=1, mat=DARK, parent=frame)
+rounded_box('CardStand', (0.136, 0.008, 0.022), (-C['x'], 0.004, C['z']), bevel=0.003, mat=WOOD, parent=frame)
+rounded_box('CardSlot', (0.13, 0.002, 0.004), (-C['x'], 0.0085, C['z']), bevel=0.0008, segs=1, mat=DARK, parent=frame)
 
 # ---------- Lever knob prototype (cloned ×4 in code; cap recoloured) ----------
 knob = empty('LeverKnob', at=(0, 0, 0))

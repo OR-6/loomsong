@@ -23,6 +23,24 @@ export class TargetCard {
   heightM = 0.1;
 
   private last: Parameters<TargetCard['draw']> | null = null;
+  /** Picture colour for lifted cells (null: theme weft). */
+  private color: number | null = null;
+  /** Thread budget: par knots + 2 grace knots; each lever move unties one. */
+  private par = 0;
+  private used = 0;
+
+  setPicture(color: number | null, par: number): void {
+    this.color = color;
+    this.par = par;
+    this.used = 0;
+  }
+
+  /** Lever moves so far; redraws only when it changes. */
+  setUsed(n: number): void {
+    if (n === this.used) return;
+    this.used = n;
+    if (this.last) this.draw(...this.last);
+  }
 
   constructor(private theme: Theme) {
     this.ctx = this.canvas.getContext('2d')!;
@@ -59,7 +77,7 @@ export class TargetCard {
     const markW = 0.012; // left arrow / right tick column
     // Only glyphs on the card (stars after a win); words live on the plaque,
     // where they can meet the 1.5 cm cap-height rule.
-    const titleH = stars > 0 ? 0.014 : 0;
+    const titleH = stars > 0 || this.par > 0 ? 0.014 : 0;
     const rows = status.length;
     const wM = pad * 2 + markW * 2 + cell * WARPS;
     const hM = pad * 2 + titleH + cell * rows;
@@ -73,6 +91,9 @@ export class TargetCard {
       this.tex.dispose(); // size changed: force a fresh GPU texture
     }
     const g = this.ctx;
+    const lift = hex(this.color ?? th.palette.weft);
+    const ground = hex(th.palette.warp);
+    const grace = '#c9b79c';
     const px = (m: number) => m * PX_PER_M;
     g.clearRect(0, 0, c.width, c.height);
 
@@ -93,6 +114,16 @@ export class TargetCard {
         drawStar(g, c.width / 2 + (i - 1) * px(0.014), px(pad + titleH / 2), px(0.0055), i < stars);
       }
     }
+    else if (this.par > 0) {
+      // Yarn knots: par (solid) + 2 grace (lighter); spent knots go hollow.
+      const total = this.par + 2;
+      const gap = Math.min(0.009, (WARPS * cell) / total);
+      const x0 = c.width / 2 - ((total - 1) * px(gap)) / 2;
+      for (let i = 0; i < total; i++) {
+        const spent = i >= total - this.used;
+        drawKnot(g, x0 + i * px(gap), px(pad + titleH / 2), px(0.0032), i < this.par ? lift : grace, spent, highContrast);
+      }
+    }
     void title;
 
     const gridX = pad + markW;
@@ -109,9 +140,9 @@ export class TargetCard {
         if (r >= target.length) {
           g.fillStyle = '#d8ccb8'; // extra row beyond target
         } else if (highContrast) {
-          g.fillStyle = lifted ? '#ffffff' : '#000000';
+          g.fillStyle = lifted ? '#000000' : '#ffffff';
         } else {
-          g.fillStyle = hex(lifted ? th.palette.warp : th.palette.weft);
+          g.fillStyle = lifted ? lift : ground;
         }
         g.fillRect(px(x) + 1, px(y) + 1, px(cell) - 2, px(cell) - 2);
         if (highContrast) {
@@ -193,6 +224,30 @@ function drawArrow(g: CanvasRenderingContext2D, x: number, y: number, s: number)
   g.lineTo(x - s * 0.7, y + s);
   g.closePath();
   g.fill();
+  g.restore();
+}
+
+function drawKnot(g: CanvasRenderingContext2D, x: number, y: number, r: number, color: string, spent: boolean, hc: boolean) {
+  g.save();
+  g.beginPath();
+  g.arc(x, y, r, 0, Math.PI * 2);
+  g.lineWidth = r * (hc ? 0.5 : 0.35);
+  g.strokeStyle = '#3b2a20';
+  if (!spent) {
+    g.fillStyle = color;
+    g.fill();
+    // a little twist line so it reads as yarn, not a dot
+    g.stroke();
+    g.beginPath();
+    g.moveTo(x - r * 0.6, y + r * 0.4);
+    g.quadraticCurveTo(x, y - r * 0.5, x + r * 0.6, y + r * 0.4);
+    g.strokeStyle = 'rgba(255,255,255,0.7)';
+    g.lineWidth = r * 0.25;
+    g.stroke();
+  } else {
+    g.setLineDash([r * 0.5, r * 0.4]);
+    g.stroke();
+  }
   g.restore();
 }
 

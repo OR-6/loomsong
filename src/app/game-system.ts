@@ -205,7 +205,11 @@ export class GameSystem extends createSystem({
     this.world.createTransformEntity(this.holdRing);
 
     this.model.on((e) => {
-      if (e.type === 'lever') this.view.setShed(e.shed);
+      if (e.type === 'lever') {
+        this.view.setShed(e.shed);
+        if (e.latched) this.view.revealLever(e.lever);
+        this.view.card.setUsed(this.model.leverFlips);
+      }
       if (e.type === 'row' || e.type === 'undo' || e.type === 'sync') this.view.setRows(this.model.rows);
     });
 
@@ -214,6 +218,10 @@ export class GameSystem extends createSystem({
         this.controller.syncFromModel();
         this.controller.enabled = true;
         this.view.setActiveLevers(level.tieUp.length);
+        // Picture colour on the warps; mystery chapters hide the lever ties
+        // until each lever has been tried once.
+        this.view.setPicture(level.color ?? null, level.tieUp, level.tieUp.map(() => !!level.mystery));
+        this.view.card.setPicture(level.color ?? null, level.par);
         this.view.setShed(0, true);
         this.view.setRows(this.model.rows);
         this.view.setGlowRow(-1);
@@ -798,12 +806,15 @@ export class GameSystem extends createSystem({
 
   private syncView(dt: number) {
     const c = this.controller;
+    let hoverK = -1;
     for (let k = 0; k < LEVERS; k++) {
       this.view.setLeverT(k, c.levers[k].t, c.levers[k].held);
       const hov = isTarget(c.hover.left, k) || isTarget(c.hover.right, k);
       const held = isTarget(c.holding.left, k) || isTarget(c.holding.right, k);
       this.view.setLeverHighlight(k, held ? 2 : hov ? 1 : 0, this.model.latched[k]);
+      if (hov || held) hoverK = k;
     }
+    this.view.setHoverLever(hoverK);
     this.view.setShuttleT(c.shuttle.t, dt);
     const sh = (t: unknown) => (t as { kind?: string } | null)?.kind === 'shuttle';
     this.view.setShuttleHighlight(

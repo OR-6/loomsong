@@ -87,11 +87,11 @@ export function nudgeX(side: 1 | -1): number {
 
 /** Target card: stands at the back corner opposite the lever bank. */
 export const CARD = {
-  x: 0.165,
+  x: 0.18,
   z: -0.07,
   width: 0.075,
   /** Cell pitch on the card (≥ 7 mm). */
-  cell: 0.0075,
+  cell: 0.0105,
   tiltDeg: 14,
 } as const;
 

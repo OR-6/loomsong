@@ -72,6 +72,15 @@ export class LoomView {
   private frameNode: Object3D | null = null;
   readonly glows: Record<'left' | 'right', Mesh>;
   private warps!: InstancedMesh;
+  /** Coloured ties: one bead per (lever, thread it lifts), in the lever's colour. */
+  private ties!: InstancedMesh;
+  private tieUp: readonly Mask8[] = [];
+  private tieHidden: boolean[] = [];
+  private hoverLever = -1;
+  /** Picture colour (lifted threads) and ground (cream weft). */
+  private liftColor = 0;
+  private groundColor = 0;
+  private pictureColor: number | null = null;
   private cloth!: InstancedMesh;
   private tracks: InstancedMesh | null = null;
   private leverMats: MeshStandardMaterial[] = [];
@@ -189,6 +198,16 @@ export class LoomView {
     this.warps = new InstancedMesh(warpGeo, warpMat, WARPS * 2);
     this.warps.name = 'Warps';
     add(this.warps);
+    this.applyColors();
+
+    // Lever ties: little yarn knots on each warp, coloured like the lever
+    // that lifts it, so cause and effect is visible before you pull.
+    const tieGeo = new SphereGeometry(0.0034, 10, 8);
+    this.ties = new InstancedMesh(tieGeo, new MeshStandardMaterial({ roughness: 0.75 }), WARPS * LEVERS);
+    this.ties.name = 'LeverTies';
+    this.ties.frustumCulled = false;
+    this.ties.count = 0;
+    add(this.ties);
 
     // Cloth cells.
     const cellGeo = new BoxGeometry(WARP_PITCH * 0.96, 0.003, LOOM.rowPitch * 0.94);
@@ -276,9 +295,9 @@ export class LoomView {
     if (models) {
       this.bobbin = cloneModel(models.bobbin, tint);
       const yarn = materialOf(this.bobbin, 'Wound') as MeshStandardMaterial | null;
-      yarn?.color.setHex(palette.weft);
+      yarn?.color.setHex(this.groundColor);
     } else {
-      const bobMesh = new Mesh(new CapsuleGeometry(BOBBIN.radius, 0.014, 4, 12), new MeshStandardMaterial({ color: palette.weft, roughness: 0.8 }));
+      const bobMesh = new Mesh(new CapsuleGeometry(BOBBIN.radius, 0.014, 4, 12), new MeshStandardMaterial({ color: this.groundColor, roughness: 0.8 }));
       bobMesh.rotation.z = Math.PI / 2;
       this.bobbin = new Group();
       this.bobbin.add(bobMesh);
@@ -417,7 +436,7 @@ export class LoomView {
       _p.set(warpX(i), 0.0065, z);
       _m.compose(_p, _q.identity(), _s.set(1, 1, 1));
       this.preview.setMatrixAt(i, _m);
-      _c.setHex(isLifted(mask, i) ? this.palette.warp : this.palette.weft);
+      _c.setHex(isLifted(mask, i) ? this.liftColor : this.groundColor);
       this.preview.setColorAt(i, _c);
     }
     this.preview.instanceMatrix.needsUpdate = true;
@@ -525,7 +544,7 @@ export class LoomView {
         _m.compose(_p, _q.identity(), _s.set(1, 1, 1));
         this.cloth.setMatrixAt(idx, _m);
         // warp visible if lifted in that row, else weft visible
-        _c.setHex(isLifted(row, i) ? this.palette.warp : this.palette.weft);
+        _c.setHex(isLifted(row, i) ? this.liftColor : this.groundColor);
         if (start + r === this.glowRow) _c.lerp(_glow, 0.55);
         this.cloth.setColorAt(idx, _c);
         idx++;
@@ -580,7 +599,7 @@ export class LoomView {
     }
     const k = Math.min(1, dt * 14);
     for (let i = 0; i < WARPS; i++) {
-      const target = isLifted(this.targetShed, i) ? 1 : 0;
+      const target = isLifted(this.targetShed, i) ? 1 : this.hoverLift(i);
       const d = target - this.warpLift[i];
       if (Math.abs(d) > 1e-4) {
         this.warpLift[i] += d * k;
@@ -604,6 +623,78 @@ export class LoomView {
       this.segment(i * 2 + 1, x, hy, LOOM.heddleZ, fellY, LOOM.fellZ);
     }
     this.warps.instanceMatrix.needsUpdate = true;
+    this.writeTies();
+  }
+
+  /** Threads the hovered lever would lift peek up a little (not for mystery levers). */
+  private hoverLift(i: number): number {
+    const k = this.hoverLever;
+    if (k < 0 || k >= this.tieUp.length || this.tieHidden[k]) return 0;
+    return isLifted(this.tieUp[k], i) ? 0.22 : 0;
+  }
+
+  /**
+   * The level's colours and tie-up. `color` is the picture colour (lifted
+   * threads); null falls back to the theme's weft colour.
+   */
+  setPicture(color: number | null, tieUp: readonly Mask8[], hidden: readonly boolean[] = []): void {
+    this.pictureColor = color;
+    this.tieUp = tieUp;
+    this.tieHidden = tieUp.map((_, k) => !!hidden[k]);
+    this.applyColors();
+    this.setRows(this.rowsCache);
+    this.writeWarps();
+  }
+
+  /** Reveal a mystery lever's ties once it has been tried. */
+  revealLever(k: number): void {
+    if (!this.tieHidden[k]) return;
+    this.tieHidden[k] = false;
+    this.writeTies();
+  }
+
+  /** Lever whose threads should peek up (-1 for none). */
+  setHoverLever(k: number): void {
+    if (k === this.hoverLever) return;
+    this.hoverLever = k;
+    this.writeTies();
+  }
+
+  private applyColors(): void {
+    const p = this.palette;
+    this.liftColor = this.pictureColor ?? p.weft;
+    this.groundColor = p.warp;
+    (this.warps?.material as MeshStandardMaterial | undefined)?.color.setHex(this.liftColor);
+    const yarn = this.bobbin ? (materialOf(this.bobbin, 'Wound') as MeshStandardMaterial | null) : null;
+    yarn?.color.setHex(this.groundColor);
+  }
+
+  /** One knot per (lever, lifted thread), riding the warp just in front of the heddle. */
+  private writeTies(): void {
+    if (!this.ties) return;
+    let n = 0;
+    const fellY = 0.006;
+    for (let k = 0; k < this.tieUp.length && k < this.activeLevers; k++) {
+      if (this.tieHidden[k]) continue;
+      const mask = this.tieUp[k];
+      // stacked along the warp: lever 0 nearest the heddle
+      const f = 0.1 + 0.13 * k;
+      for (let i = 0; i < WARPS; i++) {
+        if (!isLifted(mask, i)) continue;
+        const hy = LOOM.loweredY + (LOOM.liftedY - LOOM.loweredY) * this.warpLift[i];
+        _p.set(warpX(i), hy + (fellY - hy) * f + 0.0012, LOOM.heddleZ + (LOOM.fellZ - LOOM.heddleZ) * f);
+        const big = k === this.hoverLever ? 1.35 : 1;
+        _m.compose(_p, _q.identity(), _s.set(big, big * 0.8, big));
+        this.ties.setMatrixAt(n, _m);
+        _c.setHex(this.palette.knobs[k]);
+        if (k === this.hoverLever) _c.lerp(_glow, 0.35);
+        this.ties.setColorAt(n, _c);
+        n++;
+      }
+    }
+    this.ties.count = n;
+    this.ties.instanceMatrix.needsUpdate = true;
+    if (this.ties.instanceColor) this.ties.instanceColor.needsUpdate = true;
   }
 
   /** Instance `idx` as a unit-Z box stretched from (x,y0,z0) to (x,y1,z1). */
