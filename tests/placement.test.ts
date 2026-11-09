@@ -14,8 +14,8 @@ describe('set-the-table placement', () => {
       frames++;
     }
     expect(placed).toBe(true);
-    expect(frames).toBeGreaterThanOrEqual(72);
-    expect(frames).toBeLessThan(80);
+    expect(frames).toBeGreaterThanOrEqual(57); // 0.8 s hold
+    expect(frames).toBeLessThan(64);
     expect(p.deskY).toBeCloseTo(0.75, 5);
     expect(p.source).toBe('palm');
   });
@@ -24,6 +24,25 @@ describe('set-the-table placement', () => {
     const p = new Placement();
     for (let i = 0; i < 100 && p.phase !== 'placed'; i++) p.update(flat(0.77), [0.455, 0.72], DT);
     expect(p.deskY).toBe(0.72);
+    expect(p.source).toBe('plane');
+  });
+
+  it('ignores tracking jitter (±3 mm) while the palm rests', () => {
+    const p = new Placement();
+    let i = 0;
+    for (; i < 200 && p.phase !== 'placed'; i++) {
+      p.update({ ...flat(0.77), x: (Math.random() - 0.5) * 0.006, z: -0.35 + (Math.random() - 0.5) * 0.006 }, [], DT);
+    }
+    expect(p.phase).toBe('placed');
+    expect(i).toBeLessThan(80);
+  });
+
+  it('rejects a lap (65 cm below the eyes) unless a table plane agrees', () => {
+    const p = new Placement();
+    for (let i = 0; i < 150; i++) p.update(flat(0.95), [], DT, 1.6);
+    expect(p.phase).toBe('waiting');
+    for (let i = 0; i < 150 && p.phase !== 'placed'; i++) p.update(flat(0.95), [0.93], DT, 1.6);
+    expect(p.phase).toBe('placed');
     expect(p.source).toBe('plane');
   });
 
@@ -37,7 +56,7 @@ describe('set-the-table placement', () => {
 
   it('does not place while the hand moves or is not flat', () => {
     const p = new Placement();
-    for (let i = 0; i < 150; i++) p.update({ ...flat(0.77), x: i * 0.002 }, [], DT); // 14 cm/s
+    for (let i = 0; i < 150; i++) p.update({ ...flat(0.77), x: i * 0.002 }, [], DT); // 14 cm/s drift
     expect(p.phase).not.toBe('placed');
     for (let i = 0; i < 150; i++) p.update({ ...flat(0.77), upDot: 0.3 }, [], DT);
     expect(p.phase).toBe('waiting');

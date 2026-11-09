@@ -11,10 +11,11 @@ cli('browser', 'reload');
 await wait(2500);
 if (!xr('status').sessionActive) xr('enter');
 xr('set-input-mode', { mode: 'hand' });
+xr('set-transform', { device: 'headset', position: { x: 0, y: 1.2, z: 0 }, orientation: { pitch: 0, yaw: 0, roll: 0 } });
 xr('set-transform', { device: 'hand-left', position: { x: -0.35, y: 1.45, z: -0.25 }, orientation: { pitch: 0, yaw: 0, roll: 90 } });
 xr('set-select-value', { device: HAND, value: 0 });
 let s = await setTable();
-check('calibration starts after placement', s.debug.calibrating === 'pinches:0' && s.debug.notice === 'Pinch three times', `${s.debug.calibrating} "${s.debug.notice}"`);
+check('calibration starts after placement', s.debug.calibrating === 'pinches:0' && s.debug.notice === 'Pinch 3 times, palm down', `${s.debug.calibrating} "${s.debug.notice}"`);
 xr('set-transform', { device: HAND, position: { x: 0.05, y: 1.0, z: -0.33 }, orientation: { pitch: 0, yaw: 0, roll: 0 } });
 for (let i = 0; i < 3; i++) {
   xr('set-select-value', { device: HAND, value: 1 }); await wait(350);
@@ -46,6 +47,7 @@ await (async () => {
 run('tools/.goto-share.mjs');
 if (!xr('status').sessionActive) xr('enter');
 xr('set-input-mode', { mode: 'hand' });
+xr('set-transform', { device: 'headset', position: { x: 0, y: 1.2, z: 0 }, orientation: { pitch: 0, yaw: 0, roll: 0 } });
 xr('set-transform', { device: 'hand-left', position: { x: -0.35, y: 1.45, z: -0.25 }, orientation: { pitch: 0, yaw: 0, roll: 90 } });
 s = await setTable();
 check('#w= link opens a challenge', s.debug.challenge === true && s.debug.level === '' || s.debug.challenge === true, `challenge=${s.debug.challenge}`);

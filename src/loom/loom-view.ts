@@ -555,6 +555,7 @@ function makeToken(): Group {
 
 function disposeTree(o: Object3D): void {
   o.traverse((n) => {
+    if ((n as InstancedMesh).isInstancedMesh) (n as InstancedMesh).dispose();
     const m = n as Mesh;
     if (m.geometry) m.geometry.dispose();
     const mat = m.material as MeshStandardMaterial | MeshStandardMaterial[] | undefined;

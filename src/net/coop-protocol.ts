@@ -44,7 +44,7 @@ export function validSnapshot(m: unknown): m is Snapshot {
   return (
     !!s &&
     s.k === 's' &&
-    isNum(s.l, 0, 100000) &&
+    isNum(s.l, 0, 9999) &&
     isNum(s.lat, 0, 15) &&
     Array.isArray(s.r) &&
     s.r.length <= 64 &&
@@ -66,18 +66,27 @@ export function validGuestMsg(m: unknown): m is GuestMsg {
 
 /** Host (Warden): levers locally; shuttle is driven by the guest. */
 export class CoopHost {
+  /** Partner gone: release a shuttle their hand was still holding. */
+  dispose(): void {
+    const s = this.side.controller.shuttle;
+    if (s.held) s.release();
+  }
+
   private acc = 0;
   constructor(
     private side: Side,
     private link: Transport,
   ) {
     side.controller.allow = { levers: true, shuttle: false };
+    // A shared-cloth challenge can't be mirrored by level index: play normally.
+    if (side.flow.challenge) side.flow.start();
     link.onMessage((m) => this.receive(m));
   }
 
   receive(m: unknown): void {
     if (!validGuestMsg(m)) return;
     const c = this.side.controller;
+    if (!c.enabled || this.side.flow.phase !== 'play') return; // ignore during wins
     if (m.k === 'sh') c.remoteShuttle(m.t, m.h);
     else if (m.what === 'throw') c.throwShuttle();
     else c.doUndo();
@@ -135,7 +144,8 @@ export class CoopGuest {
     if (s) {
       this.latest = null;
       this.applied++;
-      if (!flow.level || s.l !== flow.index) {
+      // New level, or the host restarted it after a win while we wait.
+      if (!flow.level || s.l !== flow.index || (s.ph === 'play' && flow.phase === 'between')) {
         flow.mirrorStart(s.l);
         controller.syncFromModel();
       }

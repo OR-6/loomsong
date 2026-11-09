@@ -82,8 +82,15 @@ class Synth {
     this.master.connect(comp).connect(ctx.destination);
   }
 
+  /**
+   * Context if it can play now. Every call also (re)tries to start audio:
+   * browsers only allow it after a user gesture, and in XR any pinch/poke
+   * or session select event can be that gesture, so keep asking.
+   */
   private ready(): AudioContext | null {
+    if (!this.ctx) this.resume();
     const c = this.ctx;
+    if (c && c.state !== 'running' && !this.paused) void c.resume().catch(() => {});
     return c && c.state === 'running' && !this.paused ? c : null;
   }
 

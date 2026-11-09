@@ -133,7 +133,10 @@ export function mountLanding(world: World): void {
       closed: st.message ?? 'Disconnected',
     };
     status.textContent = msg[st.state];
-    leaveBtn.hidden = st.state === 'idle' || st.state === 'error' || st.state === 'closed';
+    const busy = st.state === 'hosting' || st.state === 'joining' || st.state === 'connected';
+    leaveBtn.hidden = !busy;
+    for (const id of ['#coop-host', '#coop-join']) el.querySelector<HTMLButtonElement>(id)!.disabled = busy;
+    codeIn.disabled = busy;
   };
   window.addEventListener('loomsong:coop', (e) => showCoop((e as CustomEvent<CoopStatus>).detail));
 

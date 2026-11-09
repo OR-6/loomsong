@@ -89,7 +89,7 @@ export function deriveCalibration(closedM: number, openM: number, jitterM: numbe
   const engage = clamp(closedM + 0.01, 0.015, 0.036);
   const pinchScale = clamp(engage / 0.02, 0.75, 1.8);
   const radiusMul = clamp(1 + (jitterM - 0.0015) / 0.004, 1, 1.8);
-  const minCutoff = clamp(1.0 - (jitterM - 0.0015) * 120, 0.35, 1.0);
+  const minCutoff = clamp(1.5 - (jitterM - 0.0015) * 250, 0.5, 1.5);
   return {
     pinchScale,
     radiusMul,

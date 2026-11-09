@@ -102,30 +102,43 @@ export const PINCH = {
   grabRadiusM: 0.025,
   hoverRadiusM: 0.035,
   trackingLossS: 0.15,
-  oneEuro: { minCutoff: 1.0, beta: 0.02, dCutoff: 1.0 },
+  /**
+   * One-Euro smoothing (positions in metres): ~1.5 Hz at rest kills jitter,
+   * beta 4 opens the filter on fast drags (≈ 1.5 cm lag at 0.5 m/s).
+   */
+  oneEuro: { minCutoff: 1.5, beta: 4, dCutoff: 1.0 },
 } as const;
 
 /** Poke tuning. */
 export const POKE = {
   radiusM: 0.014,
-  /** Index tip must descend into the knob at least this fast (m/s). */
-  minDownSpeed: 0.05,
+  /** Smoothed index tip must descend into the knob at least this fast (m/s). */
+  minDownSpeed: 0.12,
+  /** Only a pointing hand pokes: thumb–index gap above this (m). */
+  minAperture: 0.045,
   rearmM: 0.03,
 } as const;
 
 /** Placement ("set the table"). */
 export const PLACE = {
   /** Horizontal distance from head to loom origin. */
-  forward: 0.33,
+  forward: 0.32,
   /** Shift the loom away from the lever side so the bank+loom are centred. */
   sideShift: 0.05,
   defaultDrop: 0.45,
-  stillSeconds: 1.0,
-  stillSpeedM: 0.03, // m/s palm speed considered still
+  stillSeconds: 0.8,
+  /** "Still" = the smoothed palm stays inside this radius (robust to jitter). */
+  stillRadiusM: 0.012,
+  /** Loom origin relative to the resting palm, clamped to reach. */
+  palmAhead: 0.05,
+  minForward: 0.24,
+  maxLateral: 0.025,
   flatDot: 0.75, // wrist +Y · world up
   planeSnapM: 0.05,
   minDrop: 0.25,
-  maxDrop: 0.85,
+  /** Below this a palm is probably on a lap, unless a table plane agrees. */
+  maxDrop: 0.62,
+  maxDropWithPlane: 0.85,
   nudgeStepM: 0.01,
   /** Hands seen but no flat palm: fall back after this long. */
   palmTimeoutS: 15,

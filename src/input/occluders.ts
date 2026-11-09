@@ -6,6 +6,7 @@
  * Also hides IWSDK's own hand mesh on device (you see your real hand in
  * passthrough; the spec asks for only a pinch glow). The emulator keeps it.
  */
+import { reportFrameError } from '../app/safe.js';
 import {
   createSystem,
   InstancedMesh,
@@ -44,6 +45,7 @@ export class HandOccluderSystem extends createSystem({}) {
   private pos = new Map<string, Vector3>();
   private rad = new Map<string, number>();
   private hidVisuals = false;
+  private seen = { left: false, right: false };
 
   init() {
     const geo = new SphereGeometry(1, 10, 8);
@@ -62,10 +64,20 @@ export class HandOccluderSystem extends createSystem({}) {
   }
 
   update() {
+    try {
+      this.step();
+    } catch (e) {
+      reportFrameError('Occluders', e);
+    }
+  }
+
+  private step() {
     this.hideIwsdkHands();
     const frame = this.xrFrame;
     const ref = this.renderer.xr.getReferenceSpace();
-    const seen = { left: false, right: false };
+    if (!frame?.session) this.hidVisuals = false; // re-hide in the next session
+    const seen = this.seen;
+    seen.left = seen.right = false;
     if (occluderState.enabled && frame?.session && ref && frame.getJointPose) {
       for (const src of frame.session.inputSources) {
         if (!src.hand || (src.handedness !== 'left' && src.handedness !== 'right')) continue;

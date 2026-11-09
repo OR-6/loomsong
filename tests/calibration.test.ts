@@ -32,13 +32,13 @@ describe('calibration', () => {
     const c = simulate(0.022, 0.005);
     expect(c.result!.pinchScale).toBeGreaterThan(1.5);
     expect(c.result!.radiusMul).toBeGreaterThan(1.6);
-    expect(c.result!.minCutoff).toBeLessThan(0.7);
+    expect(c.result!.minCutoff).toBeLessThan(1.0);
   });
   it('clamps to the spec ranges', () => {
     const r = deriveCalibration(0.05, 0.1, 0.02);
     expect(r.radiusMul).toBe(1.8);
     expect(r.pinchScale).toBeCloseTo(1.8, 6);
-    expect(r.minCutoff).toBe(0.35);
+    expect(r.minCutoff).toBe(0.5);
   });
   it('a broken hold restarts the 2 s timer', () => {
     const c = simulate(0.006, 0.001);

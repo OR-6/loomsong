@@ -3,8 +3,12 @@
  * Reads hand state from HandTrackerSystem, converts it to loom-local space,
  * drives LoomController, and syncs LoomView.
  */
+import { reportFrameError } from './safe.js';
 import {
   createSystem,
+  InstancedMesh,
+  MeshBasicMaterial,
+  SphereGeometry,
   Matrix4,
   Vector3,
   VisibilityState,
@@ -109,8 +113,16 @@ export class GameSystem extends createSystem({
   private loomEntity!: Entity;
   private settings: Settings = loadSettings();
   private guard = new FrameGuard();
+  private audioSession: XRSession | null = null;
+  private holdRing!: InstancedMesh;
+  private tmpM = new Matrix4();
+  /** Pause sources are tracked separately so one can't cancel the other. */
+  private xrBlurred = false;
+  private pageHidden = false;
+  private calTime = 0;
   private calibrator: Calibrator | null = null;
   private coopLink: CoopHost | CoopGuest | null = null;
+  private coopTransport: unknown = null;
   private calSide: Side = 'right';
   /** `?degrade=n` forces a quality level (testing). */
   private forcedDegrade = Number(new URLSearchParams(location.search).get('degrade') ?? NaN);
@@ -180,6 +192,18 @@ export class GameSystem extends createSystem({
     this.world.createTransformEntity(this.hint.mesh);
     this.hint.mesh.visible = false;
 
+    // Hold-still progress: 20 dots around the resting palm fill up.
+    const dot = new SphereGeometry(0.0035, 8, 6);
+    this.holdRing = new InstancedMesh(dot, new MeshBasicMaterial({ color: 0xf2b632 }), HOLD_DOTS);
+    this.holdRing.frustumCulled = false;
+    this.holdRing.count = 0;
+    for (let i = 0; i < HOLD_DOTS; i++) {
+      const a = (i / HOLD_DOTS) * Math.PI * 2;
+      this.tmpM.makeTranslation(Math.cos(a) * 0.075, 0, Math.sin(a) * 0.075);
+      this.holdRing.setMatrixAt(i, this.tmpM);
+    }
+    this.world.createTransformEntity(this.holdRing);
+
     this.model.on((e) => {
       if (e.type === 'lever') this.view.setShed(e.shed);
       if (e.type === 'row' || e.type === 'undo' || e.type === 'sync') this.view.setRows(this.model.rows);
@@ -205,6 +229,7 @@ export class GameSystem extends createSystem({
       },
       win: (stars) => {
         this.controller.enabled = false;
+        this.controller.releaseAll();
         audio.arpeggio();
         this.view.pulseWarp();
         if (this.debug) this.debug.stars = stars;
@@ -282,9 +307,16 @@ export class GameSystem extends createSystem({
 
     this.cleanupFuncs.push(
       this.visibilityState.subscribe((s) => {
-        this.setPaused(s === VisibilityState.VisibleBlurred || s === VisibilityState.Hidden);
+        this.xrBlurred = s === VisibilityState.VisibleBlurred || s === VisibilityState.Hidden;
+        this.setPaused(this.xrBlurred || this.pageHidden);
         if (s === VisibilityState.Visible) {
           const sess = this.world.session;
+          // XR select events carry user activation: use them to unlock audio.
+          if (sess && sess !== this.audioSession) {
+            this.audioSession = sess;
+            sess.addEventListener('selectstart', () => audio.resume());
+            sess.addEventListener('squeezestart', () => audio.resume());
+          }
           if (sess?.updateTargetFrameRate && sess.supportedFrameRates?.includes(72)) {
             sess.updateTargetFrameRate(72).catch(() => {});
           }
@@ -292,7 +324,10 @@ export class GameSystem extends createSystem({
         if (s === VisibilityState.NonImmersive) this.endSession();
       }),
     );
-    const onVis = () => this.setPaused(document.visibilityState === 'hidden');
+    const onVis = () => {
+      this.pageHidden = document.visibilityState === 'hidden';
+      this.setPaused(this.xrBlurred || this.pageHidden);
+    };
     document.addEventListener('visibilitychange', onVis);
     this.cleanupFuncs.push(() => document.removeEventListener('visibilitychange', onVis));
   }
@@ -364,27 +399,42 @@ export class GameSystem extends createSystem({
   /** Co-op connected / left: switch roles and the authority model. */
   private onCoop(st: CoopStatus): void {
     const side = { model: this.model, controller: this.controller, flow: this.flow };
+    // Any state change other than a fresh connection ends the current link.
+    if (this.coopLink && (st.state !== 'connected' || coop.transport !== this.coopTransport)) {
+      this.endCoop(st.state === 'closed' || st.state === 'error');
+    }
     if (st.state === 'connected' && coop.transport && !this.coopLink) {
+      this.coopTransport = coop.transport;
       this.coopLink = st.role === 'host' ? new CoopHost(side, coop.transport) : new CoopGuest(side, coop.transport);
       this.debug.coop = st.role ?? 'solo';
       if (this.placement.phase === 'placed') {
         this.showNotice(st.role === 'host' ? 'You work the levers' : 'You throw the shuttle', 6, 'centre');
       }
-    } else if ((st.state === 'closed' || st.state === 'idle') && this.coopLink) {
-      const wasGuest = this.coopLink instanceof CoopGuest;
-      this.coopLink = null;
-      this.controller.allow = { levers: true, shuttle: true };
-      this.controller.mirror = false;
-      this.controller.hooks.request = undefined;
-      this.flow.mirror = false;
-      if (wasGuest) this.flow.start(); // back to your own progress
-      this.debug.coop = 'solo';
-      if (this.placement.phase === 'placed') this.showNotice('Back to solo', 4, 'centre');
     }
+  }
+
+  private endCoop(announce: boolean): void {
+    const link = this.coopLink;
+    if (!link) return;
+    const wasGuest = link instanceof CoopGuest;
+    if (link instanceof CoopHost) link.dispose();
+    this.coopLink = null;
+    this.coopTransport = null;
+    this.controller.allow = { levers: true, shuttle: true };
+    this.controller.mirror = false;
+    this.controller.hooks.request = undefined;
+    this.flow.mirror = false;
+    if (wasGuest) this.flow.start(); // back to your own progress
+    this.debug.coop = 'solo';
+    if (announce && this.placement.phase === 'placed') this.showNotice('Back to solo', 4, 'centre');
   }
 
   /** "Fit to my hands": pinch ×3, then hold still 2 s (≤ 20 s total). */
   private startCalibration(hand: Side): void {
+    // One attempt per request: never trap a player in a calibration loop.
+    this.settings = { ...this.settings, calibrateNext: false };
+    saveSettings(this.settings);
+    this.calTime = 0;
     this.calibrator = new Calibrator();
     this.calSide = hand;
     this.controller.enabled = false;
@@ -397,6 +447,15 @@ export class GameSystem extends createSystem({
     const side: Side = hands[this.calSide].tracked ? this.calSide : this.calSide === 'left' ? 'right' : 'left';
     const h = hands[side];
     for (const s of ['left', 'right'] as const) this.fillInput(s); // glow + highlights
+    this.calTime += dt;
+    if (this.calTime > 20) {
+      // Timed out: keep the defaults and let them play.
+      this.calibrator = null;
+      this.controller.enabled = this.flow.phase === 'play';
+      this.debug.calibrating = 'skipped';
+      this.showNotice('Using standard settings', 3, 'centre');
+      return;
+    }
     const before = `${cal.step}${cal.pinches}`;
     cal.update(h.tracked ? h.pinchDist : null, h.tracked ? h.rawPinch : null, dt);
     if (`${cal.step}${cal.pinches}` !== before) {
@@ -419,7 +478,7 @@ export class GameSystem extends createSystem({
     const cal = this.calibrator!;
     const text =
       cal.step === 'pinches'
-        ? ['Pinch three times', 'Two more', 'One more'][Math.min(cal.pinches, 2)]
+        ? ['Pinch 3 times, palm down', 'Two more', 'One more'][Math.min(cal.pinches, 2)]
         : 'Hold your pinch still';
     this.debug.calibrating = `${cal.step}:${cal.pinches}`;
     this.notice = text;
@@ -432,6 +491,12 @@ export class GameSystem extends createSystem({
   /** XR session ended: drop the anchor and re-run "set the table" next time. */
   private endSession(): void {
     this.sessionTime = 0;
+    if (this.calibrator) {
+      this.calibrator = null;
+      this.debug.calibrating = '';
+    }
+    if (this.notice) this.showNotice('', 0);
+    this.controller.enabled = this.flow.phase === 'play';
     if (!this.placement || this.placement.phase !== 'placed') return;
     if (this.loomEntity.hasComponent(XRAnchor)) this.loomEntity.removeComponent(XRAnchor);
     this.placement = new Placement();
@@ -459,7 +524,8 @@ export class GameSystem extends createSystem({
     this.noticeAt = at;
     this.noticeTimer = seconds;
     this.debug.notice = text;
-    this.tutor.set(text);
+    // Clearing a notice brings back the tutorial hint it covered.
+    this.tutor.set(text || HINT_TEXT[this.flow.hintStep]);
   }
 
   setPaused(p: boolean): void {
@@ -469,6 +535,14 @@ export class GameSystem extends createSystem({
   }
 
   update(delta: number) {
+    try {
+      this.step(delta);
+    } catch (e) {
+      reportFrameError('GameSystem', e);
+    }
+  }
+
+  private step(delta: number) {
     const dt = Math.min(delta, 0.05);
     if (this.paused) return;
     this.watchFrames(delta);
@@ -579,8 +653,13 @@ export class GameSystem extends createSystem({
         placed = true;
         break;
       }
-      if (this.placement.phase === 'steadying') break; // only one hand at a time
+      if (this.placement.phase === 'steadying') {
+        this.holdRing.position.set(h.palm.x, h.palm.y - h.palmRadius + 0.004, h.palm.z);
+        break; // only one hand at a time
+      }
     }
+    this.holdRing.count =
+      this.placement.phase === 'steadying' && !placed ? Math.ceil(this.placement.progress * HOLD_DOTS) : 0;
     const noHands = !hands.left.tracked && !hands.right.tracked;
     if (!placed && noHands) this.placement.update(null, [], dt);
     // Fallbacks (spec §5.1): no hand at all, or no flat palm for a while.
@@ -627,10 +706,12 @@ export class GameSystem extends createSystem({
     this.view.setSide(side);
     this.forwardFlat(this.fwd);
     const root = this.view.root;
-    const pose = loomPose(this.head, this.fwd, side, this.placement.deskY!);
+    const palm = this.placement.source === 'palm' || this.placement.source === 'plane' ? { x: this.placement.palmX, z: this.placement.palmZ } : null;
+    const pose = loomPose(this.head, this.fwd, side, this.placement.deskY!, palm);
     root.position.set(pose.x, pose.y, pose.z);
     root.rotation.set(0, pose.yaw, 0);
     root.visible = true;
+    this.holdRing.count = 0;
     root.scale.setScalar(0.05);
     root.updateMatrixWorld(true);
     this.hint.mesh.visible = false;
@@ -699,6 +780,7 @@ export class GameSystem extends createSystem({
     inp.tracked = h.tracked;
     inp.pinching = h.pinch.pinching;
     inp.edge = h.edge;
+    inp.aperture = h.pinchDist ?? 1;
     this.tmp.copy(h.pinchPoint).applyMatrix4(this.inv);
     copy(inp.pinch, this.tmp);
     this.tmp.copy(h.indexTip).applyMatrix4(this.inv);
@@ -749,6 +831,7 @@ export class GameSystem extends createSystem({
 }
 
 const UPV = new Vector3(0, 1, 0);
+const HOLD_DOTS = 20;
 
 
 function mkInput(): HandInput {

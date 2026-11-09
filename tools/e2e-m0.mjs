@@ -35,6 +35,7 @@ cli('browser', 'reload');
 await wait(2500);
 if (!xr('status').sessionActive) xr('enter');
 xr('set-input-mode', { mode: 'hand' });
+xr('set-transform', { device: 'headset', position: { x: 0, y: 1.2, z: 0 }, orientation: { pitch: 0, yaw: 0, roll: 0 } });
 // Park the left hand out of the way (raised, so it never reads as a desk).
 xr('set-transform', { device: 'hand-left', position: { x: -0.35, y: 1.45, z: -0.25 }, orientation: { pitch: 0, yaw: 0, roll: 90 } });
 xr('set-select-value', { device: HAND, value: 0 });
@@ -42,7 +43,7 @@ xr('set-select-value', { device: HAND, value: 0 });
 let s = state();
 check('starts unplaced', s.debug.phase !== 'placed', `phase=${s.debug.phase}`);
 
-// 1. Set the table: right palm flat & still on a desk ~0.77 m (head 1.6).
+// 1. Set the table: right palm flat & still on a desk ~0.77 m (seated head 1.2).
 xr('set-transform', { device: HAND, position: { x: 0.05, y: 0.8, z: -0.33 }, orientation: FLAT });
 await wait(1800);
 s = state();

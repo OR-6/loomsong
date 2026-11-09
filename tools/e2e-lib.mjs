@@ -36,6 +36,8 @@ export async function freshSession({ clear = true } = {}) {
   await wait(2500);
   if (!xr('status').sessionActive) xr('enter');
   xr('set-input-mode', { mode: 'hand' });
+  // Seated player: eyes 1.2 m above the floor (desk ~0.4 m below the eyes).
+  xr('set-transform', { device: 'headset', position: { x: 0, y: 1.2, z: 0 }, orientation: { pitch: 0, yaw: 0, roll: 0 } });
   xr('set-transform', { device: 'hand-left', position: { x: -0.35, y: 1.45, z: -0.25 }, orientation: { pitch: 0, yaw: 0, roll: 90 } });
   xr('set-select-value', { device: HAND, value: 0 });
 }

@@ -25,6 +25,8 @@ export interface HandInput {
   pinch: Vec3Like;
   index: Vec3Like;
   indexVel: Vec3Like;
+  /** Thumb–index distance (m); pokes need an open, pointing hand. */
+  aperture?: number;
 }
 
 export type Target =
@@ -193,6 +195,7 @@ export class LoomController {
       return;
     }
     if (!this.pokeArmed[side] || h.indexVel.y > -POKE.minDownSpeed) return;
+    if (h.aperture !== undefined && h.aperture < POKE.minAperture) return; // reaching to pinch
     this.pokeArmed[side] = false;
     if (t.kind === 'lever') {
       const l = this.levers[t.k];
@@ -211,9 +214,22 @@ export class LoomController {
     }
   }
 
+  /** Drop anything held (win, pause, partner left): sliders settle. */
+  releaseAll(): void {
+    for (const side of ['left', 'right'] as const) {
+      const held = this.holding[side];
+      if (!held) continue;
+      const s = this.sliderOf(held);
+      s.release();
+      if (held.kind === 'lever') this.setLatched(held.k, s.target === 1);
+      if (held.kind === 'bobbin') s.target = 0;
+      this.holding[side] = null;
+    }
+  }
+
   /** Auto-throw the shuttle across (poke mode / accessibility). */
   throwShuttle(): void {
-    if (this.shuttle.held) return;
+    if (this.shuttle.held || !this.enabled) return;
     if (this.mirror) this.hooks.request?.('throw');
     this.autoThrow = true;
     this.shuttle.target = this.model.shuttleSide === 0 ? 1 : 0;
@@ -228,6 +244,7 @@ export class LoomController {
 
   /** Unpick the last row (always available, never penalised). */
   doUndo(): void {
+    if (!this.enabled) return;
     if (this.mirror) {
       this.hooks.request?.('undo');
       return;
@@ -286,6 +303,7 @@ export class LoomController {
 
   private commit(): void {
     if (this.mirror) return; // the host commits; we follow its snapshots
+    if (!this.enabled) return; // no rows during a win's playback
     const before = this.model.rows.length;
     this.model.commitRow();
     this.shuttle.target = this.model.shuttleSide;

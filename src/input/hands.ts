@@ -5,6 +5,7 @@
  *
  * `?noise=1` injects σ≈3 mm jitter and 2% dropouts ≥150 ms (spec §6).
  */
+import { reportFrameError } from '../app/safe.js';
 import { createSystem, Quaternion, Vector3 } from '@iwsdk/core';
 import { PINCH } from '../config.js';
 import { OneEuro3 } from './one-euro.js';
@@ -63,12 +64,21 @@ export class HandTrackerSystem extends createSystem({}) {
   private tmpThumb = new Vector3();
   private tmpIndex = new Vector3();
   private prevIndex = new Vector3();
+  private rawVel = new Vector3();
   private q = new Quaternion();
   private up = new Vector3();
   private seen: Record<Side, boolean> = { left: false, right: false };
   private dropout: Record<Side, number> = { left: 0, right: 0 };
 
   update(delta: number) {
+    try {
+      this.step(delta);
+    } catch (e) {
+      reportFrameError('HandTracker', e);
+    }
+  }
+
+  private step(delta: number) {
     const frame = this.xrFrame;
     const session = frame?.session;
     const ref = this.renderer.xr.getReferenceSpace();
@@ -129,7 +139,9 @@ export class HandTrackerSystem extends createSystem({}) {
         this.prevIndex.copy(h.indexTip);
         h.indexTip.copy(this.tmpIndex);
         if (h.tracked && delta > 0) {
-          h.indexVel.subVectors(h.indexTip, this.prevIndex).divideScalar(delta);
+          // Smoothed fingertip velocity: raw frame differences are mostly noise.
+          this.rawVel.subVectors(h.indexTip, this.prevIndex).divideScalar(delta);
+          h.indexVel.lerp(this.rawVel, 0.35);
         } else {
           h.indexVel.set(0, 0, 0);
         }

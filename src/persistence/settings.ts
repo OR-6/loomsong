@@ -16,7 +16,8 @@ export interface Settings {
 const KEY = 'settings.v1';
 
 export function loadSettings(): Settings {
-  const s = load<Partial<Settings>>(KEY, {});
+  const raw = load<unknown>(KEY, {});
+  const s = (raw && typeof raw === 'object' ? raw : {}) as Partial<Settings>;
   return {
     highContrast: s.highContrast === true,
     hand: s.hand === 'left' || s.hand === 'right' ? s.hand : 'auto',
@@ -32,5 +33,5 @@ export function saveSettings(s: Settings): void {
 function validCal(c: unknown): c is CalResult {
   const x = c as CalResult;
   const ok = (v: number, a: number, b: number) => typeof v === 'number' && v >= a && v <= b;
-  return !!x && ok(x.pinchScale, 0.75, 1.8) && ok(x.radiusMul, 1, 1.8) && ok(x.minCutoff, 0.35, 1);
+  return !!x && ok(x.pinchScale, 0.75, 1.8) && ok(x.radiusMul, 1, 1.8) && ok(x.minCutoff, 0.35, 1.5);
 }
