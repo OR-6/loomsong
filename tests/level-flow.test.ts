@@ -33,17 +33,17 @@ describe('level flow', () => {
     const { model, flow, log, plucks } = setup();
     flow.start();
     expect(log).toContain('hint lever 0');
-    // a1 target: [L0, L0, L0+L1, L1] → flips 1,0,1,1 = 3 = par
-    weave(model, [[1, 0], [1, 0], [1, 1], [0, 1]]);
+    // Sprout: stem rows on lever 0 ×3, then the two leaves on lever 1 → 3 flips = par
+    weave(model, [[1, 0], [1, 0], [1, 0], [0, 1]]);
     expect(log).toContain('hint shuttle 0');
     expect(log).toContain('win 3');
     expect(flow.phase).toBe('won');
     for (let t = 0; t < 10 && flow.phase !== 'play'; t += 0.05) flow.update(0.05);
     // melody: every lifted warp of every row plucked
-    expect(plucks.length).toBe(4 + 4 + 8 + 4);
+    expect(plucks.length).toBe(2 + 2 + 2 + 2);
     expect(flow.index).toBe(1);
-    expect(log.at(-2)).toBe('load a2 1');
-    expect(flow.progress.best.a1).toBe(3);
+    expect(log.at(-2)).toBe('load tulip 1');
+    expect(flow.progress.best.sprout).toBe(3);
     expect(flow.progress.level).toBe(1);
   });
 
@@ -54,7 +54,7 @@ describe('level flow', () => {
     expect(flow.phase).toBe('play');
     model.undo();
     model.setLatched(1, false);
-    weave(model, [[1, 0], [1, 0], [1, 1], [0, 1]]);
+    weave(model, [[1, 0], [1, 0], [1, 0], [0, 1]]);
     expect(log.some((l) => l.startsWith('win'))).toBe(true);
     expect(flow.lastStars).toBe(2); // 5 flips vs par 3
   });
@@ -62,21 +62,21 @@ describe('level flow', () => {
   it('timing: playback starts after the win pause', () => {
     const { model, flow, plucks } = setup({ level: 0, best: {}, tutorialDone: true, theme: 'toy' });
     flow.start();
-    weave(model, [[1, 0], [1, 0], [1, 1], [0, 1]]);
+    weave(model, [[1, 0], [1, 0], [1, 0], [0, 1]]);
     flow.update(TIMING.winPause - 0.1);
     expect(plucks.length).toBe(0);
     flow.update(0.2);
-    expect(plucks.length).toBe(4);
+    expect(plucks.length).toBe(2);
   });
 
-  it('after level 3 the sequence continues into generated levels', () => {
-    const { flow } = setup({ level: 3, best: {}, tutorialDone: true, theme: 'toy' });
+  it('after the last picture the sequence continues into bonus patterns', () => {
+    const { flow } = setup({ level: 18, best: {}, tutorialDone: true, theme: 'toy' });
     flow.start();
-    expect(flow.level.id).toBe('g4');
+    expect(flow.level.id).toBe('bonus1');
   });
 
   it('challenge: weaving a shared cloth does not advance progress, then resumes', () => {
-    const { model, flow } = setup({ level: 4, best: { a1: 3 }, tutorialDone: true, theme: 'toy' });
+    const { model, flow } = setup({ level: 4, best: { sprout: 3 }, tutorialDone: true, theme: 'toy' });
     flow.startChallenge({ id: 'shared', name: 'Shared cloth', tieUp: [0x0f, 0xf0], target: [0x0f, 0xff], rootMidi: 60, par: 2 });
     expect(flow.challenge).toBe(true);
     weave(model, [[1, 0], [1, 1]]);

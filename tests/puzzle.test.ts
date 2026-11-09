@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { AUTHORED } from '../src/puzzle/levels';
-import { LEVELS } from '../src/puzzle/catalog';
 import { computePar, rowReachable } from '../src/puzzle/par';
 import { isWon, rowStatuses, stars } from '../src/puzzle/session';
-import { LEVERS, WARPS } from '../src/config';
 
 describe('par DP', () => {
   it('counts minimal flips from all-unlatched', () => {
@@ -20,23 +17,6 @@ describe('par DP', () => {
   it('prefers the cheaper of two lever states that weave the same row', () => {
     // row 0b0111 = A|B (2 flips) or C (1 flip)
     expect(computePar([0b0011, 0b0110, 0b0111], [0b0111])).toBe(1);
-  });
-});
-
-describe('authored levels', () => {
-  for (const l of AUTHORED) {
-    it(`${l.id} is valid and solvable`, () => {
-      expect(l.tieUp.length).toBeGreaterThanOrEqual(2);
-      expect(l.tieUp.length).toBeLessThanOrEqual(LEVERS);
-      expect(l.target.length).toBeGreaterThanOrEqual(4);
-      expect(l.target.length).toBeLessThanOrEqual(12);
-      for (const m of [...l.tieUp, ...l.target]) expect(m >>> WARPS).toBe(0);
-      expect(l.name.split(' ').length).toBeLessThanOrEqual(5);
-      expect(Number.isFinite(computePar(l.tieUp, l.target))).toBe(true);
-    });
-  }
-  it('level 1 par is small (first tune fast)', () => {
-    expect(LEVELS[0].par).toBe(3);
   });
 });
 

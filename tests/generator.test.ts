@@ -32,14 +32,10 @@ describe('generator', () => {
     }
   });
 
-  it('level sequence: authored 1–3, generated 4+, stable ids', () => {
-    expect(levelAt(0).id).toBe('a1');
-    expect(levelAt(2).id).toBe('a3');
-    expect(levelAt(3).id).toBe('g4');
-    expect(levelAt(5).id).toBe('g6');
-    expect(levelAt(20).id).toBe('g21');
-    expect(levelAt(4)).toBe(levelAt(4)); // cached
-    for (let i = 3; i < 30; i++) expect(levelAt(i).target.length).toBe(difficultyFor(i).rows);
+  it('bonus patterns follow the picture levels, with stable ids', () => {
+    expect(levelAt(18).id).toBe('bonus1');
+    expect(levelAt(20)).toBe(levelAt(20)); // cached
+    for (let i = 18; i < 40; i++) expect(levelAt(i).target.length).toBe(difficultyFor(i).rows);
   });
 
   it('levels 4–6 stay in the 30–90 s band (rows × par heuristic)', () => {

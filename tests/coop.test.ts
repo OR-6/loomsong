@@ -85,7 +85,7 @@ describe('co-op protocol', () => {
     const host = new CoopHost(h, a);
     const guest = new CoopGuest(g, b);
     step(h, g, host, guest, a, 6);
-    expect(g.flow.level.id).toBe('a1');
+    expect(g.flow.level.id).toBe('sprout');
     // Warden latches lever 0
     h.controller.toggleLever(0);
     step(h, g, host, guest, a, 6);
@@ -98,8 +98,8 @@ describe('co-op protocol', () => {
     }
     g.controller.shuttle.held = false;
     step(h, g, host, guest, a, 10);
-    expect(h.model.rows).toEqual([0b00111100]);
-    expect(g.model.rows).toEqual([0b00111100]);
+    expect(h.model.rows).toEqual([0b00011000]);
+    expect(g.model.rows).toEqual([0b00011000]);
     expect(g.model.shuttleSide).toBe(1);
   });
 
@@ -119,24 +119,23 @@ describe('co-op protocol', () => {
     step(h, g, host, guest, a, 10);
     expect(h.model.rows.length).toBe(0);
     expect(g.model.rows.length).toBe(0);
-    // finish level 1 cooperatively: [L0],[L0],[L0+L1],[L1]
+    // finish Sprout cooperatively: [L0],[L0],[L0],[L1]
     const throwAndWait = () => {
       g.controller.throwShuttle();
       step(h, g, host, guest, a, 90);
     };
     throwAndWait();
     throwAndWait();
-    h.controller.toggleLever(1);
-    step(h, g, host, guest, a, 4);
     throwAndWait();
     h.controller.toggleLever(0);
+    h.controller.toggleLever(1);
     step(h, g, host, guest, a, 4);
     throwAndWait();
     expect(h.log.some((l) => l.startsWith('win'))).toBe(true);
     expect(g.log.some((l) => l.startsWith('win'))).toBe(true);
     // host advances after playback; the guest follows
     step(h, g, host, guest, a, 72 * 8);
-    expect(h.flow.level.id).toBe('a2');
-    expect(g.flow.level.id).toBe('a2');
+    expect(h.flow.level.id).toBe('tulip');
+    expect(g.flow.level.id).toBe('tulip');
   });
 });

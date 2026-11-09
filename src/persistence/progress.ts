@@ -11,8 +11,8 @@ export interface Progress {
   lastCloth?: { tieUp: number[]; rows: number[]; rootMidi: number };
 }
 
-/** Workshop unlocks after the three authored levels are finished. */
-export const WORKSHOP_UNLOCK = ['a1', 'a2', 'a3'];
+/** Workshop unlocks when the Garden chapter (the first four pictures) is done. */
+export const WORKSHOP_UNLOCK = ['sprout', 'tulip', 'tree', 'duck'];
 
 export function workshopUnlocked(p: Pick<Progress, 'best'>): boolean {
   return WORKSHOP_UNLOCK.every((id) => (p.best[id] ?? 0) > 0);
