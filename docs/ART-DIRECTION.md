@@ -26,7 +26,7 @@ Level palettes vary the yarn pair, but always keep a luminance ratio of at least
 
 ## Type
 
-**Lilita One** (SIL Open Font License), bundled locally as woff2 (no network calls). It is used for the logo, card titles and in-world labels.
+**Lilita One** (SIL Open Font License), bundled locally as TTF with its licence (no network calls). It is used for the logo, card titles and in-world labels.
 
 ## Reference (2025 winners, for energy, not copying)
 
