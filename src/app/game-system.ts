@@ -17,7 +17,7 @@ import {
   type Entity,
   PCFSoftShadowMap,
 } from '@iwsdk/core';
-import { BOBBIN, CARD, LEVER, LEVERS, NUDGE, PLACE, SHUTTLE, TOKEN, leverX, nudgeX, tokenX } from '../config.js';
+import { BOBBIN, CARD, LEVER, LEVERS, NUDGE, PLACE, SHUTTLE, TOKEN, leverX, nudgeX, tokenX, shuttleY } from '../config.js';
 import { applyCalibration, hands, calibration, type Side } from '../input/hands.js';
 import { Calibrator } from '../input/calibration.js';
 import { LoomController, type HandInput } from '../loom/loom-controller.js';
@@ -43,7 +43,7 @@ const FIXED_DESK = params.get('desk');
 
 const HINT_TEXT: Record<HintStep, string> = {
   lever: 'Slide it away',
-  shuttle: 'Slide across',
+  shuttle: 'Slide Pip across',
   card: 'Match the card',
   none: '',
 };
@@ -614,7 +614,7 @@ export class GameSystem extends createSystem({
       ['shuttleMin', SHUTTLE.minX],
       ['shuttleMax', SHUTTLE.maxX],
     ] as const) {
-      v.set(x, SHUTTLE.y, SHUTTLE.z).applyMatrix4(this.view.root.matrixWorld);
+      v.set(x, shuttleY(x), SHUTTLE.z).applyMatrix4(this.view.root.matrixWorld);
       out[name] = v.toArray();
     }
     v.set(0, 0, LEVER.restZ - LEVER.travel).applyMatrix4(this.view.root.matrixWorld);
@@ -768,7 +768,9 @@ export class GameSystem extends createSystem({
       m.position.set(leverX(k, side) - side * 0.03, 0.075, LEVER.restZ - LEVER.travel / 2);
       if (!this.model.latched[k]) this.view.setLeverHighlight(k, pulse as 0 | 1, false);
     } else if (step === 'shuttle') {
-      m.position.set(0, 0.07, SHUTTLE.z);
+      // Tag hangs just outside the frame beside Pip's perch, never over the threads.
+      const end = this.controller.shuttle.t < 0.5 ? -1 : 1;
+      m.position.set(end * 0.205, 0.07, SHUTTLE.z);
       if (this.controller.hover.left === null && this.controller.hover.right === null) {
         this.view.setShuttleHighlight(pulse as 0 | 1);
       }

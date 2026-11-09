@@ -21,6 +21,7 @@ import {
   Vector3,
   AdditiveBlending,
   CylinderGeometry,
+  TorusGeometry,
   Object3D,
   DirectionalLight,
   ShadowMaterial,
@@ -29,7 +30,7 @@ import {
 import { TargetCard } from '../ui/target-card.js';
 import { THEMES, type Palette, type Theme } from '../ui/theme.js';
 import { PLAQUE, Plaque } from '../ui/plaque.js';
-import { grainTexture, weaveTexture } from './textures.js';
+import { grainTexture, weaveTexture, yarnTexture } from './textures.js';
 import { cloneModel, loomModels, materialOf } from './models.js';
 import {
   BOBBIN,
@@ -47,6 +48,7 @@ import {
   WARP_PITCH,
   leverX,
   warpX,
+  shuttleY,
 } from '../config.js';
 import { isLifted, type Mask8 } from '../puzzle/tieup.js';
 
@@ -59,6 +61,14 @@ const _s = new Vector3();
 const _c = new Color();
 const UP = new Vector3(0, 1, 0);
 const _glow = new Color(0xffe2a8);
+/** Underside of the heddle bar in the Blender model (bar centre 0.071, 17 mm tall). */
+const HEDDLE_BAR_BOTTOM_Y = 0.0625;
+/** Strands per warp bundle, and their spread (they pinch to 30 % at the eyelet). */
+const STRANDS = 3;
+const STRAND_GAP = 0.0052;
+const _a = new Vector3();
+const _b = new Vector3();
+const Z_AXIS = new Vector3(0, 0, 1);
 
 export class LoomView {
   readonly root = new Group();
@@ -74,6 +84,8 @@ export class LoomView {
   private frameNode: Object3D | null = null;
   readonly glows: Record<'left' | 'right', Mesh>;
   private warps!: InstancedMesh;
+  private cords!: InstancedMesh;
+  private eyes!: InstancedMesh;
   /** Coloured ties: one bead per (lever, thread it lifts), in the lever's colour. */
   private ties!: InstancedMesh;
   private tieUp: readonly Mask8[] = [];
@@ -222,13 +234,24 @@ export class LoomView {
 
 
     // Warps: 2 segments each (back beam → heddle → fell).
-    const warpMat = new MeshStandardMaterial({ color: palette.warp, roughness: 0.9 });
-    // Round yarn: a thin cylinder along Z, stretched per segment.
-    const warpGeo = new CylinderGeometry(0.0017, 0.0017, 1, 8, 1, true);
+    const warpMat = new MeshStandardMaterial({ color: palette.warp, roughness: 0.95, map: yarnTexture() });
+    // Round twisted yarn: a cylinder along Z, stretched per segment.
+    // Each logical warp is a bundle of STRANDS strands that gather through its eyelet.
+    const warpGeo = new CylinderGeometry(0.0015, 0.0015, 1, 8, 1, true);
     warpGeo.rotateX(Math.PI / 2);
-    this.warps = new InstancedMesh(warpGeo, warpMat, WARPS * 2);
+    this.warps = new InstancedMesh(warpGeo, warpMat, WARPS * 2 * STRANDS);
     this.warps.name = 'Warps';
     add(this.warps);
+
+    // Heddles: a cord per warp hanging from the heddle bar, with an eyelet the
+    // warp threads through. Lifting a lever visibly pulls these up.
+    const cordMat = new MeshStandardMaterial({ color: 0xeee2cc, roughness: 0.9 });
+    this.cords = new InstancedMesh(new CylinderGeometry(0.0006, 0.0006, 1, 5, 1, true), cordMat, WARPS);
+    this.cords.name = 'HeddleCords';
+    this.eyes = new InstancedMesh(new TorusGeometry(0.0036, 0.0008, 6, 14), cordMat, WARPS);
+    this.eyes.name = 'HeddleEyes';
+    this.cords.frustumCulled = this.eyes.frustumCulled = false;
+    add(this.cords, this.eyes);
     this.applyColors();
 
     // Lever ties: little yarn knots on each warp, coloured like the lever
@@ -241,7 +264,7 @@ export class LoomView {
     add(this.ties);
 
     // Cloth cells.
-    const cellGeo = new BoxGeometry(WARP_PITCH * 0.96, 0.003, LOOM.rowPitch * 0.94);
+    const cellGeo = new BoxGeometry(WARP_PITCH * 0.995, 0.003, LOOM.rowPitch * 0.99);
     const clothMat = new MeshStandardMaterial({ roughness: 0.95, map: weaveTexture() });
     this.cloth = new InstancedMesh(cellGeo, clothMat, WARPS * LOOM.visibleRows);
     this.cloth.name = 'Cloth';
@@ -292,7 +315,11 @@ export class LoomView {
     this.pipEyes = [];
     if (models?.pip) {
       // Pip, the shuttle songbird (faces its direction of travel).
-      this.shuttle = cloneModel(models.pip);
+      // Wrapped so squash-and-stretch scales around a slightly smaller Pip.
+      const pip = cloneModel(models.pip);
+      pip.scale.setScalar(0.85);
+      this.shuttle = new Group();
+      this.shuttle.add(pip);
       this.shuttleMat = materialOf(this.shuttle, 'Body') as MeshStandardMaterial;
       // Head shares the body's material so the hover glow covers all of Pip.
       const head = this.shuttle.getObjectByName('Head') as Mesh | undefined;
@@ -515,7 +542,9 @@ export class LoomView {
   /** Pip faces where it's flying, flaps while moving, and blinks now and then. */
   private animatePip(dt: number): void {
     const speed = Math.abs(this.shuttleVel);
+    // Flying: face the way it's going. Perched: face into the loom.
     if (speed > 0.05) this.pipFacing = this.shuttleVel > 0 ? 1 : -1;
+    else this.pipFacing = this.shuttleT < 0.5 ? 1 : -1;
     const want = this.pipFacing > 0 ? 0 : Math.PI;
     this.shuttle.rotation.y += (want - this.shuttle.rotation.y) * Math.min(1, dt * 10);
     const flap = Math.min(1, speed * 1.5);
@@ -549,11 +578,8 @@ export class LoomView {
       this.shuttleVel = v;
     }
     this.shuttleT = t;
-    this.shuttle.position.set(
-      SHUTTLE.minX + (SHUTTLE.maxX - SHUTTLE.minX) * t,
-      SHUTTLE.y,
-      SHUTTLE.z,
-    );
+    const x = SHUTTLE.minX + (SHUTTLE.maxX - SHUTTLE.minX) * t;
+    this.shuttle.position.set(x, shuttleY(x), SHUTTLE.z);
   }
 
   setShuttleHighlight(level: 0 | 1 | 2): void {
@@ -660,9 +686,24 @@ export class LoomView {
       const a = this.twang[i];
       const x = warpX(i) + (a > 0 ? Math.sin(this.clock * 85 + i) * 0.0014 * a * a : 0);
       const hy = LOOM.loweredY + (LOOM.liftedY - LOOM.loweredY) * this.warpLift[i];
-      this.segment(i * 2, x, LOOM.beamY + 0.007, LOOM.backBeamZ, hy, LOOM.heddleZ);
-      this.segment(i * 2 + 1, x, hy, LOOM.heddleZ, fellY, LOOM.fellZ);
+      for (let s = 0; s < STRANDS; s++) {
+        const dx = (s - (STRANDS - 1) / 2) * STRAND_GAP;
+        const n = (i * STRANDS + s) * 2;
+        this.segment(n, x + dx, LOOM.beamY + 0.007, LOOM.backBeamZ, x + dx * 0.3, hy, LOOM.heddleZ);
+        this.segment(n + 1, x + dx * 0.3, hy, LOOM.heddleZ, x + dx, fellY, LOOM.fellZ);
+      }
+      // heddle cord from the bar down to the eyelet, eyelet around the warp
+      const top = HEDDLE_BAR_BOTTOM_Y;
+      const bottom = hy + 0.0033;
+      _p.set(x, (top + bottom) / 2, LOOM.heddleZ);
+      _m.compose(_p, _q.identity(), _s.set(1, Math.max(0.001, top - bottom), 1));
+      this.cords.setMatrixAt(i, _m);
+      _p.set(x, hy, LOOM.heddleZ);
+      _m.compose(_p, _q.identity(), _s.set(1, 1, 1));
+      this.eyes.setMatrixAt(i, _m);
     }
+    this.cords.instanceMatrix.needsUpdate = true;
+    this.eyes.instanceMatrix.needsUpdate = true;
     this.warps.instanceMatrix.needsUpdate = true;
     this.writeTies();
   }
@@ -738,13 +779,13 @@ export class LoomView {
     if (this.ties.instanceColor) this.ties.instanceColor.needsUpdate = true;
   }
 
-  /** Instance `idx` as a unit-Z box stretched from (x,y0,z0) to (x,y1,z1). */
-  private segment(idx: number, x: number, y0: number, z0: number, y1: number, z1: number) {
-    const dy = y1 - y0;
-    const dz = z1 - z0;
-    const len = Math.hypot(dy, dz);
-    _p.set(x, (y0 + y1) / 2, (z0 + z1) / 2);
-    _q.setFromAxisAngle(_s.set(1, 0, 0), -Math.atan2(dy, dz));
+  /** Instance `idx` as a unit-Z strand stretched from (x0,y0,z0) to (x1,y1,z1). */
+  private segment(idx: number, x0: number, y0: number, z0: number, x1: number, y1: number, z1: number) {
+    _a.set(x0, y0, z0);
+    _b.set(x1, y1, z1).sub(_a);
+    const len = _b.length();
+    _p.copy(_a).addScaledVector(_b, 0.5);
+    _q.setFromUnitVectors(Z_AXIS, _b.multiplyScalar(1 / len));
     _m.compose(_p, _q, _s.set(1, 1, len));
     this.warps.setMatrixAt(idx, _m);
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LEVER, LOOM, PINCH, SHUTTLE, leverX, warpX } from '../src/config';
+import { LEVER, LOOM, PINCH, SHUTTLE, leverX, warpX, shuttleY } from '../src/config';
 import { LoomController, type HandInput } from '../src/loom/loom-controller';
 import { LoomModel } from '../src/loom/loom-model';
 import { PinchDetector } from '../src/input/pinch';
@@ -102,7 +102,7 @@ describe('lever slide constraint', () => {
 });
 
 describe('shuttle pass', () => {
-  const sh = (x: number) => ({ x, y: SHUTTLE.y, z: SHUTTLE.z });
+  const sh = (x: number) => ({ x, y: shuttleY(x), z: SHUTTLE.z });
 
   it('a full slide commits one row equal to the shed and strums lifted warps in order', () => {
     const m = new LoomModel([...TIE]);
@@ -156,7 +156,7 @@ describe('poke alternative', () => {
     ];
     run(c, 'right', poke(k), 0.5);
     expect(m.latched[2]).toBe(true);
-    run(c, 'right', poke({ x: SHUTTLE.minX, y: SHUTTLE.y, z: SHUTTLE.z }), 2);
+    run(c, 'right', poke({ x: SHUTTLE.minX, y: shuttleY(SHUTTLE.minX), z: SHUTTLE.z }), 2);
     expect(m.rows).toEqual([TIE[2]]);
   });
 });

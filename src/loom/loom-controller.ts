@@ -3,7 +3,7 @@
  * lever / shuttle motion and LoomModel changes. No Three.js, so unit tests
  * can drive it with synthetic joint streams.
  */
-import { BOBBIN, LEVER, LEVERS, NUDGE, PINCH, POKE, SHUTTLE, TOKEN, bobbinX, leverX, nudgeX, tokenX, warpX, WARPS } from '../config.js';
+import { BOBBIN, LEVER, LEVERS, NUDGE, PINCH, POKE, SHUTTLE, TOKEN, bobbinX, leverX, nudgeX, tokenX, warpX, WARPS, shuttleY } from '../config.js';
 import type { PinchEdge } from '../input/pinch.js';
 import { Slider } from '../input/slider.js';
 import { isLifted } from '../puzzle/tieup.js';
@@ -380,7 +380,7 @@ export class LoomController {
     const sx = this.shuttleX();
     const half = 0.026;
     const cx = Math.min(sx + half, Math.max(sx - half, p.x));
-    const d = this.allow.shuttle ? Math.hypot(p.x - cx, p.y - SHUTTLE.y, p.z - SHUTTLE.z) : Infinity;
+    const d = this.allow.shuttle ? Math.hypot(p.x - cx, p.y - shuttleY(cx), p.z - SHUTTLE.z) : Infinity;
     if (d < bestD) {
       bestD = d;
       best = { kind: 'shuttle' };

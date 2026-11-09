@@ -30,10 +30,14 @@ export const LOOM = {
 /** Shuttle slides along X on the shed line. */
 export const SHUTTLE = {
   z: -0.031,
+  /** Height in the shed (between lowered and lifted threads). */
   y: 0.017,
-  /** Travel endpoints in loom-local x. */
-  minX: -0.135,
-  maxX: 0.135,
+  /** Travel endpoints in loom-local x: Pip's perches on top of the side rails. */
+  minX: -0.123,
+  maxX: 0.123,
+  /** Perch height on the rail top, and where the hop down into the shed starts. */
+  perchY: 0.046,
+  shedHalf: 0.088,
   /** Release past this fraction of travel completes the pass. */
   completeAt: 0.6,
   autoThrowSpeed: 0.35, // m/s
@@ -151,6 +155,13 @@ export const PLACE = {
 
 /** Seated reach limit for R2. */
 export const MAX_REACH_M = 0.6;
+
+/** Shuttle (Pip) height at loom-local x: perched on a rail at the ends, in the shed between. */
+export function shuttleY(x: number): number {
+  const a = Math.min(1, Math.max(0, (Math.abs(x) - SHUTTLE.shedHalf) / (SHUTTLE.maxX - SHUTTLE.shedHalf)));
+  const s = a * a * (3 - 2 * a);
+  return SHUTTLE.y + (SHUTTLE.perchY - SHUTTLE.y) * s;
+}
 
 export function warpX(i: number): number {
   return (i - (WARPS - 1) / 2) * WARP_PITCH;

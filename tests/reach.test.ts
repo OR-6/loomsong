@@ -4,7 +4,7 @@
  * the deepest plausible desk, across lever and shuttle travel.
  */
 import { describe, expect, it } from 'vitest';
-import { BOBBIN, LEVER, LEVERS, MAX_REACH_M, NUDGE, PLACE, SHUTTLE, TOKEN, bobbinX, leverX, nudgeX, tokenX } from '../src/config';
+import { BOBBIN, LEVER, LEVERS, MAX_REACH_M, NUDGE, PLACE, SHUTTLE, TOKEN, bobbinX, leverX, nudgeX, tokenX, shuttleY } from '../src/config';
 import { loomPose } from '../src/app/placement';
 
 function world(p: ReturnType<typeof loomPose>, x: number, y: number, z: number) {
@@ -26,8 +26,8 @@ describe('check:reach', () => {
           pts.push([`lever${k} rest`, leverX(k, side), LEVER.knobY, LEVER.restZ]);
           pts.push([`lever${k} latched`, leverX(k, side), LEVER.knobY, LEVER.restZ - LEVER.travel]);
         }
-        pts.push(['shuttle min', SHUTTLE.minX, SHUTTLE.y, SHUTTLE.z]);
-        pts.push(['shuttle max', SHUTTLE.maxX, SHUTTLE.y, SHUTTLE.z]);
+        pts.push(['shuttle min', SHUTTLE.minX, shuttleY(SHUTTLE.minX), SHUTTLE.z]);
+        pts.push(['shuttle max', SHUTTLE.maxX, shuttleY(SHUTTLE.maxX), SHUTTLE.z]);
         pts.push(['bobbin', bobbinX(side), BOBBIN.y, BOBBIN.z]);
         pts.push(['style token', tokenX(side), TOKEN.y, TOKEN.z]);
         pts.push(['nudge up', nudgeX(side), NUDGE.y, NUDGE.upZ]);

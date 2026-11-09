@@ -63,3 +63,48 @@ export function grainTexture(): CanvasTexture {
   grain.wrapS = grain.wrapT = RepeatWrapping;
   return grain;
 }
+
+let yarn: CanvasTexture | null = null;
+/**
+ * Twisted yarn for the warps: diagonal plies with soft shading, white so the
+ * material colour tints it. Mapped around (u) and along (v) a cylinder.
+ */
+export function yarnTexture(): CanvasTexture {
+  if (yarn) return yarn;
+  const c = document.createElement('canvas');
+  c.width = 64;
+  c.height = 64;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#ffffff';
+  g.fillRect(0, 0, 64, 64);
+  // Two plies twisting: diagonal bands with a darker groove between them.
+  for (let k = -64; k < 128; k += 16) {
+    const grad = g.createLinearGradient(k, 0, k + 16, 0);
+    grad.addColorStop(0, 'rgba(0,0,0,0.28)');
+    grad.addColorStop(0.25, 'rgba(255,255,255,0)');
+    grad.addColorStop(0.6, 'rgba(255,255,255,0)');
+    grad.addColorStop(1, 'rgba(0,0,0,0.18)');
+    g.save();
+    g.transform(1, 0, -1, 1, 0, 0); // shear → diagonal twist
+    g.fillStyle = grad;
+    g.fillRect(k, 0, 16, 128);
+    g.restore();
+  }
+  // A few loose fibres.
+  g.strokeStyle = 'rgba(255,255,255,0.35)';
+  g.lineWidth = 1;
+  for (let i = 0; i < 18; i++) {
+    const x = (i * 37) % 64;
+    const y = (i * 23) % 64;
+    g.beginPath();
+    g.moveTo(x, y);
+    g.lineTo(x + 6, y + 3);
+    g.stroke();
+  }
+  const t = new CanvasTexture(c);
+  t.wrapS = t.wrapT = RepeatWrapping;
+  t.repeat.set(1, 14);
+  t.colorSpace = SRGBColorSpace;
+  yarn = t;
+  return t;
+}

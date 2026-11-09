@@ -50,7 +50,10 @@ def roller(name, y, z, r, cap_r, body_mat, cap_mat, crank=False):
         ellipsoid(name + 'Handle', (0.0062, 0.0062, 0.0062), (half + 0.022, y, z), mat=MUSTARD, parent=frame, segs=18)
 
 roller('BackBeam', L['beamY'] + 0.006, L['backBeamZ'], 0.0115, 0.0145, WOOD, TEAL)
-roller('FrontBeam', L['beamY'] + 0.002, L['frontBeamZ'], 0.0145, 0.0165, CLOTH, TEAL, crank=True)
+roller('FrontBeam', L['beamY'] - 0.001, L['frontBeamZ'], 0.0095, 0.012, WOOD, TEAL, crank=True)
+# Woven cloth wound onto the front beam: a thin wrap only as wide as the cloth.
+lathe('ClothWrap', [(0.0, -0.098), (0.0108, -0.098), (0.0118, -0.094), (0.0118, 0.094), (0.0108, 0.098), (0.0, 0.098)],
+      (0, L['beamY'] - 0.001, L['frontBeamZ']), axis='X', segs=32, mat=CLOTH, parent=frame)
 
 # ---- Uprights + heddle bar, crowned with big painted ball finials ----
 PH = 0.074
