@@ -50,7 +50,7 @@ That means real contact, no mid-air reaching, no arm fatigue, and none of the de
   - Poke works on every control.
   - Hand occluders let threads pass behind your real fingers.
 - **Puzzles.** Levels 1–3 are hand-authored; level 4 onwards is generated from a seed, is solvable by construction, and is scored against a computed par. Stars, a star-total nameplate and endless play.
-- **Sound.** Real recordings, all CC0 (`public/audio/CREDITS.md`). Each thread is a kalimba note on a pentatonic scale that changes per level. Levers clack in wood, the beater thunks, undo rustles cloth, hovering ticks, and a glockenspiel run plays in the level's key when a picture is finished. A Web Audio synth fills in until the samples load (about 250 KB). Every sound has a visual twin: warps twang, the cloth glows and the stars light up.
+- **Sound.** Real recordings, all CC0 (`public/audio/CREDITS.md`). Each thread is a kalimba note on a pentatonic scale that changes per level. Levers clack in wood, the beater thunks, undo rustles cloth, hovering ticks, and a glockenspiel run plays in the level's key when a picture is finished, and Pip chirps (real bird recordings) when a row is right, wrong or a picture is done. A Web Audio synth fills in until the samples load (about 250 KB). Every sound has a visual twin: warps twang, the cloth glows and the stars light up.
 - **Sharing.** A finished cloth becomes a `#w=` link. Opening it starts a "weave this" challenge.
 - **Styles.** "Toy loom" is the default; "Workshop" unlocks after levels 1–3.
 - **Play together (beta).** Two people at two desks share one loom. The host works the levers and the guest throws the shuttle; both see and hear the same cloth. Open "Play together" on the 2D page: one player hosts and reads out a 4-letter code, the other joins with it, and both enter XR. Co-op is never part of the first-run flow.
@@ -108,7 +108,7 @@ Docs: `docs/IWSDK-NOTES.md` (platform findings, with evidence) and `docs/ART-DIR
 | `peerjs` 1.5.5 | Opt-in co-op (WebRTC), loaded on demand only | MIT |
 | Lilita One (Juan Montoreano) | Toy-style display font | SIL OFL 1.1 (`public/fonts/LilitaOne-OFL.txt`) |
 | Fraunces 72pt Soft SemiBold (The Fraunces Project Authors) | Workshop-style font, loaded on demand | SIL OFL 1.1 (`public/fonts/Fraunces-OFL.txt`) |
-| VCSL Kalimba, VSCO 2 CE glockenspiel (Versilian Studios); Kenney Impact, RPG and Interface sounds | Recorded sound effects in `public/audio/` | CC0 1.0 (see `public/audio/CREDITS.md`) |
+| VCSL Kalimba, VSCO 2 CE glockenspiel (Versilian Studios); Kenney Impact, RPG and Interface sounds; Freesound bird calls by alegemaate, ReadeOnly and nfrae (Pip's voice) | Recorded sound effects in `public/audio/` | CC0 1.0 (see `public/audio/CREDITS.md`) |
 | ambientCG Wood095, Fabric019 | Beech grain and knit yarn textures, baked into `public/models/loom.glb` | CC0 1.0 (ambientcg.com) |
 
 Dev only (not shipped): `@iwsdk/cli`, `@iwsdk/vite-plugin-dev`, `@iwsdk/reference`, `@meta-quest/metavr`, `vite`, `vitest`, `typescript`.
