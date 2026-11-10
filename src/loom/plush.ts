@@ -18,8 +18,10 @@ import {
   Object3D,
   Quaternion,
   SphereGeometry,
+  TorusGeometry,
   Vector3,
 } from '@iwsdk/core';
+import { Label } from '../ui/label.js';
 import { LOOM, WARPS } from '../config.js';
 import { isLifted, type Mask8 } from '../puzzle/tieup.js';
 import { weaveTexture } from './textures.js';
@@ -32,8 +34,8 @@ export const PLUSH = {
   shelfScale: 0.41,
   slots: 5,
   slotGap: 0.047,
-  /** Shelf top height (Blender ShelfTop: centre 0.03 + half of 0.012). */
-  shelfTopY: 0.036,
+  /** Plush base height on the shelf: plinth top (12 mm) + felt cushion. */
+  shelfTopY: 0.0165,
   /** Shelf centre, on the side away from the lever bank (x is multiplied by -side). */
   shelfX: 0.275,
   shelfZ: -0.02,
@@ -52,8 +54,8 @@ function puffGeometry(): BufferGeometry {
   const s = new Vector3();
   for (let i = 0; i < p.count; i++) {
     v.fromBufferAttribute(p, i);
-    s.copy(v).normalize().multiplyScalar(0.6);
-    v.multiplyScalar(0.55).addScaledVector(s, 0.45);
+    s.copy(v).normalize().multiplyScalar(0.62);
+    v.multiplyScalar(0.45).addScaledVector(s, 0.55);
     p.setXYZ(i, v.x, v.y, v.z);
   }
   g.computeVertexNormals();
@@ -94,20 +96,66 @@ export function buildPlush(rows: readonly Mask8[], color: number): Group {
   for (let r = 0; r < rows.length; r++) {
     for (let i = 0; i < WARPS; i++) {
       if (!isLifted(rows[r], i)) continue;
-      _p.set((i - (WARPS - 1) / 2) * cell, cell / 2 + r * cell, 0);
-      _m.compose(_p, _q.identity(), _s.set(cell * 1.08, cell * 1.08, cell * PLUSH.depth));
+      _p.set((i - (WARPS - 1) / 2) * cell, LIFT + cell / 2 + r * cell, 0);
+      _m.compose(_p, _q.identity(), _s.set(cell * 1.16, cell * 1.14, cell * PLUSH.depth));
       body.setMatrixAt(k++, _m);
     }
   }
   body.count = k;
   g.add(body);
-  addEyes(g, rows);
+  addFace(g, rows, color);
+  addFeetAndTag(g, rows, color);
   g.userData.height = rows.length * cell;
   return g;
 }
 
-/** Two button eyes on the widest row near the top two-thirds of the shape. */
-function addEyes(g: Group, rows: readonly Mask8[]): void {
+/** Feet lift the body a little off the ground. */
+const LIFT = 0.003;
+let blushMat: MeshStandardMaterial | null = null;
+let smileGeo: TorusGeometry | null = null;
+let tagMat: MeshStandardMaterial | null = null;
+let tagStripeMat: MeshStandardMaterial | null = null;
+let tagGeo: BoxGeometry | null = null;
+
+/** Stubby felt feet under the bottom row, and a little sewn-in toy tag on one side. */
+function addFeetAndTag(g: Group, rows: readonly Mask8[], color: number): void {
+  const cell = PLUSH.cell;
+  const r0 = rows[0] ?? 0;
+  let a = -1;
+  let b = -1;
+  for (let i = 0; i < WARPS; i++) if (isLifted(r0, i)) (a < 0 && (a = i), (b = i));
+  if (a < 0) return;
+  const xa = (a - (WARPS - 1) / 2) * cell;
+  const xb = (b - (WARPS - 1) / 2) * cell;
+  const feet = a === b ? [xa - cell * 0.28, xa + cell * 0.28] : [xa, xb];
+  eyeGeo ??= new SphereGeometry(1, 14, 10);
+  const footMat = new MeshStandardMaterial({ color: new Color(color).multiplyScalar(0.72), roughness: 0.9 });
+  footMat.userData.own = true;
+  for (const x of feet) {
+    const f = new Mesh(eyeGeo, footMat);
+    f.scale.set(cell * 0.32, cell * 0.24, cell * 0.42);
+    f.position.set(x, cell * 0.2, cell * 0.25);
+    f.castShadow = true;
+    g.add(f);
+  }
+  tagGeo ??= new BoxGeometry(1, 1, 1);
+  tagGeo.userData.sharedGeometry = true;
+  tagMat ??= new MeshStandardMaterial({ color: 0xfff3e0, roughness: 0.9 });
+  tagStripeMat ??= new MeshStandardMaterial({ color: 0xe2563b, roughness: 0.8 });
+  const tag = new Mesh(tagGeo, tagMat);
+  tag.scale.set(0.0008, cell * 0.85, cell * 0.6);
+  tag.position.set(xb + cell * 0.6, LIFT + cell * 0.55, cell * 0.2);
+  tag.rotation.z = -0.12;
+  const stripe = new Mesh(tagGeo, tagStripeMat);
+  stripe.scale.set(1.3, 0.18, 1.02);
+  stripe.position.y = 0.25;
+  tag.add(stripe);
+  g.add(tag);
+}
+
+/** Button eyes on the widest upper row, blush cheeks and a stitched smile. */
+function addFace(g: Group, rows: readonly Mask8[], color: number): void {
+  void color;
   if (!rows.length) return;
   const cell = PLUSH.cell;
   const want = Math.floor(rows.length * 0.66);
@@ -134,10 +182,12 @@ function addEyes(g: Group, rows: readonly Mask8[]): void {
   eyeMat ??= new MeshStandardMaterial({ color: 0x1a1412, roughness: 0.15 });
   shineMat ??= new MeshStandardMaterial({ color: 0xffffff, roughness: 0.3, emissive: 0x666666 });
   const span = b - a;
-  const y = cell / 2 + best * cell + cell * 0.15;
-  const z = (cell * PLUSH.depth) / 2 + 0.0004;
-  for (const f of span >= 3 ? [0.28, 0.72] : [0, 1]) {
+  const y = LIFT + cell / 2 + best * cell + cell * 0.2;
+  const z = (cell * PLUSH.depth) / 2 + 0.0006;
+  const xs: number[] = [];
+  for (const f of span >= 3 ? [0.3, 0.7] : [0, 1]) {
     const x = (a + span * f - (WARPS - 1) / 2) * cell;
+    xs.push(x);
     const eye = new Mesh(eyeGeo, eyeMat);
     eye.scale.set(0.0028, 0.0034, 0.0016);
     eye.position.set(x, y, z);
@@ -147,6 +197,22 @@ function addEyes(g: Group, rows: readonly Mask8[]): void {
     eye.add(shine);
     g.add(eye);
   }
+  // blush under and outside each eye
+  blushMat ??= new MeshStandardMaterial({ color: 0xff8f87, roughness: 0.9, transparent: true, opacity: 0.85 });
+  const gap = Math.abs(xs[1] - xs[0]);
+  for (let i = 0; i < 2; i++) {
+    const c = new Mesh(eyeGeo, blushMat);
+    c.scale.set(0.0026, 0.0016, 0.0008);
+    c.position.set(xs[i] + (i === 0 ? -1 : 1) * Math.min(cell * 0.35, gap * 0.25), y - cell * 0.62, z - 0.0002);
+    g.add(c);
+  }
+  // a little stitched smile between the eyes
+  smileGeo ??= new TorusGeometry(Math.max(0.0022, gap * 0.16), 0.00055, 5, 14, Math.PI);
+  smileGeo.userData.sharedGeometry = true;
+  const smile = new Mesh(smileGeo, eyeMat);
+  smile.rotation.z = Math.PI;
+  smile.position.set((xs[0] + xs[1]) / 2, y - cell * 0.45, z);
+  g.add(smile);
 }
 
 /** Dispose a plush's per-instance resources (shared geometry is kept). */
@@ -156,6 +222,8 @@ export function disposePlush(g: Object3D): void {
     if (m.isInstancedMesh) {
       (m.material as MeshPhysicalMaterial).dispose();
       m.dispose();
+    } else if ((m as unknown as Mesh).isMesh && (m.material as MeshStandardMaterial).userData?.own) {
+      (m.material as MeshStandardMaterial).dispose();
     }
   });
   g.removeFromParent();
@@ -210,12 +278,34 @@ export class Plushes {
       if ((o as Mesh).isMesh) o.castShadow = o.receiveShadow = true;
     });
     this.root.add(this.shelf);
+    // A felt cushion per slot, and a paper tag naming the chapter.
+    const cushionMat = new MeshPhysicalMaterial({ color: 0xf3e6cf, roughness: 0.95, sheen: 1, sheenRoughness: 0.6, sheenColor: new Color(0xffffff), map: weaveTexture() });
+    eyeGeo ??= new SphereGeometry(1, 14, 10);
+    for (let i = 0; i < PLUSH.slots; i++) {
+      const c = new Mesh(eyeGeo, cushionMat);
+      c.name = `Cushion${i}`;
+      c.scale.set(0.02, 0.0048, 0.019);
+      c.receiveShadow = true;
+      this.cushions.push(c);
+      this.root.add(c);
+    }
+    this.tag.mesh.name = 'ChapterTag';
+    this.root.add(this.tag.mesh);
     this.setSide(1);
   }
+
+  private cushions: Mesh[] = [];
+  private tag = new Label(0.13, 0.024);
 
   setSide(side: 1 | -1): void {
     this.side = side;
     this.shelf.position.set(-side * PLUSH.shelfX, 0, PLUSH.shelfZ);
+    for (let i = 0; i < this.cushions.length; i++) {
+      this.slotPos(i, this.cushions[i].position);
+      this.cushions[i].position.y = 0.0122;
+    }
+    // tag hangs on the back board's scalloped top
+    this.tag.mesh.position.set(-side * PLUSH.shelfX, 0.074, PLUSH.shelfZ - 0.022);
     for (let i = 0; i < PLUSH.slots; i++) {
       const p = this.slotItems[i];
       if (p) this.slotPos(i, p.position);
@@ -223,12 +313,15 @@ export class Plushes {
   }
 
   slotPos(i: number, out: Vector3): Vector3 {
-    return out.set(-this.side * PLUSH.shelfX + (i - (PLUSH.slots - 1) / 2) * PLUSH.slotGap, PLUSH.shelfTopY, PLUSH.shelfZ - 0.004);
+    return out.set(-this.side * PLUSH.shelfX + (i - (PLUSH.slots - 1) / 2) * PLUSH.slotGap, PLUSH.shelfTopY, PLUSH.shelfZ + 0.008);
   }
 
   /** Show the current chapter's finished pictures (rebuilds only changed slots). */
-  setShelf(items: readonly ShelfItem[]): void {
+  setShelf(items: readonly ShelfItem[], chapter = ''): void {
     this.settle();
+    const done = items.filter((it) => it.done).length;
+    this.tag.set(chapter ? `${chapter} ${done}/${items.length}` : '');
+    for (let i = 0; i < this.cushions.length; i++) this.cushions[i].visible = i < items.length;
     for (let i = 0; i < PLUSH.slots; i++) {
       const it = items[i];
       const id = it && it.done ? it.id : null;

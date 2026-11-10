@@ -120,18 +120,20 @@ for s in (-1, 1):
     lathe(f'PegSpring{"L" if s < 0 else "R"}', [(0, -0.0045), (0.0019, -0.0045), (0.0019, 0.0045), (0, 0.0045)],
           (s * 0.048, EY + 0.006, EZ + 0.0062), axis='Z', segs=10, mat=DARK, parent=frame)
 
-# ---- Plush shelf: a low beech bench, five slots, origin on the desk at its centre ----
+# ---- Plush shelf: a toy display stand, origin on the desk at its centre ----
+# A low beech plinth (plushes sit on felt cushions added in code) and a back
+# board with a scalloped, cloud-like top edge.
 shelf = empty('Shelf', at=(0, 0, 0))
-SW, SD, SY = 0.245, 0.05, 0.03
-rounded_box('ShelfTop', (SW, 0.012, SD), (0, SY, 0), bevel=0.005, segs=3, mat=WOOD, parent=shelf)
-rounded_box('ShelfLip', (SW - 0.004, 0.006, 0.006), (0, SY + 0.004, SD / 2 - 0.002), bevel=0.0025, segs=2, mat=TEAL, parent=shelf)
+SW, SD = 0.245, 0.062
+rounded_box('ShelfPlinth', (SW, 0.012, SD), (0, 0.006, 0), bevel=0.0055, segs=3, mat=WOOD, parent=shelf)
+rounded_box('ShelfTrim', (SW - 0.006, 0.004, 0.006), (0, 0.0105, SD / 2 - 0.0035), bevel=0.0018, segs=2, mat=TEAL, parent=shelf)
+BH = 0.05
+rounded_box('ShelfBack', (SW - 0.01, BH, 0.008), (0, 0.012 + BH / 2, -SD / 2 + 0.006), bevel=0.003, segs=3, mat=WOOD, parent=shelf)
+for i in range(6):
+    x = (i - 2.5) * (SW - 0.03) / 5
+    ellipsoid(f'ShelfScallop{i}', (0.0235, 0.012, 0.0039), (x, 0.012 + BH, -SD / 2 + 0.006), mat=WOOD, parent=shelf, segs=24)
 for s_ in (-1, 1):
-    lathe(f'ShelfLeg{"L" if s_ < 0 else "R"}', [(0, 0), (0.011, 0), (0.0125, 0.003), (0.0085, 0.008), (0.0075, SY - 0.006), (0.0095, SY - 0.006), (0, SY - 0.006)],
-          (s_ * (SW / 2 - 0.022), 0, 0), segs=24, mat=WOOD, parent=shelf)
-    ellipsoid(f'ShelfFoot{"L" if s_ < 0 else "R"}', (0.0115, 0.004, 0.0115), (s_ * (SW / 2 - 0.022), 0.0025, 0), mat=TOMATO, parent=shelf, segs=20)
-# little brass-less pegs marking the five slots
-for i in range(5):
-    ellipsoid(f'ShelfDot{i}', (0.0022, 0.0008, 0.0022), ((i - 2) * 0.047, SY + 0.0062, SD / 2 - 0.0095), mat=DARK, parent=shelf, segs=10)
+    ellipsoid(f'ShelfFoot{"L" if s_ < 0 else "R"}', (0.012, 0.004, 0.012), (s_ * (SW / 2 - 0.024), 0.0015, 0), mat=TOMATO, parent=shelf, segs=20)
 
 # ---- Lever knob prototype (cloned ×4 in code; cap recoloured) ----
 knob = empty('LeverKnob', at=(0, 0, 0))
