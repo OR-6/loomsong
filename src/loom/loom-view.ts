@@ -576,7 +576,17 @@ export class LoomView {
       this.levers[k].visible = on;
       // unused slots get a wooden plug, so a 2-lever level doesn't look broken
       const plug = this.frameNode?.getObjectByName(`LeverSlotPlug${k}`);
-      if (plug) plug.visible = !on;
+      if (plug) {
+        plug.visible = !on;
+        if (!plug.userData.styled) {
+          // a darker walnut filler standing proud with a rounded top: a closed slot, not a missing lever
+          plug.userData.styled = true;
+          plug.position.y = 0.0035;
+          const pm = plug as Mesh;
+          if (pm.material) pm.material = (pm.material as MeshStandardMaterial).clone();
+          (pm.material as MeshStandardMaterial).color?.setHex(0x6b3e26);
+        }
+      }
       const dot = this.frameNode?.getObjectByName(`SlotDot${k}`);
       if (dot) dot.visible = on;
       for (let j = 0; j < 2; j++) {
@@ -1247,7 +1257,7 @@ export { UP };
  * the ring is rotated +90° about x, so the dome's up is the ring's -z). */
 function mysteryMark(): Mesh {
   const R = LEVER.knobRadius * 1.012;
-  const th = 0.72;
+  const th = 0.62; // a tighter patch: the '?' covers ~60% of the dome from above
   const geo = new SphereGeometry(R, 28, 8, 0, Math.PI * 2, 0, th);
   const w = R * Math.sin(th);
   const pos = geo.attributes.position;
@@ -1256,14 +1266,14 @@ function mysteryMark(): Mesh {
   const c = document.createElement('canvas');
   c.width = c.height = 128;
   const g = c.getContext('2d')!;
-  g.font = 'bold 104px system-ui, sans-serif';
+  g.font = 'bold 124px system-ui, sans-serif';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
   g.lineWidth = 10;
   g.strokeStyle = '#f3e6cc';
-  g.strokeText('?', 64, 70);
+  g.strokeText('?', 64, 72);
   g.fillStyle = '#4a3a2a';
-  g.fillText('?', 64, 70);
+  g.fillText('?', 64, 72);
   const tex = new CanvasTexture(c);
   tex.colorSpace = SRGBColorSpace;
   const m = new Mesh(geo, new MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -2 }));

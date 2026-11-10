@@ -69,11 +69,11 @@ export const PLUSH = {
   shelfZ: 0.03,
   /** The plush dances in the air right above the loom it was woven on (seen face-on from the seat). */
   stageX: 0,
-  stageZ: 0.08,
+  stageZ: 0.1,
   /** Hero size while it pops and dances (shelf size is shelfScale). */
   hero: 1.15,
   /** Hover height while it dances (it faces the seated player). */
-  danceY: 0.17,
+  danceY: 0.15,
 } as const;
 
 let puff: BufferGeometry | null = null;

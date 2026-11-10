@@ -110,7 +110,7 @@ export class GameSystem extends createSystem({
   private time = 0;
   private progress!: Progress;
   private notice = '';
-  private noticeAt: 'token' | 'nudge' | 'centre' = 'token';
+  private noticeAt: 'token' | 'nudge' | 'centre' | 'unlock' = 'token';
   private noticeTimer = 0;
   private tokenPop = 1;
   private loomEntity!: Entity;
@@ -432,7 +432,7 @@ export class GameSystem extends createSystem({
     this.view.token.visible = true;
     this.tokenPop = 0;
     this.debug.workshopUnlocked = true;
-    this.showNotice('New style unlocked', 6);
+    this.showNotice('New style unlocked', 6, 'unlock'); // over the token it unlocked, clear of the dancing plush
     void loadFont('Fraunces', 4000); // warm the cache before the first switch
     window.dispatchEvent(new CustomEvent('loomsong:unlocked'));
   }
@@ -608,7 +608,7 @@ export class GameSystem extends createSystem({
     this.showNotice(ch.name, 2.5, 'centre');
   }
 
-  private showNotice(text: string, seconds: number, at: 'token' | 'nudge' | 'centre' = 'token'): void {
+  private showNotice(text: string, seconds: number, at: 'token' | 'nudge' | 'centre' | 'unlock' = 'token'): void {
     this.notice = text;
     this.noticeAt = at;
     this.noticeTimer = seconds;
@@ -834,6 +834,7 @@ export class GameSystem extends createSystem({
     if (this.notice) {
       this.noticeTimer -= dt;
       if (this.noticeAt === 'token') m.position.set(0, CARD.baseY + this.view.card.heightM + 0.03, CARD.z); // above the card
+      else if (this.noticeAt === 'unlock') m.position.set(tokenX(this.controller.bankSide), 0.05, TOKEN.z);
       else if (this.noticeAt === 'centre') m.position.set(0, 0.08, 0);
       else m.position.set(nudgeX(this.controller.bankSide), 0.075, (NUDGE.upZ + NUDGE.downZ) / 2);
       if (this.noticeTimer <= 0) this.showNotice('', 0);
