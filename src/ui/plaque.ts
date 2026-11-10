@@ -1,6 +1,6 @@
 /**
  * Front-beam nameplate: "Level 4  ★ 12". Diegetic progress display (a
- * reason to come back), burnt into a little beech board leaning on the front beam.
+ * reason to come back), printed on a little toy plate leaning on the front rail.
  * Cap height ≥ 1.5 cm.
  */
 import { CanvasTexture, Mesh, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace } from '@iwsdk/core';
@@ -46,35 +46,18 @@ export class Plaque {
     const th = this.theme;
     const h = c.height;
     g.clearRect(0, 0, c.width, h);
-    // A little beech board with burnt-in lettering.
-    const grad = g.createLinearGradient(0, 0, 0, h);
-    grad.addColorStop(0, '#f0d3a8');
-    grad.addColorStop(1, '#ddb27e');
-    g.fillStyle = grad;
+    // A toy name plate: cream, rounded, with a navy edge (same family as the tray).
+    g.fillStyle = '#fff2dc';
     g.beginPath();
-    g.roundRect(3, 3, c.width - 6, h - 6, h * 0.22);
+    g.roundRect(4, 4, c.width - 8, h - 8, h * 0.3);
     g.fill();
-    g.save();
-    g.clip();
-    g.strokeStyle = 'rgba(150,95,50,0.16)';
-    g.lineWidth = 2;
-    for (let i = 0; i < 9; i++) {
-      const y0 = (h * (i + 0.5)) / 9;
-      g.beginPath();
-      for (let x = 0; x <= c.width; x += 16) g.lineTo(x, y0 + Math.sin(x * 0.012 + i * 1.7) * h * 0.04);
-      g.stroke();
-    }
-    g.restore();
-    g.lineWidth = 5;
-    g.strokeStyle = '#b07a46';
-    g.beginPath();
-    g.roundRect(3, 3, c.width - 6, h - 6, h * 0.22);
+    g.lineWidth = 7;
+    g.strokeStyle = '#34507a';
     g.stroke();
     g.textBaseline = 'middle';
     g.font = `400 ${Math.round(h * 0.66)}px ${th.font}`; // cap ≈ 1.6 cm
     const right = c.width - h * 0.35;
-    // engraved: a light lip under dark burnt lettering
-    for (const [dy, col] of [[2, 'rgba(255,240,215,0.8)'], [0, '#4a2e1c']] as const) {
+    for (const [dy, col] of [[0, '#34507a']] as const) {
       g.fillStyle = col;
       g.textAlign = 'left';
       g.fillText(`Level ${this.level + 1}`, h * 0.35, h * 0.54 + dy);
@@ -83,7 +66,7 @@ export class Plaque {
     }
     g.fillStyle = th.ink;
     const w = g.measureText(String(this.stars)).width;
-    star(g, right - w - h * 0.45, h * 0.5, h * 0.3, th.palette.knobs[1]);
+    star(g, right - w - h * 0.45, h * 0.5, h * 0.3, 0xf7be3b);
     this.tex.needsUpdate = true;
   }
 }

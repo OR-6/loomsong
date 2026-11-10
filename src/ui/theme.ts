@@ -50,11 +50,13 @@ export const THEMES: Record<ThemeId, Theme> = {
       wood: 0xf2b632, // mustard
       rail: 0x2a9d8f, // teal
       shuttle: 0x3d5a80, // navy
-      knobs: [0xe2563b, 0xf2b632, 0x2a9d8f, 0x3d5a80],
+      // Lever colours chosen to pop on the yellow box and navy felt (and against
+      // cream threads when a lever lights its threads): tomato, teal, pink, lime.
+      knobs: [0xe8553e, 0x1fb3a0, 0xe8679e, 0x7cc142],
     },
     beam: 'round',
     woodRoughness: 0.75,
-    knobRoughness: 0.6,
+    knobRoughness: 0.28,
     knobMetalness: 0,
     track: 0x2b2118,
     font: "'Lilita One', system-ui, -apple-system, sans-serif",

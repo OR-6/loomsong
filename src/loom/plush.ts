@@ -318,7 +318,7 @@ export class Plushes {
     }
     this.tag.mesh.name = 'ChapterTag';
     this.root.add(this.tag.mesh);
-    this.buildBunting();
+    // (bunting removed in the polish pass: the shelf tag shows progress)
     this.setSide(1);
   }
 

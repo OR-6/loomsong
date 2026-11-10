@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LEVER, LOOM, PINCH, SHUTTLE, leverX, warpX, shuttleY } from '../src/config';
+import { BOBBIN, LEVER, LOOM, PINCH, SHUTTLE, leverX, warpX, shuttleY } from '../src/config';
 import { LoomController, type HandInput } from '../src/loom/loom-controller';
 import { LoomModel } from '../src/loom/loom-model';
 import { PinchDetector } from '../src/input/pinch';
@@ -169,7 +169,7 @@ describe('geometry sanity', () => {
 });
 
 describe('undo bobbin', () => {
-  const bob = (dz = 0) => ({ x: -0.128, y: 0.014, z: 0.072 + dz });
+  const bob = (dz = 0) => ({ x: -BOBBIN.x, y: BOBBIN.y, z: BOBBIN.z + dz });
   it('pinch-and-pull unpicks the last row and returns', () => {
     const m = new LoomModel([...TIE]);
     const c = new LoomController(m);

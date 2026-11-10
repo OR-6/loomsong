@@ -143,6 +143,7 @@ export class GameSystem extends createSystem({
     // Soft real-time shadow from the loom's key light (dropped by the frame guard).
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = PCFSoftShadowMap;
+    // (No tone mapping: filmic curves washed the toy palette into pastels.)
     this.view = new LoomView(this.shown());
     this.view.plushes.onLand = () => audio.hop();
     this.view.plushes.onHop = () => audio.pluck(7, 0.6, 0, 0.1);

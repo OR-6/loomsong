@@ -64,6 +64,7 @@ const _q = new Quaternion();
 const _p = new Vector3();
 const _s = new Vector3();
 const _c = new Color();
+const _c2 = new Color();
 const UP = new Vector3(0, 1, 0);
 const _glow = new Color(0xffe2a8);
 /** Underside of the heddle bar in the Blender model (bar centre 0.071, 17 mm tall). */
@@ -71,7 +72,7 @@ const HEDDLE_BAR_BOTTOM_Y = 0.0625;
 /** Undyed wool: the colour of a mystery lever before it's been tried. */
 const UNDYED = 0xe6dccb;
 /** Strands per warp bundle, and their spread (they pinch to 30 % at the eyelet). */
-const STRANDS = 3;
+const STRANDS = 1;
 const STRAND_GAP = 0.0052;
 const _a = new Vector3();
 const _b = new Vector3();
@@ -216,13 +217,20 @@ export class LoomView {
     sh.normalBias = 0.0015;
     sh.radius = 3;
     this.root.add(this.key, this.key.target);
+    // Cool rim light from behind: separates the toy from a busy real room.
+    const rim = new DirectionalLight(0xdfe8ff, 0.5);
+    rim.name = 'RimLight';
+    rim.position.set(0.25, 0.3, -0.45);
+    rim.target.position.set(0, 0, 0);
+    this.root.add(rim, rim.target);
     this.catcher.name = 'ShadowCatcher';
     this.catcher.rotation.x = -Math.PI / 2;
     this.catcher.position.set(0.03, 0.0003, -0.01);
     this.catcher.receiveShadow = true;
     this.catcher.renderOrder = -1;
     this.root.add(this.catcher);
-    this.root.add(this.mat, this.plushes.root, this.basket.root, this.ghost.root);
+    // No mat: the player's real desk shows around the toy (it's mixed reality).
+    this.root.add(this.plushes.root, this.basket.root, this.ghost.root);
 
     this.build(theme);
     this.setSide(1);
@@ -260,9 +268,10 @@ export class LoomView {
 
     const models = loomModels();
     // Wood tint per theme: natural beech (toy) or honey oak (workshop).
-    const woodTint = theme.id === 'workshop' ? 0xc9905e : 0xffffff;
+    // The rim paint ('Beech' in the model) stays sunny yellow in the toy theme;
+    // the workshop theme repaints it honey oak.
     const tint = (m: Material, name: string) => {
-      if (name === 'Beech') (m as MeshStandardMaterial).color.setHex(woodTint);
+      if (name === 'Beech' && theme.id === 'workshop') (m as MeshStandardMaterial).color.setHex(0xc9905e);
     };
     this.frameNode = null;
     if (models) {
@@ -275,7 +284,7 @@ export class LoomView {
     const warpMat = new MeshStandardMaterial({ color: palette.warp, roughness: 0.95, map: yarnTexture() });
     // Round twisted yarn: a cylinder along Z, stretched per segment.
     // Each logical warp is a bundle of STRANDS strands that gather through its eyelet.
-    const warpGeo = new CylinderGeometry(0.0015, 0.0015, 1, 8, 1, true);
+    const warpGeo = new CylinderGeometry(0.0027, 0.0027, 1, 10, 1, true);
     warpGeo.rotateX(Math.PI / 2);
     // three segments per strand: back beam → heddle → fell → under the cloth to the front beam
     this.warps = new InstancedMesh(warpGeo, warpMat, WARPS * 3 * STRANDS);
@@ -290,6 +299,7 @@ export class LoomView {
     this.eyes = new InstancedMesh(new TorusGeometry(0.0036, 0.0008, 6, 14), cordMat, WARPS);
     this.eyes.name = 'HeddleEyes';
     this.cords.frustumCulled = this.eyes.frustumCulled = false;
+    this.cords.visible = this.eyes.visible = false; // chunky style: no fine heddle cords
     add(this.cords, this.eyes);
     this.applyColors();
 
@@ -307,6 +317,7 @@ export class LoomView {
     this.ties = tieGeos.map((g, i) => {
       const m = new InstancedMesh(g, tieMat, WARPS);
       m.name = `LeverTies${i}`;
+      m.visible = false; // chunky style: lever→thread shown by glow on touch, not knots
       m.frustumCulled = false;
       m.count = 0;
       add(m);
@@ -348,12 +359,7 @@ export class LoomView {
     for (let k = 0; k < LEVERS; k++) {
       if (models) {
         const knob = cloneModel(models.knob, tint);
-        // one cap shape per lever (round, square, triangle, ring), not colour alone
-        for (let c = 0; c < 4; c++) {
-          const o = knob.getObjectByName(`Cap${c}`);
-          if (o) o.visible = c === k % 4;
-        }
-        const cap = materialOf(knob, `Cap${k % 4}`) as MeshStandardMaterial;
+        const cap = materialOf(knob, 'Cap0') as MeshStandardMaterial;
         cap.color.setHex(palette.knobs[k]);
         // yarn wrap on the stem, a shade deeper than the cap
         const wrap = materialOf(knob, 'StemWrap') as MeshStandardMaterial | null;
@@ -896,9 +902,15 @@ export class LoomView {
       const a = this.twang[i];
       const x = warpX(i) + (a > 0 ? Math.sin(this.clock * 85 + i) * 0.0014 * a * a : 0);
       const hy = LOOM.loweredY + (LOOM.liftedY - LOOM.loweredY) * this.warpLift[i];
-      // lifted threads glow brighter in the picture colour; lowered ones sit a shade darker
+      // Lowered threads are cream yarn; lifted ones take the picture colour.
+      // Touching a lever lights its threads in the lever's colour (motion + colour,
+      // no icons): that's how you see which threads a lever lifts.
       const lift = Math.max(0, Math.min(1, this.warpLift[i]));
-      _c.setHex(this.liftColor).multiplyScalar(0.72 + 0.28 * lift).lerp(_glow, 0.18 * lift);
+      _c.setHex(this.groundColor).lerp(_c2.setHex(this.liftColor), lift);
+      const hk = this.hoverLever;
+      if (hk >= 0 && hk < this.tieUp.length && !this.tieHidden[hk] && isLifted(this.tieUp[hk], i)) {
+        _c.lerp(_c2.setHex(this.palette.knobs[hk]), 0.75).lerp(_glow, 0.15);
+      }
       for (let s = 0; s < STRANDS; s++) {
         const dx = (s - (STRANDS - 1) / 2) * STRAND_GAP;
         const n = (i * STRANDS + s) * 3;
@@ -975,6 +987,7 @@ export class LoomView {
   setHoverLever(k: number): void {
     if (k === this.hoverLever) return;
     this.hoverLever = k;
+    this.writeWarps();
     this.writeTies();
   }
 

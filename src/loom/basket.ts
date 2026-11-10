@@ -89,12 +89,13 @@ export class Basket {
     this.lining.name = 'BasketLining';
     this.lining.scale.set(1.45, 1, 1);
     this.lining.receiveShadow = true;
+    this.lining.visible = false; // polish pass: plain bowl, no lining
     this.root.add(this.lining);
 
     const R = BASKET.ballR;
     const core = new SphereGeometry(R * 0.93, 20, 14);
     const wrapGeo = new TorusGeometry(R * 0.97, R * 0.075, 5, 28);
-    this.wraps = new InstancedMesh(wrapGeo, new MeshStandardMaterial({ roughness: 0.95, map: yarnTexture() }), BASKET.balls * WRAPS);
+    this.wraps = new InstancedMesh(wrapGeo, new MeshStandardMaterial({ roughness: 0.9 }), BASKET.balls * WRAPS);
     this.wraps.name = 'YarnWraps';
     this.wraps.castShadow = true;
     this.wraps.frustumCulled = false;
@@ -130,7 +131,7 @@ export class Basket {
       this.root.add(tail);
     }
     this.root.add(this.wraps);
-    this.buildNeedles();
+    // (needles removed in the polish pass: decoration without a job)
     this.label.mesh.name = 'BasketTag';
     this.root.add(this.label.mesh);
     this.setSide(1);
@@ -181,7 +182,7 @@ export class Basket {
       const on = i < names.length;
       this.balls[i].visible = on;
       // only the ball in use has a loose end, draped naturally
-      this.tails[i].visible = on && states[i] === 'current';
+      this.tails[i].visible = false; // polish pass: no loose tails
       if (!on) continue;
       const locked = states[i] === 'locked';
       this.mats[i].color.set(locked ? UNDYED : colors[i]);

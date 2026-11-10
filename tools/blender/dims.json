@@ -6,11 +6,13 @@
     "frontBeamZ": 0.088,
     "beamY": 0.022,
     "frameHalfWidth": 0.115,
-    "liftedY": 0.03,
+    "liftedY": 0.042,
     "loweredY": 0.004,
     "shedY": 0.017,
-    "rowPitch": 0.0075,
-    "visibleRows": 12
+    "rowPitch": 0.012,
+    "visibleRows": 12,
+    "clothFrontZ": 0.074,
+    "maxRows": 8
   },
   "LEVER": {
     "firstX": 0.17,
@@ -18,22 +20,22 @@
     "restZ": 0.075,
     "travel": 0.05,
     "knobY": 0.046,
-    "knobRadius": 0.0125,
+    "knobRadius": 0.0145,
     "magnet": 0.3
   },
   "LEVERS": 4,
   "SHUTTLE": {
     "z": -0.031,
-    "y": 0.017,
+    "y": 0.033,
     "minX": -0.123,
     "maxX": 0.123,
-    "perchY": 0.046,
+    "perchY": 0.06,
     "shedHalf": 0.088,
     "completeAt": 0.6,
     "autoThrowSpeed": 0.35
   },
   "BOBBIN": {
-    "x": 0.128,
+    "x": 0.16,
     "y": 0.014,
     "z": 0.072,
     "pull": 0.03,
