@@ -279,9 +279,9 @@ function cutout(rows: readonly Mask8[]): Group {
         g.fillRect(x - 0.5, y - 0.5, PX + grow * 2 + 1, PX + grow * 2 + 1);
       }
   };
-  g.fillStyle = '#efe4cc';
-  blob(4); // a cream outline around the whole shape
-  g.fillStyle = '#8f8a84';
+  g.fillStyle = '#a8957a';
+  blob(4); // a stitched brown edge around the whole shape
+  g.fillStyle = '#d8cbb6'; // a pale felt cut-out, not a grey placeholder
   blob(0);
   const tex = new CanvasTexture(c);
   tex.colorSpace = SRGBColorSpace;

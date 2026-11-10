@@ -456,7 +456,7 @@ export class LoomController {
     }
     if (this.swapSpot) {
       const c = this.swapSpot;
-      const ds = Math.hypot(p.x - c.x, p.y - c.y, p.z - c.z) - 0.011;
+      const ds = Math.hypot(p.x - c.x, p.y - c.y, p.z - c.z) - 0.016;
       if (ds < bestD) {
         bestD = ds;
         best = SWAP_TARGET;

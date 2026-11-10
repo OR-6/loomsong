@@ -152,7 +152,7 @@ export class TargetCard {
       // a live star meter beside the knots: the stars you'd get right now (knots buy stars)
       const live = this.used <= this.par ? 3 : this.used <= this.par + 2 ? 2 : 1;
       const sx = px(pad + markW + WARPS * cell + markW / 2);
-      for (let i = 0; i < 3; i++) drawStar(g, sx, px(pad + titleH / 2 + (i - 1) * 0.0082), px(0.0038), i < live);
+      for (let i = 0; i < 3; i++) drawStar(g, sx, px(pad + titleH / 2 + (i - 1) * 0.0088), px(0.0052), i < live);
     }
     void title;
 

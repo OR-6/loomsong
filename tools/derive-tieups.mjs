@@ -29,11 +29,11 @@ const CHAPTERS = [
     { id: 'cat', name: 'Cat', color: 0x8f63c9, rows: ['#......#', '##....##', '########', '#.#..#.#', '########', '.######.'] },
   ] },
   { id: 'sea', name: 'Sea', idea: 'mostly combinations', rule: 'parts', mystery: true, pics: [
-    { id: 'fish', name: 'Fish', color: 0xf08a4b, weft: 0x7fc4e8, rows: ['..###...', '~#####~#', '###~####', '~#####~#', '~~###~~~'] },
+    { id: 'fish', name: 'Fish', color: 0xf08a4b, weft: 0x3a8fd6, rows: ['..###...', '~#####~#', '###~####', '~#####~#', '~~###~~~'] },
     { id: 'crab', name: 'Crab', color: 0xd85a30, rows: ['#......#', '#.#..#.#', '.######.', '########', '.######.', '#.#..#.#'] },
-    { id: 'octopus', name: 'Octopus', color: 0xd4537e, weft: 0x7fc4e8, rows: ['~~####~~', '~######~', '~#~##~#~', '~######~', '#~#~#~#~', '#~#~#~#~'] },
+    { id: 'octopus', name: 'Octopus', color: 0xd4537e, weft: 0x3a8fd6, rows: ['~~####~~', '~######~', '~#~##~#~', '~######~', '#~#~#~#~', '#~#~#~#~'] },
     { id: 'jelly', name: 'Jellyfish', color: 0x9b7fd6, rows: ['..####..', '.######.', '########', '.#.##.#.', '.#.##.#.', '#..##..#'] },
-    { id: 'boat', name: 'Boat', color: 0xe2563b, weft: 0x7fc4e8, rows: ['...#....', '...##...', '...###..', '...#....', '~######~', '~######~'] },
+    { id: 'boat', name: 'Boat', color: 0xe2563b, weft: 0x3a8fd6, rows: ['...#....', '...##...', '...###..', '...#....', '~######~', '~######~'] },
   ] },
 ];
 

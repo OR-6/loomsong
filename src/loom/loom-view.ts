@@ -79,9 +79,9 @@ const _white = new Color(0xffffff);
 /** Seconds the newest row animates (beat-in, flash or shake). */
 const ROW_FX = 0.45;
 /** Opacity of the ghost picture on the rows still to weave. */
-const GHOST_OPACITY = 0.8;
+const GHOST_OPACITY = 0.92;
 /** Sea's swap spools: on short walnut pegs just in front of each perch (Pip's yarn supply). */
-export const SWAP = { x: 0.168, y: 0.03, z: 0.03 } as const;
+export const SWAP = { x: 0.172, y: 0.036, z: 0.036 } as const;
 const backOut = (x: number) => 1 + 2.2 * Math.pow(x - 1, 3) + 1.2 * Math.pow(x - 1, 2);
 /** Underside of the heddle bar in the Blender model (bar centre 0.071, 17 mm tall). */
 const HEDDLE_BAR_BOTTOM_Y = 0.0625;
@@ -296,11 +296,11 @@ export class LoomView {
       // one spool, in front of the perch on the lever side (the undo spool owns the other side)
       const sp = new Group();
       sp.name = 'SwapSpool';
-      const yarn = new Mesh(new CylinderGeometry(0.011, 0.011, 0.016, 24), this.swapYarnMat);
-      const f1 = new Mesh(new CylinderGeometry(0.0138, 0.0138, 0.003, 24), flangeMat);
-      f1.position.y = 0.0092;
+      const yarn = new Mesh(new CylinderGeometry(0.016, 0.016, 0.024, 24), this.swapYarnMat);
+      const f1 = new Mesh(new CylinderGeometry(0.0205, 0.0205, 0.004, 24), flangeMat);
+      f1.position.y = 0.0135;
       const f2 = f1.clone();
-      f2.position.y = -0.0092;
+      f2.position.y = -0.0135;
       const peg = new Mesh(new CylinderGeometry(0.0024, 0.003, SWAP.y, 10), pegMat);
       peg.position.y = -SWAP.y / 2;
       sp.add(yarn, f1, f2, peg);
@@ -1090,8 +1090,8 @@ export class LoomView {
           this.ghostCloth.setMatrixAt(idx, _m);
           // the row to weave next is bright; later rows sink toward the navy felt
           _c.setHex(px ? this.liftColor : (this.weftColor as number));
-          if (r === done) _c.lerp(_c2.setHex(0xfff4dc), 0.08); // the next row: the picture's own colour
-          else _c.lerp(_c2.setHex(0x2b3a67), 0.68);
+          if (r === done) _c.lerp(_c2.setHex(0xfff4dc), 0.1); // the next row: the picture's own colour, bright
+          else _c.lerp(_c2.setHex(0x2c3a66), 0.55).lerp(_c2.setHex(0x8a8fa8), 0.12); // later rows: dim, not muddy
           this.ghostCloth.setColorAt(idx, _c);
           idx++;
         }

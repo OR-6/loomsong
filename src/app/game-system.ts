@@ -312,7 +312,7 @@ export class GameSystem extends createSystem({
         // until each lever has been tried once.
         this.view.setPicture(level.color ?? null, level.tieUp, level.tieUp.map(() => !!level.mystery));
         this.view.setTarget(level.target);
-        this.view.card.paper = level.chapter === 'night' ? '#b9beea' : level.chapter === 'sea' ? '#cfeae4' : null;
+        this.view.card.paper = level.chapter === 'night' ? '#b9beea' : null; // Sea stays cream so its blue water rows read
         this.view.card.sparkles = level.chapter === 'night';
         this.view.card.weft = level.weft ?? null;
         this.view.setWeftColor(level.weft ?? null);
@@ -1027,7 +1027,7 @@ export class GameSystem extends createSystem({
       const up = this.model.latched[k];
       // floats right above that very knob, wherever it is (latched knobs sit further back)
       this.controller.leverPos(k, this.tagAt);
-      m.position.set(this.tagAt.x, this.tagAt.y + 0.04, this.tagAt.z + 0.004);
+      m.position.set(this.tagAt.x + side * 0.02, this.tagAt.y + 0.075, this.tagAt.z); // high over that knob, above Pip's head
       if (up === (step === 'unlatch')) this.view.setLeverHighlight(k, 0, up, pulse);
     } else if (step === 'weft') {
       // the swap spool on Pip's side breathes, with the tag above it
@@ -1036,7 +1036,7 @@ export class GameSystem extends createSystem({
       this.swapGlow = pulse;
     } else if (step === 'undo') {
       // the red spool breathes, with the tag above it
-      m.position.set(bobbinX(side), BOBBIN.y + 0.045, BOBBIN.z + 0.02); // just above the spool it means
+      m.position.set(bobbinX(side) + side * 0.045, BOBBIN.y + 0.075, BOBBIN.z + 0.02); // floating over the spool, never on it
       this.view.undoHint = pulse;
     } else if (step === 'shuttle') {
       // Tag hangs just outside the frame beside Pip's perch, never over the threads.

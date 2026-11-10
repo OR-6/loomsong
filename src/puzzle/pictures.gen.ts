@@ -454,7 +454,7 @@ export const PICTURES: PictureLevel[] = [
     "chapter": "sea",
     "mystery": true,
     "color": 0xf08a4b,
-    "weft": 0x7fc4e8,
+    "weft": 0x3a8fd6,
     "picture": [
       "..###...",
       "~#####~#",
@@ -513,7 +513,7 @@ export const PICTURES: PictureLevel[] = [
     "chapter": "sea",
     "mystery": true,
     "color": 0xd4537e,
-    "weft": 0x7fc4e8,
+    "weft": 0x3a8fd6,
     "picture": [
       "~~####~~",
       "~######~",
@@ -575,7 +575,7 @@ export const PICTURES: PictureLevel[] = [
     "chapter": "sea",
     "mystery": true,
     "color": 0xe2563b,
-    "weft": 0x7fc4e8,
+    "weft": 0x3a8fd6,
     "picture": [
       "...#....",
       "...##...",
