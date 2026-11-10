@@ -17,7 +17,7 @@ import {
   type Entity,
   PCFSoftShadowMap,
 } from '@iwsdk/core';
-import { BOBBIN, CARD, LEVER, LEVERS, NUDGE, PLACE, SHUTTLE, TOKEN, leverX, nudgeX, tokenX, shuttleY } from '../config.js';
+import { BOBBIN, CARD, LEVER, LEVERS, LOOM, NUDGE, PLACE, SHUTTLE, TOKEN, leverX, nudgeX, tokenX, shuttleY } from '../config.js';
 import { applyCalibration, hands, calibration, type Side } from '../input/hands.js';
 import { Calibrator } from '../input/calibration.js';
 import { LoomController, type HandInput } from '../loom/loom-controller.js';
@@ -258,6 +258,7 @@ export class GameSystem extends createSystem({
       win: (stars) => {
         this.controller.enabled = false;
         this.view.setPipMood('cheer');
+        this.view.fx.confetti(0, 0.02, LOOM.clothFrontZ - 0.04);
         audio.chirp('cheer');
         // It comes alive: the woven picture pops out as a plush.
         const lv = this.flow.level;

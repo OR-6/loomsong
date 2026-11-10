@@ -26,6 +26,7 @@ import {
   Object3D,
   DirectionalLight,
   ShadowMaterial,
+  MeshPhysicalMaterial,
   type Material,
 } from '@iwsdk/core';
 import { TargetCard } from '../ui/target-card.js';
@@ -36,6 +37,7 @@ import { cloneModel, loomModels, materialOf } from './models.js';
 import { Plushes } from './plush.js';
 import { Basket } from './basket.js';
 import { GhostHand } from './ghost-hand.js';
+import { Fx } from './fx.js';
 import { makeMat, MAT } from './mat.js';
 import {
   BOBBIN,
@@ -123,6 +125,13 @@ export class LoomView {
   private wrapMats: (MeshStandardMaterial | null)[] = [];
   /** Reveal bounce per lever (1 → 0) when a mystery lever is first tried. */
   private revealPop = new Float32Array(LEVERS);
+  /** Knob juice springs (cap width/height and their velocities) and touch level. */
+  private knobW = new Float32Array(LEVERS).fill(1);
+  private knobH = new Float32Array(LEVERS).fill(1);
+  private knobVW = new Float32Array(LEVERS);
+  private knobVH = new Float32Array(LEVERS);
+  private knobLevel = new Uint8Array(LEVERS);
+  private knobCaps: (Object3D | null)[] = [];
   private shuttleMat!: MeshStandardMaterial;
   bobbin!: Object3D;
   readonly card: TargetCard;
@@ -168,6 +177,7 @@ export class LoomView {
   readonly plushes = new Plushes();
   readonly basket = new Basket();
   readonly ghost = new GhostHand();
+  readonly fx = new Fx();
 
   /** Placement reveal 0→1: the mat unrolls toward the player. */
   setReveal(t: number): void {
@@ -230,7 +240,7 @@ export class LoomView {
     this.catcher.renderOrder = -1;
     this.root.add(this.catcher);
     // No mat: the player's real desk shows around the toy (it's mixed reality).
-    this.root.add(this.plushes.root, this.basket.root, this.ghost.root);
+    this.root.add(this.plushes.root, this.basket.root, this.ghost.root, this.fx.root);
 
     this.build(theme);
     this.setSide(1);
@@ -276,6 +286,13 @@ export class LoomView {
     this.frameNode = null;
     if (models) {
       this.frameNode = cloneModel(models.frame, tint);
+      // Felt reads as felt with a soft fuzzy sheen at grazing angles.
+      const bed = this.frameNode.getObjectByName('Bed') as Mesh | undefined;
+      if (bed) {
+        const src = bed.material as MeshStandardMaterial;
+        bed.material = new MeshPhysicalMaterial({ color: src.color, roughness: 0.9, sheen: 1, sheenRoughness: 0.75, sheenColor: new Color(0x8fb0dd) });
+        src.dispose();
+      }
       add(this.frameNode);
     } else this.buildProceduralFrame(theme, wood, rail, add);
 
@@ -360,6 +377,7 @@ export class LoomView {
       if (models) {
         const knob = cloneModel(models.knob, tint);
         const cap = materialOf(knob, 'Cap0') as MeshStandardMaterial;
+        this.knobCaps[k] = knob.getObjectByName('Cap0') ?? null;
         cap.color.setHex(palette.knobs[k]);
         // yarn wrap on the stem, a shade deeper than the cap
         const wrap = materialOf(knob, 'StemWrap') as MeshStandardMaterial | null;
@@ -721,6 +739,7 @@ export class LoomView {
   }
 
   setLeverHighlight(k: number, level: 0 | 1 | 2, latched: boolean): void {
+    this.knobLevel[k] = level;
     const mat = this.leverMats[k];
     const e = level === 2 ? 0.45 : level === 1 ? 0.22 : latched ? 0.1 : 0;
     mat.emissive.copy(mat.color).multiplyScalar(e);
@@ -766,7 +785,14 @@ export class LoomView {
 
   /** Rows, oldest first. */
   setRows(rows: readonly Mask8[]): void {
+    const added = rows.length === this.rowsCache.length + 1;
     this.rowsCache = rows;
+    if (added) {
+      // the row is beaten in: a puff of fluff along it, in each cell's yarn colour
+      const r = rows.length - 1;
+      const z = this.rowZ(r, rows.length);
+      for (let i = 0; i < WARPS; i++) this.fx.puff(warpX(i), 0.01, z, isLifted(rows[r], i) ? this.liftColor : this.groundColor, 2);
+    }
     const n = Math.min(rows.length, LOOM.visibleRows);
     const start = rows.length - n;
     let idx = 0;
@@ -861,14 +887,28 @@ export class LoomView {
       this.shuttle.scale.set(1, 1, 1);
     }
     this.animatePip(dt);
+    // Knob juice: swell on hover, squash on grab, springy bounce on release.
     for (let k = 0; k < LEVERS; k++) {
-      if (this.revealPop[k] <= 0) continue;
-      this.revealPop[k] = Math.max(0, this.revealPop[k] - dt * 2.2);
-      const p = this.revealPop[k];
-      this.levers[k]?.scale.setScalar(1 + Math.sin((1 - p) * Math.PI * 3) * p * 0.35);
+      const lv = this.knobLevel[k];
+      const tw = lv === 2 ? 1.14 : lv === 1 ? 1.1 : 1;
+      const th = lv === 2 ? 0.82 : lv === 1 ? 1.1 : 1;
+      this.knobVW[k] += (420 * (tw - this.knobW[k]) - 16 * this.knobVW[k]) * h;
+      this.knobVH[k] += (420 * (th - this.knobH[k]) - 16 * this.knobVH[k]) * h;
+      this.knobW[k] += this.knobVW[k] * h;
+      this.knobH[k] += this.knobVH[k] * h;
+      let pop = 1;
+      if (this.revealPop[k] > 0) {
+        this.revealPop[k] = Math.max(0, this.revealPop[k] - dt * 2.2);
+        const p = this.revealPop[k];
+        pop = 1 + Math.sin((1 - p) * Math.PI * 3) * p * 0.35;
+      }
+      const cap = this.knobCaps[k];
+      if (cap) cap.scale.set(this.knobW[k] * pop, this.knobH[k] * pop * 0.9, this.knobW[k] * pop);
+      else this.levers[k]?.scale.setScalar(pop);
     }
     this.plushes.update(dt);
     this.basket.update(dt);
+    this.fx.update(dt);
     // Twang decay.
     for (let i = 0; i < WARPS; i++) {
       if (this.twang[i] > 0) {
