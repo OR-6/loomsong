@@ -17,7 +17,7 @@ import {
   type Entity,
   PCFSoftShadowMap,
 } from '@iwsdk/core';
-import { BOBBIN, CARD, LEVER, LEVERS, LOOM, NUDGE, PLACE, SHUTTLE, TOKEN, WARPS, bobbinX, leverX, nudgeX, tokenX, shuttleY } from '../config.js';
+import { BOBBIN, CARD, LEVER, LEVERS, LOOM, NUDGE, PLACE, SHUTTLE, TOKEN, WARPS, bobbinX, leverX, nudgeX, skeinPos, tokenX, shuttleY } from '../config.js';
 import { applyCalibration, hands, calibration, type Side } from '../input/hands.js';
 import { Calibrator } from '../input/calibration.js';
 import { LoomController, type HandInput } from '../loom/loom-controller.js';
@@ -139,6 +139,11 @@ export class GameSystem extends createSystem({
   private tagAt = { x: 0, y: 0, z: 0 };
   /** Tutorial/idle breath on the swap spools (0–1). */
   private swapGlow = 0;
+  private tip!: Label;
+  private tipCode = -1;
+  private tipHover = 0;
+  private tipReady = false;
+  private tipShown = false;
   private noticeTimer = 0;
   private tokenPop = 1;
   private loomEntity!: Entity;
@@ -230,6 +235,14 @@ export class GameSystem extends createSystem({
     this.view.root.add(this.tutor.mesh);
     this.tutor.setTheme(this.shown());
     this.tutor.set('');
+    // a small tooltip over whatever secondary control a hand is hovering (what does this do?)
+    this.tip = new Label(0.13, 0.028);
+    this.tip.mesh.rotation.x = -0.35;
+    (this.tip.mesh.material as import('@iwsdk/core').MeshBasicMaterial).depthTest = false;
+    this.tip.mesh.renderOrder = 21;
+    this.view.root.add(this.tip.mesh);
+    this.tip.setTheme(this.shown());
+    this.tip.set('');
 
     const onTheme = (e: Event) => {
       const id = (e as CustomEvent<ThemeId>).detail;
@@ -498,6 +511,7 @@ export class GameSystem extends createSystem({
     this.debug.highContrast = this.settings.highContrast;
     this.view.setTheme(theme);
     this.tutor.setTheme(theme);
+    this.tip?.setTheme(theme);
     audio.tone = theme.tone;
   }
 
@@ -509,6 +523,7 @@ export class GameSystem extends createSystem({
       this.view.card.setTheme(theme);
       this.view.plaque.setTheme(theme);
       this.tutor.setTheme(theme);
+    this.tip?.setTheme(theme);
     });
   }
 
@@ -748,6 +763,85 @@ export class GameSystem extends createSystem({
     this.view.setSwapHighlight(sw(c.hover.left) || sw(c.hover.right) ? 1 : 0, this.swapGlow);
     const key = (t: unknown) => (t as { kind?: string } | null)?.kind === 'windKey';
     this.view.plushes.hoverKey(key(c.hover.left) || key(c.hover.right));
+  }
+
+  /** Hover tooltips for the secondary controls (levers and Pip have their own hints). */
+  private syncTip(dt: number): void {
+    const c = this.controller;
+    const t = (c.hover.right ?? c.hover.left) as { kind?: string; i?: number } | null;
+    const code = targetCode(t);
+    if (code !== this.tipCode) {
+      this.tipCode = code;
+      this.tipHover = 0;
+      this.tipReady = false;
+      this.tipShown = false;
+    }
+    if (!t || this.notice) {
+      this.tip.mesh.visible = false;
+      return;
+    }
+    this.tipHover += dt;
+    if (this.tipHover < 0.3) return;
+    if (this.tipReady) {
+      this.tip.mesh.visible = this.tipShown;
+      return;
+    }
+    this.tipReady = true; // work out the words once per hover (no per-frame strings)
+    const side = c.bankSide;
+    const step = this.flow?.hintStep;
+    let text = '';
+    const at = this.tagAt;
+    let lift = 0.04;
+    switch (t.kind) {
+      case 'token':
+        text = 'Change the style';
+        at.x = tokenX(side);
+        at.y = TOKEN.y;
+        at.z = TOKEN.z;
+        break;
+      case 'windKey':
+        if (c.keySpot) Object.assign(at, c.keySpot);
+        text = 'Play the shelf';
+        break;
+      case 'swap':
+        if (step !== 'weft' && c.swapSpot) {
+          Object.assign(at, c.swapSpot);
+          text = "Swap Pip's yarn";
+          lift = 0.05;
+        }
+        break;
+      case 'bobbin':
+        if (step !== 'undo') {
+          at.x = bobbinX(side);
+          at.y = BOBBIN.y;
+          at.z = BOBBIN.z;
+          text = 'Pull to undo';
+          lift = 0.06;
+        }
+        break;
+      case 'skein': {
+        const i = t.i ?? 0;
+        skeinPos(i, side, at);
+        const st = chapterStates(this.progress, this.flow?.level?.chapter)[i];
+        text = st === 'locked' ? `${CHAPTERS[i]?.name ?? ''} (locked)` : (CHAPTERS[i]?.name ?? '');
+        break;
+      }
+      case 'plush': {
+        const it = this.shelf[t.i ?? 0];
+        const spot = c.plushSpots[t.i ?? 0];
+        if (it && spot) {
+          Object.assign(at, spot);
+          text = `${LEVELS.find((l) => l.id === it.id)?.name ?? ''}: poke to sing`;
+          lift = 0.045;
+        }
+        break;
+      }
+    }
+    this.tipShown = !!text;
+    this.tip.mesh.visible = this.tipShown;
+    if (!text) return;
+    this.tip.set(text);
+    this.tip.mesh.position.set(at.x, at.y + lift, at.z);
   }
 
   /** Basket balls: one per chapter, coloured when unlocked, lifted for the current one. */
@@ -1012,7 +1106,7 @@ export class GameSystem extends createSystem({
       this.noticeTimer -= dt;
       if (this.noticeAt === 'token') m.position.set(0, CARD.baseY + this.view.card.heightM + 0.03, CARD.z); // above the card
       else if (this.noticeAt === 'unlock') m.position.set(tokenX(this.controller.bankSide), 0.06, TOKEN.z);
-      else if (this.noticeAt === 'centre') m.position.set(0, 0.08, 0);
+      else if (this.noticeAt === 'centre') m.position.set(0, CARD.baseY + this.view.card.heightM + 0.03, CARD.z); // above the card, never over the threads
       else m.position.set(nudgeX(this.controller.bankSide), 0.075, (NUDGE.upZ + NUDGE.downZ) / 2);
       if (this.noticeTimer <= 0) this.showNotice('', 0);
       return;
@@ -1098,6 +1192,7 @@ export class GameSystem extends createSystem({
     const sk = (t: unknown) => ((t as { kind?: string; i?: number } | null)?.kind === 'skein' ? (t as { i: number }).i : -1);
     this.view.basket.hover(Math.max(sk(c.hover.left), sk(c.hover.right)));
     this.syncPlushSpots();
+    this.syncTip(dt);
     // while the plush dances on its stage, the plate and token step aside
     const staged = this.view.plushes.staged;
     this.view.plaque.mesh.visible = !staged;

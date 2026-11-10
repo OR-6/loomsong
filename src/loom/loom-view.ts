@@ -114,6 +114,7 @@ export class LoomView {
   /** The boat shuttle under Pip (highlights with Pip) and the weft bobbin in it. */
   private boatMat: MeshStandardMaterial | null = null;
   private boatYarn: MeshStandardMaterial | null = null;
+  private pipBall = new MeshStandardMaterial({ color: 0xf3e6cc, roughness: 0.9 });
   private weftColor: number | null = null;
   private weftNow: 0 | 1 = 0;
   /** Sea: a little yarn spool on a peg beside each perch; touch one to swap Pip's yarn. */
@@ -146,6 +147,7 @@ export class LoomView {
   private cloth!: InstancedMesh;
   private ghostCloth: InstancedMesh | null = null;
   private rowArrow = new Mesh();
+  private rowArrowMat = new MeshBasicMaterial({ color: 0x2b2b2b, side: DoubleSide });
   private tracks: InstancedMesh | null = null;
   private leverMats: MeshStandardMaterial[] = [];
   /** Yarn wraps on the knob stems (model only), recoloured with the caps. */
@@ -423,10 +425,16 @@ export class LoomView {
     );
     this.ghostCloth.name = 'TargetGhost';
     {
-      const tri = new BufferGeometry();
-      tri.setAttribute('position', new Float32BufferAttribute([-0.006, 0, -0.0055, -0.006, 0, 0.0055, 0.006, 0, 0], 3));
-      tri.computeVertexNormals();
-      this.rowArrow = new Mesh(tri, new MeshBasicMaterial({ color: 0x2b2b2b, side: DoubleSide }));
+      const tri = (sc: number) => {
+        const g = new BufferGeometry();
+        g.setAttribute('position', new Float32BufferAttribute([-0.007 * sc, 0, -0.0065 * sc, -0.007 * sc, 0, 0.0065 * sc, 0.007 * sc, 0, 0], 3));
+        g.computeVertexNormals();
+        return g;
+      };
+      this.rowArrow = new Mesh(tri(1), this.rowArrowMat);
+      const rim = new Mesh(tri(1.35), new MeshBasicMaterial({ color: 0xfff1c2, side: DoubleSide }));
+      rim.position.set(-0.0012, -0.0006, 0);
+      this.rowArrow.add(rim);
       this.rowArrow.name = 'NextRowArrow';
       add(this.rowArrow);
     }
@@ -504,6 +512,13 @@ export class LoomView {
       this.shuttle = new Group();
       this.shuttle.add(pip);
       this.pipInner = pip;
+      // Pip's yarn: a chunky ball in the stern of the boat, in the weft being woven
+      this.pipBall.map = yarnTexture();
+      const ball = new Mesh(new SphereGeometry(0.0085, 16, 12), this.pipBall);
+      ball.name = 'PipYarnBall';
+      ball.position.set(-0.024, 0.011, 0);
+      ball.castShadow = true;
+      pip.add(ball);
       this.shuttleMat = materialOf(this.shuttle, 'Body') as MeshStandardMaterial;
       // Head shares the body's material so the hover glow covers all of Pip.
       const head = this.shuttle.getObjectByName('Head') as Mesh | undefined;
@@ -1101,7 +1116,10 @@ export class LoomView {
     // a small arrow on the left of the bed points at the row to weave next (like the card's arrow)
     const next = done < this.target.length && done < LOOM.maxRows;
     this.rowArrow.visible = next;
-    if (next) this.rowArrow.position.set(warpX(0) - WARP_PITCH * 0.95, 0.007, this.rowZ(done, done));
+    if (next) {
+      this.rowArrow.position.set(warpX(0) - WARP_PITCH * 1.05, 0.008, this.rowZ(done, done));
+      this.rowArrowMat.color.setHex(this.liftColor);
+    }
     this.ghostCloth.instanceMatrix.needsUpdate = true;
     if (this.ghostCloth.instanceColor) this.ghostCloth.instanceColor.needsUpdate = true;
   }
@@ -1287,6 +1305,7 @@ export class LoomView {
     if (w === this.weftNow) return;
     this.weftNow = w;
     this.boatYarn?.color.setHex(this.weftNowColor);
+    this.pipBall.color.setHex(this.weftNowColor);
     this.dyeSwapSpools();
     const p = this.shuttle.position;
     this.fx.puff(p.x, p.y + 0.01, p.z, this.weftNowColor, 6);
@@ -1384,6 +1403,7 @@ export class LoomView {
     const yarn = this.bobbin ? (materialOf(this.bobbin, 'Wound') as MeshStandardMaterial | null) : null;
     yarn?.color.setHex(UNDO_RED);
     this.boatYarn?.color.setHex(this.weftNowColor);
+    this.pipBall.color.setHex(this.weftNowColor);
   }
 
   /** One knot per (lever, lifted thread), riding the warp just in front of the heddle. */
