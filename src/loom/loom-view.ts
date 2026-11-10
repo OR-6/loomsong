@@ -23,6 +23,8 @@ import {
   CylinderGeometry,
   TorusGeometry,
   ConeGeometry,
+  TubeGeometry,
+  CatmullRomCurve3,
   Object3D,
   DirectionalLight,
   ShadowMaterial,
@@ -478,6 +480,11 @@ export class LoomView {
     }
     this.bobbin.name = 'Bobbin';
     this.bobbin.scale.setScalar(1.5); // big enough to read as a control
+    // a tail of red yarn from the spool back onto the cloth: it 'rewinds' your last row
+    this.undoTail = new Mesh(new TubeGeometry(new CatmullRomCurve3([new Vector3(), new Vector3(0, 0, 0.01)]), 2, 0.0012, 5), new MeshStandardMaterial({ color: UNDO_RED, roughness: 0.95 }));
+    this.undoTail.name = 'UndoTail';
+    this.undoTail.castShadow = true;
+    add(this.undoTail);
     add(this.bobbin);
 
     // Contact shadow decal.
@@ -544,6 +551,7 @@ export class LoomView {
     this.setBobbinT(0);
     this.placeCard();
     this.plushes.setSide(side);
+    this.layUndoTail();
     this.basket.setSide(side);
     this.mat.position.x = -side * MAT.offsetX;
   }
@@ -598,6 +606,22 @@ export class LoomView {
       child.position.x = (child.userData.authoredX as number) * this.side;
       child.scale.x = Math.abs(child.scale.x) * this.side;
     }
+  }
+
+  private undoTail: Mesh | null = null;
+
+  /** The undo spool's yarn tail: from the spool, over the rail, onto the cloth's front corner. */
+  private layUndoTail(): void {
+    if (!this.undoTail) return;
+    const bx = bobbinX(this.side);
+    const pts = [
+      new Vector3(bx + this.side * 0.004, BOBBIN.y + 0.012, BOBBIN.z),
+      new Vector3(bx + this.side * 0.02, 0.04, BOBBIN.z - 0.004),
+      new Vector3(-this.side * 0.112, 0.036, LOOM.clothFrontZ - 0.002),
+      new Vector3(-this.side * 0.098, 0.009, LOOM.clothFrontZ - 0.004),
+    ];
+    this.undoTail.geometry.dispose();
+    this.undoTail.geometry = new TubeGeometry(new CatmullRomCurve3(pts), 24, 0.0012, 5);
   }
 
   setBobbinT(t: number): void {
@@ -820,7 +844,7 @@ export class LoomView {
       for (let i = 0; i < WARPS; i++) {
         _p.set(warpX(i), 0.0062, z);
         // slightly domed yarn cells with a little gap (the felt shows as the seam)
-        _m.compose(_p, _q.identity(), _s.set(WARP_PITCH * 0.96, 0.0036, LOOM.rowPitch * 0.93));
+        _m.compose(_p, _q.identity(), _s.set(WARP_PITCH * 0.965, 0.003, LOOM.rowPitch * 0.94));
         this.cloth.setMatrixAt(idx, _m);
         // warp visible if lifted in that row, else weft visible
         _c.setHex(isLifted(row, i) ? this.liftColor : this.groundColor);
@@ -977,7 +1001,8 @@ export class LoomView {
         const n = (i * STRANDS + s) * 3;
         this.segment(n, x + dx, LOOM.beamY + 0.007, LOOM.backBeamZ, x + dx * 0.3, hy, LOOM.heddleZ);
         this.segment(n + 1, x + dx * 0.3, hy, LOOM.heddleZ, x + dx, fellY, this.fellZ);
-        this.segment(n + 2, x + dx, fellY - 0.0005, this.fellZ, x + dx, fellY - 0.0005, LOOM.clothFrontZ + 0.006);
+        // under the woven cells (they cover it; it shows only in the seams)
+        this.segment(n + 2, x + dx, 0.0028, this.fellZ, x + dx, 0.0028, LOOM.clothFrontZ + 0.006);
         this.warps.setColorAt(n, _c);
         this.warps.setColorAt(n + 1, _c);
         this.warps.setColorAt(n + 2, _c);

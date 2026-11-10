@@ -261,13 +261,12 @@ function cutout(rows: readonly Mask8[]): Group {
         if (!isLifted(rows[r], i)) continue;
         const x = (i + 0.5) * PX - grow;
         const y = (n - r - 0.5) * PX - grow;
-        g.beginPath();
-        g.roundRect(x - PX * 0.08, y - PX * 0.08, PX * 1.16 + grow * 2, PX * 1.16 + grow * 2, PX * 0.42);
-        g.fill();
+        // crisp, slightly overlapping squares merge into one pixel-picture slab
+        g.fillRect(x - 0.5, y - 0.5, PX + grow * 2 + 1, PX + grow * 2 + 1);
       }
   };
   g.fillStyle = '#efe4cc';
-  blob(3); // a cream stitched edge
+  blob(4); // a cream outline around the whole shape
   g.fillStyle = '#8f8a84';
   blob(0);
   const tex = new CanvasTexture(c);

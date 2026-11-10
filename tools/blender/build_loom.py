@@ -23,6 +23,7 @@ WOOD = mat_tex('Beech', wood_img, tint=0xf2cc98, rough=0.48, clearcoat=0.15)
 WALNUT = mat_tex('WalnutWood', wood_img, tint=0x9a6038, rough=0.5, clearcoat=0.12)
 SLOT = mat_paint('SlotDark', 0x2e1c12, rough=0.7, clearcoat=0.0)
 SAGE = mat_paint('PaintSage', 0x9cbf86, rough=0.45, clearcoat=0.3)
+SAGE_DARK = mat_paint('PaintSageDark', 0x7a9d66, rough=0.6, clearcoat=0.1)
 DARK = mat_paint('Walnut', 0x7a4e32, rough=0.45, clearcoat=0.2)
 TOMATO = mat_paint('PaintTomato', 0xe2563b, rough=0.38, clearcoat=0.45)
 MUSTARD = mat_paint('PaintMustard', 0xf2b632, rough=0.38, clearcoat=0.45)
@@ -65,7 +66,7 @@ def roller(name, y, z, r, cap_r, body_mat, cap_mat, crank=False):
         ellipsoid(name + 'Handle', (0.0062, 0.0062, 0.0062), (-(half + 0.024), y, z), mat=MUSTARD, parent=frame, segs=18)
 
 roller('BackBeam', L['beamY'] + 0.006, L['backBeamZ'], 0.0115, 0.0135, WOOD, DARK)
-roller('FrontBeam', L['beamY'] - 0.009, L['frontBeamZ'], 0.0072, 0.0098, WOOD, DARK, crank=True)
+roller('FrontBeam', L['beamY'] - 0.009, L['frontBeamZ'], 0.0072, 0.0098, WOOD, DARK)
 # Woven cloth wound onto the front beam: a thin wrap only as wide as the cloth.
 lathe('ClothWrap', [(0.0, -0.098), (0.0078, -0.098), (0.0086, -0.094), (0.0086, 0.094), (0.0078, 0.098), (0.0, 0.098)],
       (0, L['beamY'] - 0.009, L['frontBeamZ']), axis='X', segs=32, mat=CLOTH, parent=frame)
@@ -82,6 +83,7 @@ for sx in (-1, 1):
     nm = 'L' if sx < 0 else 'R'
     lathe(f'Perch{nm}', [(0, 0), (0.0225, 0), (0.0235, 0.003), (0.0225, 0.006), (0, 0.006)], (sx * 0.168, 0.031, SZ), segs=32, mat=WALNUT, parent=frame)
     lathe(f'PerchPad{nm}', [(0, 0), (0.019, 0), (0.0195, 0.002), (0.018, 0.003), (0, 0.003)], (sx * 0.168, 0.037, SZ), segs=32, mat=SAGE, parent=frame)
+    ellipsoid(f'PerchDent{nm}', (0.017, 0.0007, 0.0065), (sx * 0.168, 0.0402, SZ), mat=SAGE_DARK, parent=frame, segs=24)
     lathe(f'PerchLeg{nm}', [(0, 0), (0.006, 0), (0.0055, 0.031), (0, 0.031)], (sx * 0.168, 0, SZ), segs=16, mat=WALNUT, parent=frame)
 for sx in (-1, 1):  # end stops: the boat parks against them
     rounded_box('RaceStop', (0.006, 0.011, 0.018), (sx * (HW - 0.016), 0.022, SZ), bevel=0.0025, segs=3, mat=WALNUT, parent=frame)
@@ -135,13 +137,12 @@ for k in range(n):
     rounded_box(f'LeverSlotPlug{k}', (0.0078, 0.004, LV['travel'] + 0.011), (x_first + k * sp, TOP - 0.0015, LV['restZ'] - LV['travel'] / 2),
                 bevel=0.0012, segs=2, mat=WALNUT, parent=frame)
 
-# The undo bobbin slides along a wooden rod mounted on the left rail.
+# The undo bobbin rests in a solid walnut cradle beside the left rail (it
+# slides back along the cradle when pulled). Mirrored with the crank side in code.
 BX0 = -B['x']
-rod = lathe('BobbinRod', [(0, 0), (0.0022, 0), (0.0022, B['pull'] + 0.03), (0, B['pull'] + 0.03)],
-            (BX0, B['y'], B['z'] - 0.014), axis='Z', segs=12, mat=DARK, parent=frame)
-for zc in (B['z'] - 0.016, B['z'] + B['pull'] + 0.016):
-    lathe('BobbinRodMount', [(0, 0), (0.0032, 0), (0.0032, abs(BX0) - HW - 0.008), (0, abs(BX0) - HW - 0.008)],
-          (BX0, B['y'], zc), axis='X', segs=12, mat=DARK, parent=frame)
+rounded_box('BobbinRodCradle', (0.026, 0.008, B['pull'] + 0.04), (BX0, 0.004, B['z'] + B['pull'] / 2), bevel=0.0035, segs=3, mat=WALNUT, parent=frame)
+for zc in (B['z'] - 0.014, B['z'] + B['pull'] + 0.014):
+    rounded_box('BobbinRodCradleEnd', (0.026, 0.012, 0.006), (BX0, 0.012, zc), bevel=0.0025, segs=3, mat=WALNUT, parent=frame)
 
 # ---- Easel: a music stand behind the heddle that holds the pattern card ----
 EZ, EY = C['z'], C['baseY']
