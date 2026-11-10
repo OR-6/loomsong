@@ -1,0 +1,173 @@
+/**
+ * Tutorial ghost hand: a golden-outlined copy of the player's own hand (IWSDK's
+ * WebXR generic-hand visual), frozen in a real pinch pose captured from the
+ * emulator, looping the gesture on the exact thing to touch: approach, pinch,
+ * slide, lift away. It steps aside while the player's hand is busy.
+ * Loom-local: add `root` to the loom root.
+ */
+import { Group, MeshStandardMaterial, Object3D, Quaternion, Skeleton, Vector3, type Bone, type Material, type SkinnedMesh } from '@iwsdk/core';
+import { LEVER, SHUTTLE, leverX, shuttleY } from '../config.js';
+import { PINCH_POSE } from './pinch-pose.js';
+
+export type GhostGesture = { kind: 'lever'; k: number } | { kind: 'shuttle'; fromEnd: 0 | 1 } | null;
+
+const LOOP = 2.9;
+const _q = new Quaternion();
+const _v = new Vector3();
+const ease = (t: number) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+
+/** Deep clone with the skinned meshes rebound to the cloned bones (like SkeletonUtils.clone). */
+function cloneSkinned(src: Object3D): Object3D {
+  const out = src.clone(true);
+  const bones = new Map<string, Bone>();
+  out.traverse((o) => {
+    if ((o as Bone).isBone) bones.set(o.name, o as Bone);
+  });
+  out.traverse((o) => {
+    const m = o as SkinnedMesh;
+    if (!m.isSkinnedMesh) return;
+    const sk = m.skeleton;
+    const mapped = sk.bones.map((b) => bones.get(b.name) ?? b);
+    m.bind(new Skeleton(mapped, sk.boneInverses), m.bindMatrix);
+    m.frustumCulled = false;
+  });
+  return out;
+}
+
+export class GhostHand {
+  readonly root = new Group();
+  private inner = new Group();
+  /** Tilts the captured pose about the pinch point: wrist up and back, fingers curling down. */
+  private tilt = new Group();
+  private model: Object3D | null = null;
+  private gesture: GhostGesture = null;
+  private side: 1 | -1 = 1;
+  private t = 0;
+  private idle = 0;
+  private from = new Vector3();
+  private to = new Vector3();
+
+  constructor() {
+    this.root.name = 'GhostHand';
+    this.root.visible = false;
+    this.root.add(this.inner);
+    this.inner.add(this.tilt);
+    this.tilt.quaternion.set(-0.22228, -0.04777, 0.13775, 0.96402);
+  }
+
+  get ready(): boolean {
+    return this.model !== null;
+  }
+
+  /** Clone the player's hand visual once it has loaded. */
+  attach(src: Object3D): void {
+    if (this.model) return;
+    const m = cloneSkinned(src);
+    m.position.set(0, 0, 0);
+    m.quaternion.set(0, 0, 0, 1);
+    m.visible = true;
+    // the captured pinch pose
+    m.traverse((o) => {
+      const b = PINCH_POSE.bones[o.name as keyof typeof PINCH_POSE.bones];
+      if (!b || !(o as Bone).isBone) return;
+      o.position.fromArray(b.p);
+      o.quaternion.fromArray(b.q);
+    });
+    // A soft, glowing body with a crisp golden edge (own materials, so the
+    // player's hands are untouched).
+    const body = new MeshStandardMaterial({
+      color: 0xfff3dc,
+      emissive: 0xffc46b,
+      emissiveIntensity: 0.3,
+      roughness: 0.6,
+      transparent: true,
+      opacity: 0.7,
+      depthWrite: false,
+    });
+    m.traverse((o) => {
+      const mesh = o as SkinnedMesh;
+      if (!mesh.isSkinnedMesh) return;
+      const src = mesh.material as Material & { uniforms?: Record<string, { value: unknown }> };
+      if (src.uniforms?.outlineColor) {
+        // the outline trick needs IWSDK's hidden inner mesh; the ghost has a solid body instead
+        mesh.visible = false;
+      } else {
+        mesh.material = body;
+        mesh.renderOrder = 998;
+      }
+    });
+    // place the model so its pinch point sits at the inner group's origin
+    m.quaternion.fromArray(PINCH_POSE.quat);
+    _v.fromArray(PINCH_POSE.pinch).applyQuaternion(m.quaternion);
+    m.position.copy(_v).multiplyScalar(-1);
+    this.tilt.add(m);
+    this.model = m;
+  }
+
+  /** What to demonstrate (null hides it). `side` is the lever bank side. */
+  show(g: GhostGesture, side: 1 | -1): void {
+    const same =
+      g?.kind === this.gesture?.kind &&
+      (g?.kind !== 'lever' || (this.gesture?.kind === 'lever' && g.k === this.gesture.k)) &&
+      (g?.kind !== 'shuttle' || (this.gesture?.kind === 'shuttle' && g.fromEnd === this.gesture.fromEnd));
+    if (same && side === this.side) return;
+    this.gesture = g;
+    this.side = side;
+    this.t = 0;
+    // a right hand for a right-hand lever bank; mirrored for the left
+    this.inner.scale.x = side;
+  }
+
+  /** `busy`: the player's hand is hovering or holding something. */
+  update(dt: number, busy: boolean): void {
+    const g = this.gesture;
+    if (!this.model || !g) {
+      this.root.visible = false;
+      return;
+    }
+    if (busy) {
+      this.idle = 1.2;
+      this.t = 0;
+      this.root.visible = false;
+      return;
+    }
+    if (this.idle > 0) {
+      this.idle -= dt;
+      this.root.visible = false;
+      return;
+    }
+    this.t = (this.t + dt) % LOOP;
+    if (g.kind === 'lever') {
+      const x = leverX(g.k, this.side);
+      this.from.set(x, LEVER.knobY, LEVER.restZ);
+      this.to.set(x, LEVER.knobY, LEVER.restZ - LEVER.travel);
+    } else {
+      const a = g.fromEnd === 0 ? SHUTTLE.minX : SHUTTLE.maxX;
+      const b = g.fromEnd === 0 ? SHUTTLE.maxX : SHUTTLE.minX;
+      this.from.set(a, shuttleY(a) + 0.002, SHUTTLE.z);
+      this.to.set(b, shuttleY(b) + 0.002, SHUTTLE.z);
+    }
+    const t = this.t;
+    let s = 1;
+    const p = this.root.position;
+    if (t < 0.5) {
+      // approach from above and behind
+      const k = ease(t / 0.5);
+      p.copy(this.from).add(_v.set(0, 0.07 * (1 - k), 0.03 * (1 - k)));
+      s = Math.min(1, t / 0.15);
+    } else if (t < 0.75) {
+      p.copy(this.from); // pinch
+    } else if (t < 1.85) {
+      const k = ease((t - 0.75) / 1.1);
+      p.lerpVectors(this.from, this.to, k);
+      if (g.kind === 'shuttle') p.y = shuttleY(p.x) + 0.002;
+    } else if (t < 2.3) {
+      const k = (t - 1.85) / 0.45;
+      p.copy(this.to).add(_v.set(0, 0.05 * k, 0.02 * k));
+      s = 1 - k;
+    } else s = 0;
+    this.root.visible = s > 0.01;
+    this.root.scale.setScalar(Math.max(0.001, s));
+    void _q;
+  }
+}

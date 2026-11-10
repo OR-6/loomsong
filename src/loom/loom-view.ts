@@ -34,6 +34,7 @@ import { grainTexture, weaveTexture, yarnTexture } from './textures.js';
 import { cloneModel, loomModels, materialOf } from './models.js';
 import { Plushes } from './plush.js';
 import { Basket } from './basket.js';
+import { GhostHand } from './ghost-hand.js';
 import { makeMat, MAT } from './mat.js';
 import {
   BOBBIN,
@@ -156,6 +157,7 @@ export class LoomView {
   readonly mat = makeMat();
   readonly plushes = new Plushes();
   readonly basket = new Basket();
+  readonly ghost = new GhostHand();
 
   /** Placement reveal 0→1: the mat unrolls toward the player. */
   setReveal(t: number): void {
@@ -211,7 +213,7 @@ export class LoomView {
     this.catcher.receiveShadow = true;
     this.catcher.renderOrder = -1;
     this.root.add(this.catcher);
-    this.root.add(this.mat, this.plushes.root, this.basket.root);
+    this.root.add(this.mat, this.plushes.root, this.basket.root, this.ghost.root);
 
     this.build(theme);
     this.setSide(1);

@@ -556,6 +556,24 @@ export class GameSystem extends createSystem({
     audio.click(dir > 0);
   }
 
+  /** The ghost hand demonstrates the current tutorial gesture on the real target. */
+  private syncGhost(dt: number, step: HintStep): void {
+    const ghost = this.view.ghost;
+    if (!ghost.ready) {
+      const ad = (this.world.input as unknown as { visualAdapters?: { hand?: { right?: { visual?: { model?: import("@iwsdk/core").Object3D } } } } }).visualAdapters;
+      const m = ad?.hand?.right?.visual?.model;
+      if (m) ghost.attach(m);
+    }
+    const c = this.controller;
+    const side = c.bankSide;
+    ghost.show(
+      this.notice ? null : step === 'lever' ? { kind: 'lever', k: this.hintLever } : step === 'shuttle' ? { kind: 'shuttle', fromEnd: c.shuttle.t < 0.5 ? 0 : 1 } : null,
+      side,
+    );
+    const busy = c.hover.left !== null || c.hover.right !== null || c.holding.left !== null || c.holding.right !== null;
+    ghost.update(dt, busy);
+  }
+
   /** Basket balls: one per chapter, coloured when unlocked, lifted for the current one. */
   private syncBasket(level: Level): void {
     const states = chapterStates(this.progress, level.chapter);
@@ -807,6 +825,7 @@ export class GameSystem extends createSystem({
   /** Position the tutorial label over its target and pulse that target. */
   private syncHint(dt: number) {
     const step = this.flow.hintStep;
+    this.syncGhost(dt, step);
     const m = this.tutor.mesh;
     if (this.notice) {
       this.noticeTimer -= dt;
@@ -821,7 +840,7 @@ export class GameSystem extends createSystem({
     const pulse = Math.sin(this.time * 6) > 0 ? 1 : 0;
     if (step === 'lever') {
       const k = this.hintLever;
-      m.position.set(leverX(k, side) - side * 0.03, 0.075, LEVER.restZ - LEVER.travel / 2);
+      m.position.set(leverX(k, side) - side * 0.085, 0.07, LEVER.restZ - LEVER.travel / 2);
       if (!this.model.latched[k]) this.view.setLeverHighlight(k, pulse as 0 | 1, false);
     } else if (step === 'shuttle') {
       // Tag hangs just outside the frame beside Pip's perch, never over the threads.
