@@ -39,10 +39,10 @@ export const SHUTTLE = {
   /** Pip's height in the shed: the boat (20 mm below Pip) slides between the threads. */
   y: 0.044,
   /** Travel endpoints in loom-local x: Pip's perches on top of the side rails. */
-  minX: -0.152,
-  maxX: 0.152,
+  minX: -0.16,
+  maxX: 0.16,
   /** Perch height on the rail top, and where the hop down into the shed starts. */
-  perchY: 0.061,
+  perchY: 0.065,
   shedHalf: 0.1,
   /** Release past this fraction of travel completes the pass. */
   completeAt: 0.6,
@@ -53,13 +53,13 @@ export const SHUTTLE = {
 export const LEVER = {
   /** x of the first lever, measured outward from the loom centre. */
   firstX: 0.16,
-  spacing: 0.032,
+  spacing: 0.04,
   /** Rest (unlatched) z — nearest the user. Latched = rest - travel. */
   restZ: 0.075,
   travel: 0.05,
   knobY: 0.056,
   /** ≥ 22 mm diameter touch target (Meta hands guidance). */
-  knobRadius: 0.0135,
+  knobRadius: 0.0172,
   /** Final fraction of travel that magnetically pulls to an end. */
   magnet: 0.3,
 } as const;

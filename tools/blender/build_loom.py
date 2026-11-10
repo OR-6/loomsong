@@ -75,11 +75,13 @@ rounded_box('Bed', (HW * 2 - 0.024, 0.004, ZL - 0.05), (0, 0.002, ZM + 0.004), b
 # Pip's lane: a slim wooden shuttle race across the loom; the lowered threads lie on it.
 SZ = DIMS['SHUTTLE']['z']
 rounded_box('ShuttleRace', (HW * 2 - 0.024, 0.006, 0.018), (0, 0.016, SZ), bevel=0.0026, segs=3, mat=WALNUT, parent=frame)
-# Pip's perches: a walnut platform outside each side rail at the end of the
-# race (clear of the posts), on a little leg down to the desk.
+# Pip's perches: a round walnut stand outside each side rail at the end of the
+# race (clear of the posts), with a tomato pad on top. Identical both sides.
 for sx in (-1, 1):
-    rounded_box(f'Perch{"L" if sx < 0 else "R"}', (0.05, 0.006, 0.032), (sx * 0.154, 0.034, SZ), bevel=0.0025, segs=3, mat=WALNUT, parent=frame)
-    lathe(f'PerchLeg{"L" if sx < 0 else "R"}', [(0, 0), (0.0045, 0), (0.004, 0.031), (0, 0.031)], (sx * 0.17, 0, SZ), segs=12, mat=WALNUT, parent=frame)
+    nm = 'L' if sx < 0 else 'R'
+    lathe(f'Perch{nm}', [(0, 0), (0.0225, 0), (0.0235, 0.003), (0.0225, 0.006), (0, 0.006)], (sx * 0.16, 0.031, SZ), segs=32, mat=WALNUT, parent=frame)
+    lathe(f'PerchPad{nm}', [(0, 0), (0.019, 0), (0.0195, 0.002), (0.018, 0.003), (0, 0.003)], (sx * 0.16, 0.037, SZ), segs=32, mat=TOMATO, parent=frame)
+    lathe(f'PerchLeg{nm}', [(0, 0), (0.006, 0), (0.0055, 0.031), (0, 0.031)], (sx * 0.16, 0, SZ), segs=16, mat=WALNUT, parent=frame)
 for sx in (-1, 1):  # end stops: the boat parks against them
     rounded_box('RaceStop', (0.006, 0.011, 0.018), (sx * (HW - 0.016), 0.022, SZ), bevel=0.0025, segs=3, mat=WALNUT, parent=frame)
 

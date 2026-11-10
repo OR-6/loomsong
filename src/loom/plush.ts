@@ -24,6 +24,8 @@ import {
   TubeGeometry,
   CatmullRomCurve3,
   PlaneGeometry,
+  CanvasTexture,
+  SRGBColorSpace,
 } from '@iwsdk/core';
 import { Label } from '../ui/label.js';
 import { LOOM, WARPS } from '../config.js';
@@ -63,7 +65,7 @@ export const PLUSH = {
   /** Plush base height on the shelf: the bench top (36 mm). */
   shelfTopY: 0.036,
   /** Shelf centre, on the side away from the lever bank (x is multiplied by -side). */
-  shelfX: 0.275,
+  shelfX: 0.335,
   shelfZ: -0.02,
   /** Where the plush dances: on the mat in front of the shelf. */
   stageX: 0.225,
@@ -241,6 +243,62 @@ function addFace(g: Group, rows: readonly Mask8[], color: number): void {
   g.add(smile);
 }
 
+/**
+ * Silhouette for a picture not woven yet: one smooth, rounded felt cut-out of
+ * its pixels (soft blobs merged) with a darker stitched edge, upright on a peg.
+ * Origin at the bottom centre; about 1.5x a shelf plush.
+ */
+function cutout(rows: readonly Mask8[]): Group {
+  const PX = 32;
+  const n = rows.length;
+  const c = document.createElement('canvas');
+  c.width = (WARPS + 1) * PX;
+  c.height = (n + 1) * PX;
+  const g = c.getContext('2d')!;
+  const blob = (grow: number) => {
+    for (let r = 0; r < n; r++)
+      for (let i = 0; i < WARPS; i++) {
+        if (!isLifted(rows[r], i)) continue;
+        const x = (i + 0.5) * PX - grow;
+        const y = (n - r - 0.5) * PX - grow;
+        g.beginPath();
+        g.roundRect(x - PX * 0.08, y - PX * 0.08, PX * 1.16 + grow * 2, PX * 1.16 + grow * 2, PX * 0.42);
+        g.fill();
+      }
+  };
+  g.fillStyle = '#9c9488';
+  blob(3); // the darker edge
+  g.fillStyle = '#bdb6aa';
+  blob(0);
+  // running stitch just inside the edge
+  g.globalCompositeOperation = 'source-atop';
+  g.strokeStyle = 'rgba(120,112,100,0.6)';
+  g.setLineDash([5, 4]);
+  g.lineWidth = 2;
+  for (let r = 0; r < n; r++)
+    for (let i = 0; i < WARPS; i++) {
+      if (!isLifted(rows[r], i)) continue;
+      const x = (i + 0.5) * PX;
+      const y = (n - r - 0.5) * PX;
+      g.strokeRect(x + 4, y + 4, PX - 8, PX - 8);
+    }
+  const tex = new CanvasTexture(c);
+  tex.colorSpace = SRGBColorSpace;
+  const cell = PLUSH.cell * PLUSH.shelfScale * 1.5;
+  const w = (WARPS + 1) * cell;
+  const h = (n + 1) * cell;
+  const mesh = new Mesh(new PlaneGeometry(w, h), new MeshStandardMaterial({ map: tex, transparent: true, alphaTest: 0.4, roughness: 0.95, side: 2 }));
+  mesh.position.y = h / 2 + 0.004;
+  mesh.castShadow = true;
+  (mesh.material as MeshStandardMaterial).userData.own = true;
+  const peg = new Mesh(new CylinderGeometry(0.0025, 0.003, 0.006, 10), new MeshStandardMaterial({ color: 0x6b4430, roughness: 0.6 }));
+  peg.position.y = 0.003;
+  (peg.material as MeshStandardMaterial).userData.own = true;
+  const grp = new Group();
+  grp.add(mesh, peg);
+  return grp;
+}
+
 /** Dispose a plush's per-instance resources (shared geometry is kept). */
 export function disposePlush(g: Object3D): void {
   g.traverse((o) => {
@@ -249,7 +307,9 @@ export function disposePlush(g: Object3D): void {
       (m.material as MeshPhysicalMaterial).dispose();
       m.dispose();
     } else if ((m as unknown as Mesh).isMesh && (m.material as MeshStandardMaterial).userData?.own) {
-      (m.material as MeshStandardMaterial).dispose();
+      const mat = m.material as MeshStandardMaterial;
+      mat.map?.dispose();
+      mat.dispose();
     }
   });
   g.removeFromParent();
@@ -424,18 +484,8 @@ export class Plushes {
       this.ghosts[i] = null;
       this.ghostIds[i] = want;
       if (!it || !want) continue;
-      const g = buildPlush(it.rows, 0x9aa0a6);
-      g.traverse((o) => {
-        const m = o as InstancedMesh;
-        if (m.isInstancedMesh) {
-          const mat = m.material as MeshPhysicalMaterial;
-          mat.sheen = 0;
-          mat.roughness = 0.95;
-          m.castShadow = false;
-        } else if ((o as Mesh).isMesh) o.visible = false; // no face: it's not woven yet
-      });
-      // a flat picture-shaped cut-out, not a lumpy grey plush
-      g.scale.set(PLUSH.shelfScale, PLUSH.shelfScale, PLUSH.shelfScale * 0.55);
+      // a smooth felt cut-out of the picture with a stitched edge, standing on a peg
+      const g = cutout(it.rows);
       this.slotPos(i, g.position);
       this.root.add(g);
       this.ghosts[i] = g;

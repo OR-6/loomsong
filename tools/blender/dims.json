@@ -16,20 +16,20 @@
   },
   "LEVER": {
     "firstX": 0.16,
-    "spacing": 0.032,
+    "spacing": 0.04,
     "restZ": 0.075,
     "travel": 0.05,
     "knobY": 0.056,
-    "knobRadius": 0.0135,
+    "knobRadius": 0.0172,
     "magnet": 0.3
   },
   "LEVERS": 4,
   "SHUTTLE": {
     "z": -0.018,
     "y": 0.044,
-    "minX": -0.152,
-    "maxX": 0.152,
-    "perchY": 0.061,
+    "minX": -0.16,
+    "maxX": 0.16,
+    "perchY": 0.065,
     "shedHalf": 0.1,
     "completeAt": 0.6,
     "autoThrowSpeed": 0.35

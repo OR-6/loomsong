@@ -6,7 +6,7 @@
 import { CanvasTexture, Mesh, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace } from '@iwsdk/core';
 import { THEMES, type Theme } from './theme.js';
 
-export const PLAQUE = { width: 0.15, height: 0.034, tiltDeg: 55 } as const;
+export const PLAQUE = { width: 0.11, height: 0.025, tiltDeg: 55 } as const;
 
 export class Plaque {
   readonly mesh: Mesh;

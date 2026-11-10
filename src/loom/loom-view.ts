@@ -355,7 +355,7 @@ export class LoomView {
     // faint target picture on the rows still to weave
     this.ghostCloth = new InstancedMesh(
       cellGeo,
-      new MeshStandardMaterial({ transparent: true, opacity: 0.22, roughness: 1, depthWrite: false, map: weaveTexture() }),
+      new MeshStandardMaterial({ transparent: true, opacity: 0.3, roughness: 1, depthWrite: false, map: weaveTexture() }),
       WARPS * LOOM.maxRows,
     );
     this.ghostCloth.name = 'TargetGhost';
@@ -539,7 +539,7 @@ export class LoomView {
     const tilt = (PLAQUE.tiltDeg * Math.PI) / 180;
     // lying almost flat on the desk in front of the loom, clear of the cloth
     this.plaque.mesh.position.set(-side * 0.035, 0.004, LOOM.frontBeamZ + 0.05);
-    this.plaque.mesh.rotation.set(-1.25, 0, 0);
+    this.plaque.mesh.rotation.set(-1.31, 0, 0); // ~15° up from flat
     this.layoutLevers();
     this.setBobbinT(0);
     this.placeCard();
