@@ -9,8 +9,9 @@ export default async function run({ page, frame }) {
     const n = lv.tieUp.length;
     const start = g.model.rows.length;
     for (let r = start; r < Math.min(lv.target.length, start + 2); r++) {
-      let best = -1;
-      for (let s = 0; s < 1 << n; s++) { let m = 0; for (let k = 0; k < n; k++) if (s & (1 << k)) m |= lv.tieUp[k]; if (m === lv.target[r]) { best = s; break; } }
+      // the matching lever set with the fewest flips from the current levers (a thrifty player)
+      let best = -1, bestFlips = 99;
+      for (let s = 0; s < 1 << n; s++) { let m = 0; for (let k = 0; k < n; k++) if (s & (1 << k)) m |= lv.tieUp[k]; if (m !== lv.target[r]) continue; let f = 0; for (let k = 0; k < n; k++) if (!!(s & (1 << k)) !== g.model.latched[k]) f++; if (f < bestFlips) { bestFlips = f; best = s; } }
       for (let k = 0; k < n; k++) if (!!(best & (1 << k)) !== g.model.latched[k]) c.toggleLever(k);
       c.throwShuttle();
       for (let w = 0; w < 40 && g.model.rows.length <= r; w++) await sleep(100);

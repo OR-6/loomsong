@@ -1272,8 +1272,11 @@ function mysteryMark(): Mesh {
   g.lineWidth = 10;
   g.strokeStyle = '#f3e6cc';
   g.strokeText('?', 64, 72);
-  g.fillStyle = '#4a3a2a';
+  g.fillStyle = '#3a2618';
   g.fillText('?', 64, 72);
+  g.lineWidth = 5; // a bolder stitched glyph that reads from the seat
+  g.strokeStyle = '#3a2618';
+  g.strokeText('?', 64, 72);
   const tex = new CanvasTexture(c);
   tex.colorSpace = SRGBColorSpace;
   const m = new Mesh(geo, new MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -2 }));

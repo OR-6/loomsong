@@ -273,6 +273,10 @@ export class GameSystem extends createSystem({
         const lv = this.flow.level;
         this.view.plushes.celebrate(lv.id, lv.target, lv.color ?? this.shown().palette.weft, this.flow.challenge ? -1 : shelfSlot(lv));
         this.controller.releaseAll();
+        // the levers drop back to rest with a clack as the picture comes alive (not a move: flips restored)
+        const flips = this.model.leverFlips;
+        for (let k = 0; k < LEVERS; k++) this.controller.applyLatched(k, false);
+        this.model.leverFlips = flips;
         audio.arpeggio();
         this.view.pulseWarp();
         if (this.debug) this.debug.stars = stars;

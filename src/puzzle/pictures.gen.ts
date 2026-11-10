@@ -33,9 +33,9 @@ export const CHAPTERS: Chapter[] = [
     "name": "Night",
     "idea": "mystery levers",
     "levels": [
-      "key",
+      "moon",
       "ghost",
-      "sun",
+      "owl",
       "cat"
     ]
   },
@@ -325,29 +325,34 @@ export const PICTURES: PictureLevel[] = [
     "rootMidi": 65
   },
   {
-    "id": "key",
-    "name": "Key",
+    "id": "moon",
+    "name": "Moon",
     "chapter": "night",
     "mystery": true,
-    "color": 0xf5b62b,
+    "color": 0xf5c84a,
     "picture": [
+      "..####..",
       ".###....",
-      "#...####",
-      "#...#.#.",
-      ".###...."
+      "###.....",
+      "###.....",
+      ".###....",
+      "..####.."
     ],
     "tieUp": [
-      14,
-      241,
-      81
+      56,
+      6,
+      12,
+      1
     ],
     "target": [
+      60,
       14,
-      81,
-      241,
-      14
+      7,
+      7,
+      14,
+      60
     ],
-    "par": 7,
+    "par": 10,
     "rootMidi": 67
   },
   {
@@ -382,34 +387,34 @@ export const PICTURES: PictureLevel[] = [
     "rootMidi": 64
   },
   {
-    "id": "sun",
-    "name": "Sun",
+    "id": "owl",
+    "name": "Owl",
     "chapter": "night",
     "mystery": true,
-    "color": 0xf2a024,
+    "color": 0xe08a3c,
     "picture": [
-      "#..##..#",
-      "..####..",
+      ".#....#.",
       ".######.",
+      "##.##.##",
       ".######.",
-      "..####..",
-      "#..##..#"
+      ".#.##.#.",
+      "..#..#.."
     ],
     "tieUp": [
+      36,
       129,
       66,
-      36,
       24
     ],
     "target": [
-      153,
-      60,
+      36,
+      90,
       126,
+      219,
       126,
-      60,
-      153
+      66
     ],
-    "par": 8,
+    "par": 11,
     "rootMidi": 69
   },
   {

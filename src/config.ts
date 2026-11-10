@@ -25,10 +25,10 @@ export const LOOM = {
   loweredY: 0.024,
   shedY: 0.017,
   /** Woven row depth (taller rows → pictures aren't squashed). */
-  rowPitch: 0.012,
+  rowPitch: 0.0145,
   visibleRows: 12,
   /** Cloth starts here (front, by the front beam) and builds back toward the heddle. */
-  clothFrontZ: 0.068,
+  clothFrontZ: 0.072,
   /** Rows that fit before the cloth reaches the shuttle line. */
   maxRows: 8,
 } as const;
