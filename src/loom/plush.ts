@@ -74,7 +74,7 @@ export const PLUSH = {
   /** Hero size while it pops and dances (shelf size is shelfScale). */
   hero: 0.95,
   /** Hover height while it dances (it faces the seated player). */
-  danceY: 0.11,
+  danceY: 0.135,
   /** Width of the cream halo behind the dancing plush (m). */
   haloSize: 0.17,
   /** Radius of the felt stage disc under the dancing plush (m). */
@@ -620,6 +620,11 @@ export class Plushes {
 
   hoverKey(on: boolean): void {
     this.keyHover = on ? 1 : 0;
+  }
+
+  /** The hero plush is out on its stage (pop, dance). */
+  get staged(): boolean {
+    return !!this.hero && (this.phase === 'pop' || this.phase === 'hopOut' || this.phase === 'dance');
   }
 
   get hasPlush(): boolean {

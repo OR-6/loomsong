@@ -6,7 +6,7 @@
 import { Color, DoubleSide, Euler, Group, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, Quaternion, SphereGeometry, Vector3 } from '@iwsdk/core';
 
 const PUFFS = 48;
-const BITS = 90;
+const BITS = 170;
 const _m = new Matrix4();
 const _q = new Quaternion();
 const _p = new Vector3();
@@ -35,7 +35,7 @@ export class Fx {
   constructor() {
     this.root.name = 'Fx';
     this.puffs = new InstancedMesh(new SphereGeometry(1, 10, 8), new MeshBasicMaterial({ transparent: true, opacity: 0.9, depthWrite: false }), PUFFS);
-    this.bits = new InstancedMesh(new PlaneGeometry(0.006, 0.0095), new MeshStandardMaterial({ side: DoubleSide, roughness: 0.6 }), BITS);
+    this.bits = new InstancedMesh(new PlaneGeometry(0.009, 0.014), new MeshStandardMaterial({ side: DoubleSide, roughness: 0.6 }), BITS);
     for (const m of [this.puffs, this.bits]) {
       m.frustumCulled = false;
       m.count = 0;

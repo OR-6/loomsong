@@ -30,6 +30,9 @@ import {
   DirectionalLight,
   ShadowMaterial,
   MeshPhysicalMaterial,
+  BufferGeometry,
+  Float32BufferAttribute,
+  DoubleSide,
   type Material,
 } from '@iwsdk/core';
 import { TargetCard } from '../ui/target-card.js';
@@ -135,6 +138,7 @@ export class LoomView {
   private pictureColor: number | null = null;
   private cloth!: InstancedMesh;
   private ghostCloth: InstancedMesh | null = null;
+  private rowArrow = new Mesh();
   private tracks: InstancedMesh | null = null;
   private leverMats: MeshStandardMaterial[] = [];
   /** Yarn wraps on the knob stems (model only), recoloured with the caps. */
@@ -390,6 +394,14 @@ export class LoomView {
       WARPS * LOOM.maxRows,
     );
     this.ghostCloth.name = 'TargetGhost';
+    {
+      const tri = new BufferGeometry();
+      tri.setAttribute('position', new Float32BufferAttribute([-0.006, 0, -0.0055, -0.006, 0, 0.0055, 0.006, 0, 0], 3));
+      tri.computeVertexNormals();
+      this.rowArrow = new Mesh(tri, new MeshBasicMaterial({ color: 0x2b2b2b, side: DoubleSide }));
+      this.rowArrow.name = 'NextRowArrow';
+      add(this.rowArrow);
+    }
     this.ghostCloth.frustumCulled = false;
     this.ghostCloth.count = 0;
     add(this.ghostCloth);
@@ -1045,12 +1057,20 @@ export class LoomView {
           _p.set(warpX(i), 0.0049, z);
           _m.compose(_p, _q.identity(), _s.set(0.9, 0.15, 0.88)); // flat faint tile on the felt
           this.ghostCloth.setMatrixAt(idx, _m);
-          this.ghostCloth.setColorAt(idx, _c.setHex(this.liftColor).lerp(_c2.setHex(this.groundColor), 0.2)); // softer than woven rows
+          // the row to weave next is bright; later rows sink toward the navy felt
+          _c.setHex(this.liftColor);
+          if (r === done) _c.lerp(_c2.setHex(0xfff4dc), 0.15);
+          else _c.lerp(_c2.setHex(0x2b3a67), 0.55);
+          this.ghostCloth.setColorAt(idx, _c);
           idx++;
         }
       }
     }
     this.ghostCloth.count = idx;
+    // a small arrow on the left of the bed points at the row to weave next (like the card's arrow)
+    const next = done < this.target.length && done < LOOM.maxRows;
+    this.rowArrow.visible = next;
+    if (next) this.rowArrow.position.set(warpX(0) - WARP_PITCH * 0.95, 0.007, this.rowZ(done, done));
     this.ghostCloth.instanceMatrix.needsUpdate = true;
     if (this.ghostCloth.instanceColor) this.ghostCloth.instanceColor.needsUpdate = true;
   }

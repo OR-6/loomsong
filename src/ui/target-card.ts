@@ -29,6 +29,8 @@ export class TargetCard {
   private par = 0;
   private used = 0;
 
+  /** Night: little stars twinkle in the margins. */
+  sparkles = false;
   /** Optional paper tint for the chapter (e.g. a cool dusk for Night). */
   paper: string | null = null;
 
@@ -113,6 +115,10 @@ export class TargetCard {
     g.lineWidth = px(highContrast ? 0.0015 : 0.0008);
     g.strokeStyle = th.ink;
     g.stroke();
+    if (this.sparkles && !highContrast) {
+      // Night: a few little stars in the card's margins
+      for (const [fx, fy, r] of NIGHT_STARS) drawTwinkle(g, fx * c.width, fy * c.height, px(r));
+    }
 
     // Title or stars.
     g.fillStyle = th.ink;
@@ -120,7 +126,7 @@ export class TargetCard {
     g.textBaseline = 'middle';
     if (stars > 0) {
       for (let i = 0; i < 3; i++) {
-        drawStar(g, c.width / 2 + (i - 1) * px(0.019), px(pad + titleH / 2), px(0.0075), i < stars);
+        drawStar(g, c.width / 2 + (i - 1) * px(0.026), px(pad + titleH / 2), px(0.0112), i < stars);
       }
     }
     else if (this.par > 0) {
@@ -280,7 +286,11 @@ function drawKnot(g: CanvasRenderingContext2D, x: number, y: number, r: number, 
     g.lineWidth = r * 0.25;
     g.stroke();
   } else {
-    g.setLineDash([r * 0.5, r * 0.4]);
+    // spent: an empty, solid pale slot (not a dashed outline that reads as overlap)
+    g.fillStyle = '#e4dccb';
+    g.fill();
+    g.lineWidth = r * 0.18;
+    g.strokeStyle = 'rgba(59,42,32,0.35)';
     g.stroke();
   }
   g.restore();
@@ -295,10 +305,10 @@ function drawStar(g: CanvasRenderingContext2D, x: number, y: number, r: number, 
     g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
   }
   g.closePath();
-  g.fillStyle = filled ? '#c9a14a' : 'transparent';
+  g.fillStyle = filled ? '#f5b82e' : 'transparent';
   if (filled) g.fill();
-  g.lineWidth = r * 0.18;
-  g.strokeStyle = '#3b2a20';
+  g.lineWidth = r * 0.2;
+  g.strokeStyle = filled ? '#7a4a12' : '#3b2a20';
   g.stroke();
   g.restore();
 }
@@ -314,4 +324,32 @@ function mixHex(a: string, b: string, t: number): string {
     out |= Math.round(ca + (cb - ca) * t) << sh;
   }
   return '#' + out.toString(16).padStart(6, '0');
+}
+
+/** Margin stars for the Night card: (x, y) as fractions of the card, radius in m. */
+const NIGHT_STARS: [number, number, number][] = [
+  [0.04, 0.05, 0.0034],
+  [0.96, 0.06, 0.0028],
+  [0.035, 0.55, 0.0024],
+  [0.965, 0.48, 0.0032],
+  [0.05, 0.95, 0.0028],
+  [0.95, 0.94, 0.0024],
+];
+
+/** A soft four-point twinkle. */
+function drawTwinkle(g: CanvasRenderingContext2D, x: number, y: number, r: number) {
+  g.save();
+  g.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const a = -Math.PI / 2 + (i * Math.PI) / 4;
+    const rr = i % 2 === 0 ? r : r * 0.32;
+    g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+  }
+  g.closePath();
+  g.fillStyle = '#ffe9a8';
+  g.fill();
+  g.lineWidth = r * 0.16;
+  g.strokeStyle = '#b89a4a';
+  g.stroke();
+  g.restore();
 }

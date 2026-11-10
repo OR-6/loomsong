@@ -45,6 +45,9 @@ import { loadFont } from '../ui/fonts.js';
 const params = new URLSearchParams(location.search);
 const FIXED_DESK = params.get('desk');
 
+const KNOB_NAMES: Record<number, string> = { 0xe8553e: 'red', 0x1fb3a0: 'teal', 0xe8679e: 'pink', 0x7cc142: 'green' };
+const ORDINAL = ['first', 'second', 'third', 'fourth'];
+
 /** Seconds either side of a music beat that count as "on the beat". */
 const BEAT_WINDOW = 0.12;
 
@@ -296,6 +299,7 @@ export class GameSystem extends createSystem({
         this.view.setPicture(level.color ?? null, level.tieUp, level.tieUp.map(() => !!level.mystery));
         this.view.setTarget(level.target);
         this.view.card.paper = level.chapter === 'night' ? '#b9beea' : level.chapter === 'sea' ? '#cfeae4' : null;
+        this.view.card.sparkles = level.chapter === 'night';
         this.view.card.setPicture(level.color ?? null, level.par);
         this.shelf = shelfItems(level, this.progress);
         this.view.plushes.setShelf(this.shelf, CHAPTERS.find((c) => c.id === level.chapter)?.name ?? '');
@@ -317,7 +321,7 @@ export class GameSystem extends createSystem({
       win: (stars) => {
         this.controller.enabled = false;
         this.view.setPipMood('cheer');
-        this.view.fx.confetti(0, 0.02, LOOM.clothFrontZ - 0.04);
+        this.view.fx.confetti(0, 0.02, LOOM.clothFrontZ - 0.04, 160);
         audio.chirp('cheer');
         // It comes alive: the woven picture pops out as a plush.
         const lv = this.flow.level;
@@ -627,10 +631,22 @@ export class GameSystem extends createSystem({
   }
 
   /** The ghost hand demonstrates the current tutorial gesture on the real target. */
-  /** The tag's words: in the tutorial the card hint states the goal once. */
+  /** The tag's words: levers by their colour ("Lift the red lever"); in the tutorial the card hint states the goal once. */
   private hintText(step: HintStep): string {
     if (step === 'card' && this.flow?.tutorial) return 'Weave each row like the card';
+    if (step === 'lever' || step === 'unlatch') {
+      const name = this.leverName(this.hintLever);
+      return step === 'lever' ? `Lift the ${name} lever` : `Put the ${name} lever back`;
+    }
     return HINT_TEXT[step];
+  }
+
+  /** A lever's spoken name: its knob colour, or its place when colours don't tell them apart (brass, mystery). */
+  private leverName(k: number): string {
+    const knobs = this.shown().palette.knobs;
+    const same = knobs.every((c) => c === knobs[0]);
+    if (same || this.flow?.level?.mystery) return ORDINAL[k] ?? 'next';
+    return KNOB_NAMES[knobs[k]] ?? ORDINAL[k] ?? 'next';
   }
 
   private syncGhost(dt: number, step: HintStep): void {
@@ -989,11 +1005,11 @@ export class GameSystem extends createSystem({
     if (step === 'lever' || step === 'unlatch') {
       const k = this.hintLever;
       const up = this.model.latched[k];
-      m.position.set(leverX(k, side) - side * 0.085, 0.07, LEVER.restZ - LEVER.travel / 2);
+      m.position.set(leverX(k, side), 0.045, LEVER.restZ + 0.05); // in front of that very lever, toward you
       if (up === (step === 'unlatch')) this.view.setLeverHighlight(k, 0, up, pulse);
     } else if (step === 'undo') {
       // the red spool breathes, with the tag above it
-      m.position.set(bobbinX(side) - side * 0.01, 0.062, BOBBIN.z + 0.012); // just above the spool it means
+      m.position.set(bobbinX(side), 0.03, BOBBIN.z + 0.045); // just in front of the spool it means
       this.view.undoHint = pulse;
     } else if (step === 'shuttle') {
       // Tag hangs just outside the frame beside Pip's perch, never over the threads.
@@ -1055,6 +1071,10 @@ export class GameSystem extends createSystem({
     const sk = (t: unknown) => ((t as { kind?: string; i?: number } | null)?.kind === 'skein' ? (t as { i: number }).i : -1);
     this.view.basket.hover(Math.max(sk(c.hover.left), sk(c.hover.right)));
     this.syncPlushSpots();
+    // while the plush dances on its stage, the plate and token step aside
+    const staged = this.view.plushes.staged;
+    this.view.plaque.mesh.visible = !staged;
+    this.view.token.visible = this.controller.tokenEnabled && !staged;
     // A soft tick whenever a hand starts hovering something new.
     const hl = targetCode(c.hover.left);
     const hr = targetCode(c.hover.right);
