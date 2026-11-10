@@ -75,6 +75,11 @@ rounded_box('Bed', (HW * 2 - 0.024, 0.004, ZL - 0.05), (0, 0.002, ZM + 0.004), b
 # Pip's lane: a slim wooden shuttle race across the loom; the lowered threads lie on it.
 SZ = DIMS['SHUTTLE']['z']
 rounded_box('ShuttleRace', (HW * 2 - 0.024, 0.006, 0.018), (0, 0.016, SZ), bevel=0.0026, segs=3, mat=WALNUT, parent=frame)
+# Pip's perches: a walnut platform outside each side rail at the end of the
+# race (clear of the posts), on a little leg down to the desk.
+for sx in (-1, 1):
+    rounded_box(f'Perch{"L" if sx < 0 else "R"}', (0.05, 0.006, 0.032), (sx * 0.154, 0.034, SZ), bevel=0.0025, segs=3, mat=WALNUT, parent=frame)
+    lathe(f'PerchLeg{"L" if sx < 0 else "R"}', [(0, 0), (0.0045, 0), (0.004, 0.031), (0, 0.031)], (sx * 0.17, 0, SZ), segs=12, mat=WALNUT, parent=frame)
 for sx in (-1, 1):  # end stops: the boat parks against them
     rounded_box('RaceStop', (0.006, 0.011, 0.018), (sx * (HW - 0.016), 0.022, SZ), bevel=0.0025, segs=3, mat=WALNUT, parent=frame)
 
@@ -140,9 +145,9 @@ EZ, EY = C['z'], C['baseY']
 rounded_box('EaselStretcher', (HW * 2, 0.018, 0.016), (0, RY, EZ), bevel=0.006, segs=3, mat=WOOD, parent=frame)
 for s in (-1, 1):
     lathe(f'EaselPost{"L" if s < 0 else "R"}', [(0, 0), (0.005, 0), (0.005, EY - RY), (0, EY - RY)],
-          (s * 0.062, RY, EZ), segs=16, mat=WALNUT, parent=frame)
-rounded_box('EaselLedge', (0.172, 0.009, 0.022), (0, EY - 0.0035, EZ - 0.002), bevel=0.003, segs=3, mat=WALNUT, parent=frame)
-rounded_box('EaselLip', (0.172, 0.009, 0.005), (0, EY + 0.002, EZ + 0.0075), bevel=0.0022, segs=3, mat=TOMATO, parent=frame)
+          (s * 0.078, RY, EZ), segs=16, mat=WALNUT, parent=frame)
+rounded_box('EaselLedge', (0.212, 0.009, 0.022), (0, EY - 0.0035, EZ - 0.002), bevel=0.003, segs=3, mat=WALNUT, parent=frame)
+rounded_box('EaselLip', (0.212, 0.009, 0.005), (0, EY + 0.002, EZ + 0.0075), bevel=0.0022, segs=3, mat=TOMATO, parent=frame)
 # Two little clothes pegs clip the card to the ledge.
 for s in (-1, 1):
     for side, dz in (('F', 0.0028), ('B', -0.0028)):
@@ -177,7 +182,7 @@ KY = LV['knobY']
 lathe('Stem', [(0, 0.0), (0.0042, 0.0), (0.0040, KY - r * 0.55), (0, KY - r * 0.55)], (0, 0, 0), segs=18, mat=WALNUT, parent=knob)
 head = [(0, -r)] + [(r * math.sin(a), -r * math.cos(a)) for a in [i * math.pi / 18 for i in range(1, 18)]] + [(0, r)]
 cap = lathe('Cap0', head, (0, KY, 0), segs=36, mat=KNOB, parent=knob)
-cap.scale = (1.15, 1.15, 0.72)  # a mushroom cap: wide and friendly, easy to pinch
+cap.scale = (1.0, 1.0, 0.95)  # a round lollipop handle on its stem: reads as 'grab me'
 
 # ---- Bobbin (undo spool): cream flanges, wound yarn ----
 bob = empty('Bobbin', at=(0, 0, 0))

@@ -39,11 +39,11 @@ export const SHUTTLE = {
   /** Pip's height in the shed: the boat (20 mm below Pip) slides between the threads. */
   y: 0.044,
   /** Travel endpoints in loom-local x: Pip's perches on top of the side rails. */
-  minX: -0.123,
-  maxX: 0.123,
+  minX: -0.152,
+  maxX: 0.152,
   /** Perch height on the rail top, and where the hop down into the shed starts. */
-  perchY: 0.06,
-  shedHalf: 0.088,
+  perchY: 0.061,
+  shedHalf: 0.1,
   /** Release past this fraction of travel completes the pass. */
   completeAt: 0.6,
   autoThrowSpeed: 0.35, // m/s
@@ -104,7 +104,7 @@ export const CARD = {
   baseY: 0.104,
   width: 0.075,
   /** Cell pitch on the card (≥ 7 mm). */
-  cell: 0.0147,
+  cell: 0.0185,
   tiltDeg: 24,
 } as const;
 

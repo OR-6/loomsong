@@ -82,7 +82,7 @@ export class TargetCard {
     const markW = 0.017; // left arrow / right tick column (big enough to read from the seat)
     // Only glyphs on the card (stars after a win); words live on the plaque,
     // where they can meet the 1.5 cm cap-height rule.
-    const titleH = stars > 0 || this.par > 0 ? 0.019 : 0;
+    const titleH = stars > 0 || this.par > 0 ? 0.026 : 0;
     const rows = status.length;
     const wM = pad * 2 + markW * 2 + cell * WARPS;
     const hM = pad * 2 + titleH + cell * rows;
@@ -122,11 +122,11 @@ export class TargetCard {
     else if (this.par > 0) {
       // Yarn knots: par (solid) + 2 grace (lighter); spent knots go hollow.
       const total = this.par + 2;
-      const gap = Math.min(0.0125, (WARPS * cell) / total);
+      const gap = Math.min(0.021, (WARPS * cell) / total);
       const x0 = c.width / 2 - ((total - 1) * px(gap)) / 2;
       for (let i = 0; i < total; i++) {
         const spent = i >= total - this.used;
-        drawKnot(g, x0 + i * px(gap), px(pad + titleH / 2), px(0.0048), i < this.par ? lift : grace, spent, highContrast);
+        drawKnot(g, x0 + i * px(gap), px(pad + titleH / 2), px(0.0085), i < this.par ? lift : grace, spent, highContrast);
       }
     }
     void title;

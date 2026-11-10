@@ -27,10 +27,10 @@
   "SHUTTLE": {
     "z": -0.018,
     "y": 0.044,
-    "minX": -0.123,
-    "maxX": 0.123,
-    "perchY": 0.06,
-    "shedHalf": 0.088,
+    "minX": -0.152,
+    "maxX": 0.152,
+    "perchY": 0.061,
+    "shedHalf": 0.1,
     "completeAt": 0.6,
     "autoThrowSpeed": 0.35
   },
@@ -46,7 +46,7 @@
     "z": -0.118,
     "baseY": 0.104,
     "width": 0.075,
-    "cell": 0.0147,
+    "cell": 0.0185,
     "tiltDeg": 24
   },
   "TOKEN": {

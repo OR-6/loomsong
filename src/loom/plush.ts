@@ -383,7 +383,7 @@ export class Plushes {
   /** Grey silhouettes of the chapter's pictures not woven yet. */
   private ghosts: (Group | null)[] = new Array(PLUSH.slots).fill(null);
   private ghostIds: (string | null)[] = new Array(PLUSH.slots).fill(null);
-  private tag = new Label(0.13, 0.024);
+  private tag = new Label(0.2, 0.036);
 
   setSide(side: 1 | -1): void {
     this.side = side;
@@ -424,20 +424,18 @@ export class Plushes {
       this.ghosts[i] = null;
       this.ghostIds[i] = want;
       if (!it || !want) continue;
-      const g = buildPlush(it.rows, 0xb8b2a8);
+      const g = buildPlush(it.rows, 0x9aa0a6);
       g.traverse((o) => {
         const m = o as InstancedMesh;
         if (m.isInstancedMesh) {
           const mat = m.material as MeshPhysicalMaterial;
-          mat.transparent = true;
-          mat.opacity = 0.5;
           mat.sheen = 0;
-          mat.depthWrite = false;
+          mat.roughness = 0.95;
           m.castShadow = false;
         } else if ((o as Mesh).isMesh) o.visible = false; // no face: it's not woven yet
       });
       // a flat picture-shaped cut-out, not a lumpy grey plush
-      g.scale.set(PLUSH.shelfScale, PLUSH.shelfScale, PLUSH.shelfScale * 0.18);
+      g.scale.set(PLUSH.shelfScale, PLUSH.shelfScale, PLUSH.shelfScale * 0.55);
       this.slotPos(i, g.position);
       this.root.add(g);
       this.ghosts[i] = g;

@@ -34,7 +34,7 @@ import { THEMES, type Palette, type Theme } from '../ui/theme.js';
 import { PLAQUE, Plaque } from '../ui/plaque.js';
 import { grainTexture, weaveTexture, yarnTexture } from './textures.js';
 import { cloneModel, loomModels, materialOf } from './models.js';
-import { Plushes, puffGeometry } from './plush.js';
+import { Plushes } from './plush.js';
 import { Basket } from './basket.js';
 import { GhostHand } from './ghost-hand.js';
 import { Fx } from './fx.js';
@@ -349,8 +349,8 @@ export class LoomView {
     // Cloth cells.
     const cellGeo = new BoxGeometry(WARP_PITCH * 0.995, 0.003, LOOM.rowPitch * 0.99);
     const clothMat = new MeshStandardMaterial({ roughness: 0.95, map: weaveTexture() });
-    // Woven cells are puffy yarn pillows standing proud of the felt: the cloth is the hero.
-    this.cloth = new InstancedMesh(puffGeometry(), clothMat, WARPS * LOOM.visibleRows);
+    // Woven cells: flat, square yarn cells in one continuous band on the felt.
+    this.cloth = new InstancedMesh(new BoxGeometry(1, 1, 1), clothMat, WARPS * LOOM.visibleRows);
     this.cloth.name = 'Cloth';
     // faint target picture on the rows still to weave
     this.ghostCloth = new InstancedMesh(
@@ -537,8 +537,9 @@ export class LoomView {
     this.nudges.position.set(nudgeX(side), NUDGE.y, 0);
     // Plaque leans on the front beam, shifted away from the token.
     const tilt = (PLAQUE.tiltDeg * Math.PI) / 180;
-    this.plaque.mesh.position.set(-side * 0.035, 0.01, LOOM.frontBeamZ + 0.058);
-    this.plaque.mesh.rotation.set(-tilt, 0, 0);
+    // lying almost flat on the desk in front of the loom, clear of the cloth
+    this.plaque.mesh.position.set(-side * 0.035, 0.004, LOOM.frontBeamZ + 0.05);
+    this.plaque.mesh.rotation.set(-1.25, 0, 0);
     this.layoutLevers();
     this.setBobbinT(0);
     this.placeCard();
@@ -817,9 +818,8 @@ export class LoomView {
       const z = this.rowZ(start + r, rows.length);
       if (z > LOOM.clothFrontZ) continue; // slid off the front (only with many wrong rows)
       for (let i = 0; i < WARPS; i++) {
-        _p.set(warpX(i), 0.0075, z);
-        // a little gap between cells shows the navy felt: crisp pixels
-        _m.compose(_p, _q.identity(), _s.set(WARP_PITCH * 0.93, 0.008, LOOM.rowPitch * 0.9));
+        _p.set(warpX(i), 0.0062, z);
+        _m.compose(_p, _q.identity(), _s.set(WARP_PITCH * 0.985, 0.0042, LOOM.rowPitch * 0.97));
         this.cloth.setMatrixAt(idx, _m);
         // warp visible if lifted in that row, else weft visible
         _c.setHex(isLifted(row, i) ? this.liftColor : this.groundColor);
