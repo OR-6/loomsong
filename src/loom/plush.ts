@@ -23,14 +23,32 @@ import {
   CylinderGeometry,
   TubeGeometry,
   CatmullRomCurve3,
-  Shape,
-  ShapeGeometry,
+  PlaneGeometry,
 } from '@iwsdk/core';
 import { Label } from '../ui/label.js';
 import { LOOM, WARPS } from '../config.js';
 import { isLifted, type Mask8 } from '../puzzle/tieup.js';
 import { weaveTexture } from './textures.js';
 import { cloneModel, loomModels } from './models.js';
+
+/** A soft felt pennant: a subdivided triangle, top edge at y = 0, gently cupped. */
+function pennantGeometry(): BufferGeometry {
+  const W = 0.032;
+  const H = 0.034;
+  const g = new PlaneGeometry(W, H, 6, 8);
+  g.translate(0, -H / 2, 0);
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const t = -p.getY(i) / H; // 0 top → 1 tip
+    const x = p.getX(i) * (1 - t * 0.98);
+    const half = (W / 2) * (1 - t * 0.98) + 1e-6;
+    const cup = 0.0026 * (1 - (x / half) ** 2) * (0.3 + t * 0.7);
+    // a soft forward billow lower down, like cloth with a little weight
+    p.setXYZ(i, x, p.getY(i), cup + 0.0015 * Math.sin(t * Math.PI));
+  }
+  g.computeVertexNormals();
+  return g;
+}
 
 /** Shelf bunting: posts at the shelf ends, a sagging string, pennants per slot. */
 const BUNT = { halfW: 0.112, postH: 0.122, sag: 0.014 } as const;
@@ -333,21 +351,26 @@ export class Plushes {
     }
     const str = new Mesh(new TubeGeometry(new CatmullRomCurve3(pts), 32, 0.0007, 4), new MeshStandardMaterial({ color: 0xf3e6cf, roughness: 0.9 }));
     g.add(str);
-    // pennants: felt triangles hanging from the string at each slot
-    const tri = new Shape();
-    tri.moveTo(-0.016, 0);
-    tri.lineTo(0.016, 0);
-    tri.lineTo(0, -0.033);
-    tri.closePath();
-    const tg = new ShapeGeometry(tri);
+    // Pennants: soft felt triangles folded over the string, cupped a little,
+    // each hanging along the string's slope.
+    const pg = pennantGeometry();
+    const hem = new CylinderGeometry(0.0013, 0.0013, 0.0325, 8);
+    hem.rotateZ(Math.PI / 2);
     for (let i = 0; i < PLUSH.slots; i++) {
       const x = (i - (PLUSH.slots - 1) / 2) * PLUSH.slotGap;
       const u = (x + BUNT.halfW) / (2 * BUNT.halfW);
-      const pen = new Mesh(tg, new MeshStandardMaterial({ color: 0xf3e6cf, roughness: 0.95, side: 2, map: weaveTexture() }));
-      pen.position.set(x, top - BUNT.sag * 4 * u * (1 - u) - 0.0008, -0.017);
+      const slope = (-BUNT.sag * 4 * (1 - 2 * u)) / (2 * BUNT.halfW);
+      const mat = new MeshStandardMaterial({ color: 0xf3e6cf, roughness: 0.95, side: 2, map: weaveTexture() });
+      const pivot = new Group();
+      pivot.position.set(x, top - BUNT.sag * 4 * u * (1 - u), -0.018);
+      pivot.rotation.z = Math.atan(slope);
+      const pen = new Mesh(pg, mat);
       pen.castShadow = true;
+      const fold = new Mesh(hem, mat);
+      pen.add(fold);
+      pivot.add(pen);
       this.pennants.push(pen);
-      g.add(pen);
+      g.add(pivot);
     }
     this.root.add(g);
   }
@@ -469,7 +492,12 @@ export class Plushes {
   update(dt: number): void {
     // pennants sway a little, each out of step
     this.sway += dt;
-    for (let i = 0; i < this.pennants.length; i++) this.pennants[i].rotation.x = Math.sin(this.sway * 1.6 + i * 1.3) * 0.12;
+    // slow, lazy sway about the string, each pennant out of step
+    for (let i = 0; i < this.pennants.length; i++) {
+      const ph = this.sway * 2.1 + i * 0.95;
+      this.pennants[i].rotation.x = Math.sin(ph) * 0.1 + Math.sin(ph * 0.43 + i) * 0.05;
+      this.pennants[i].rotation.y = Math.sin(ph * 0.7 + 1.3) * 0.06;
+    }
     const h = this.hero;
     if (!h) return;
     this.t += dt;

@@ -176,7 +176,8 @@ export class Basket {
     for (let i = 0; i < this.balls.length; i++) {
       const on = i < names.length;
       this.balls[i].visible = on;
-      this.tails[i].visible = on && states[i] !== 'locked';
+      // only the ball in use has a loose end, draped naturally
+      this.tails[i].visible = on && states[i] === 'current';
       if (!on) continue;
       const locked = states[i] === 'locked';
       this.mats[i].color.set(locked ? UNDYED : colors[i]);
@@ -230,21 +231,39 @@ export class Basket {
     if (this.wraps.instanceColor) this.wraps.instanceColor.needsUpdate = true;
   }
 
-  /** A loose end of yarn from each ball, over the rim, onto the mat. */
+  /**
+   * A loose end of yarn from the ball: out of the front of the ball, over the
+   * lining's rim, straight down the outside of the basket (gravity), then a
+   * relaxed curl lying flat on the mat.
+   */
   private layTails(): void {
+    const cx = -this.side * BASKET.x;
     for (let i = 0; i < this.tails.length; i++) {
       skeinPos(i, this.side, _p);
-      const out = (i - (BASKET.balls - 1) / 2) * 0.012;
+      // radial direction from the basket centre (oval) through the ball, biased forward
+      let dx = (_p.x - cx) / 1.45;
+      let dz = 0.035;
+      const n = Math.hypot(dx, dz);
+      dx /= n;
+      dz /= n;
+      const at = (r: number) => [cx + dx * r * 1.45, BASKET.z + dz * r] as const;
+      const [x1, z1] = at(0.0445);
+      const [x2, z2] = at(0.0475);
+      const [x3, z3] = at(0.052);
+      const [x4, z4] = at(0.062);
+      const side = i % 2 ? 1 : -1;
       const pts = [
-        new Vector3(_p.x, _p.y - 0.004, _p.z + BASKET.ballR * 0.8),
-        new Vector3(_p.x + out, 0.0345, BASKET.z + 0.04),
-        new Vector3(_p.x + out * 1.5, 0.018, BASKET.z + 0.048),
-        new Vector3(_p.x + out * 1.8 + 0.004, 0.0024, BASKET.z + 0.055),
-        new Vector3(_p.x + out * 1.4 + 0.012, 0.0022, BASKET.z + 0.062),
-        new Vector3(_p.x + out * 1.1 + 0.006, 0.0022, BASKET.z + 0.066),
+        new Vector3(_p.x + dx * 0.006, _p.y + 0.002, _p.z + BASKET.ballR * 0.85),
+        new Vector3(x1, 0.0352, z1),
+        new Vector3(x2, 0.031, z2),
+        new Vector3(x2 + dx * 0.0005, 0.016, z2 + dz * 0.0005),
+        new Vector3(x3, 0.0035, z3),
+        new Vector3(x4 + side * 0.006, 0.0021, z4),
+        new Vector3(x4 + side * 0.016, 0.0021, z4 + 0.009),
+        new Vector3(x4 + side * 0.011, 0.0021, z4 + 0.019),
       ];
       this.tails[i].geometry.dispose();
-      this.tails[i].geometry = new TubeGeometry(new CatmullRomCurve3(pts), 24, 0.0011, 5);
+      this.tails[i].geometry = new TubeGeometry(new CatmullRomCurve3(pts, false, 'centripetal'), 48, 0.00155, 6);
     }
   }
 
