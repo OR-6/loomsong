@@ -185,7 +185,9 @@ export class Basket {
       this.tails[i].visible = false; // polish pass: no loose tails
       if (!on) continue;
       const locked = states[i] === 'locked';
-      this.mats[i].color.set(locked ? UNDYED : colors[i]);
+      // locked chapters: a muted version of their own colour (with a "?" badge)
+      this.mats[i].color.set(colors[i]);
+      if (locked) this.mats[i].color.lerp(new Color(UNDYED), 0.62);
       drawBadge(this.badgeTex[i], locked ? 'locked' : ICONS[i % ICONS.length], locked ? 0x9b8b74 : colors[i]);
     }
     this.place();
@@ -219,7 +221,7 @@ export class Basket {
       const w = this.wob[i];
       b.rotation.set(Math.sin(this.clock * 18) * 0.25 * w, (i - 1.5) * 0.12, Math.cos(this.clock * 15) * 0.22 * w);
       b.updateMatrix();
-      const col = this.states[i] === 'locked' ? UNDYED : (this.colors[i] ?? UNDYED);
+      const col = this.colors[i] ?? UNDYED;
       for (let k = 0; k < WRAPS; k++) {
         // deterministic "random" wrap orientations, different per ball
         const a = (k * 2.399 + i * 1.1) % (Math.PI * 2);

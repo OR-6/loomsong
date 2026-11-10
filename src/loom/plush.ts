@@ -393,9 +393,9 @@ export class Plushes {
       this.slotPos(i, this.cushions[i].position);
       this.cushions[i].position.y = 0.0362;
     }
-    // paper tag leaning against the front of the bench
-    this.tag.mesh.position.set(-side * PLUSH.shelfX, 0.016, PLUSH.shelfZ + 0.042);
-    this.tag.mesh.rotation.set(-0.75, 0, 0);
+    // paper tag hung on the shelf's front edge
+    this.tag.mesh.position.set(-side * PLUSH.shelfX, 0.022, PLUSH.shelfZ + 0.0315);
+    this.tag.mesh.rotation.set(-0.25, 0, 0);
     for (let i = 0; i < PLUSH.slots; i++) {
       const p = this.slotItems[i];
       if (p) this.slotPos(i, p.position);
@@ -424,19 +424,20 @@ export class Plushes {
       this.ghosts[i] = null;
       this.ghostIds[i] = want;
       if (!it || !want) continue;
-      const g = buildPlush(it.rows, 0x9aa3ad);
+      const g = buildPlush(it.rows, 0xb8b2a8);
       g.traverse((o) => {
         const m = o as InstancedMesh;
         if (m.isInstancedMesh) {
           const mat = m.material as MeshPhysicalMaterial;
           mat.transparent = true;
-          mat.opacity = 0.45;
+          mat.opacity = 0.5;
           mat.sheen = 0;
           mat.depthWrite = false;
           m.castShadow = false;
         } else if ((o as Mesh).isMesh) o.visible = false; // no face: it's not woven yet
       });
-      g.scale.setScalar(PLUSH.shelfScale);
+      // a flat picture-shaped cut-out, not a lumpy grey plush
+      g.scale.set(PLUSH.shelfScale, PLUSH.shelfScale, PLUSH.shelfScale * 0.18);
       this.slotPos(i, g.position);
       this.root.add(g);
       this.ghosts[i] = g;

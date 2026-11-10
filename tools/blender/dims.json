@@ -19,13 +19,13 @@
     "spacing": 0.032,
     "restZ": 0.075,
     "travel": 0.05,
-    "knobY": 0.046,
-    "knobRadius": 0.0118,
+    "knobY": 0.056,
+    "knobRadius": 0.0135,
     "magnet": 0.3
   },
   "LEVERS": 4,
   "SHUTTLE": {
-    "z": -0.024,
+    "z": -0.018,
     "y": 0.044,
     "minX": -0.123,
     "maxX": 0.123,
@@ -35,8 +35,8 @@
     "autoThrowSpeed": 0.35
   },
   "BOBBIN": {
-    "x": 0.16,
-    "y": 0.014,
+    "x": 0.165,
+    "y": 0.019,
     "z": 0.072,
     "pull": 0.03,
     "radius": 0.008

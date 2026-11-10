@@ -35,7 +35,7 @@ export const LOOM = {
 
 /** Shuttle slides along X on the shed line. */
 export const SHUTTLE = {
-  z: -0.024,
+  z: -0.018,
   /** Pip's height in the shed: the boat (20 mm below Pip) slides between the threads. */
   y: 0.044,
   /** Travel endpoints in loom-local x: Pip's perches on top of the side rails. */
@@ -57,17 +57,17 @@ export const LEVER = {
   /** Rest (unlatched) z — nearest the user. Latched = rest - travel. */
   restZ: 0.075,
   travel: 0.05,
-  knobY: 0.046,
+  knobY: 0.056,
   /** ≥ 22 mm diameter touch target (Meta hands guidance). */
-  knobRadius: 0.0118,
+  knobRadius: 0.0135,
   /** Final fraction of travel that magnetically pulls to an end. */
   magnet: 0.3,
 } as const;
 
 /** Undo bobbin at the front corner opposite the lever bank. */
 export const BOBBIN = {
-  x: 0.16,
-  y: 0.014,
+  x: 0.165,
+  y: 0.019,
   z: 0.072,
   pull: 0.03,
   radius: 0.008,

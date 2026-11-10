@@ -73,6 +73,8 @@ const _glow = new Color(0xffe2a8);
 const HEDDLE_BAR_BOTTOM_Y = 0.0625;
 /** Lowered warp threads: warm undyed yarn, not white (white reads as plastic). */
 const THREAD_CREAM = 0xeed7b0;
+/** The undo spool's yarn: red, so it reads as a control, not debris. */
+const UNDO_RED = 0xe4573d;
 
 /** Undyed wool: the colour of a mystery lever before it's been tried. */
 const UNDYED = 0xe6dccb;
@@ -467,7 +469,7 @@ export class LoomView {
     if (models) {
       this.bobbin = cloneModel(models.bobbin, tint);
       const yarn = materialOf(this.bobbin, 'Wound') as MeshStandardMaterial | null;
-      yarn?.color.setHex(this.groundColor);
+      yarn?.color.setHex(UNDO_RED);
     } else {
       const bobMesh = new Mesh(new CapsuleGeometry(BOBBIN.radius, 0.014, 4, 12), new MeshStandardMaterial({ color: this.groundColor, roughness: 0.8 }));
       bobMesh.rotation.z = Math.PI / 2;
@@ -475,6 +477,7 @@ export class LoomView {
       this.bobbin.add(bobMesh);
     }
     this.bobbin.name = 'Bobbin';
+    this.bobbin.scale.setScalar(1.5); // big enough to read as a control
     add(this.bobbin);
 
     // Contact shadow decal.
@@ -558,7 +561,9 @@ export class LoomView {
       _m.compose(_p, _q.identity(), _s.setScalar(on ? 1 : 0));
       this.tracks?.setMatrixAt(k, _m);
       this.levers[k].visible = on;
-      // Only active levers get a "push it here" dot; unused slots stay plain wood.
+      // unused slots get a wooden plug, so a 2-lever level doesn't look broken
+      const plug = this.frameNode?.getObjectByName(`LeverSlotPlug${k}`);
+      if (plug) plug.visible = !on;
       const dot = this.frameNode?.getObjectByName(`SlotDot${k}`);
       if (dot) dot.visible = on;
       for (let j = 0; j < 2; j++) {
@@ -813,7 +818,8 @@ export class LoomView {
       if (z > LOOM.clothFrontZ) continue; // slid off the front (only with many wrong rows)
       for (let i = 0; i < WARPS; i++) {
         _p.set(warpX(i), 0.0075, z);
-        _m.compose(_p, _q.identity(), _s.set(WARP_PITCH * 1.02, 0.0068, LOOM.rowPitch * 1.02));
+        // a little gap between cells shows the navy felt: crisp pixels
+        _m.compose(_p, _q.identity(), _s.set(WARP_PITCH * 0.93, 0.008, LOOM.rowPitch * 0.9));
         this.cloth.setMatrixAt(idx, _m);
         // warp visible if lifted in that row, else weft visible
         _c.setHex(isLifted(row, i) ? this.liftColor : this.groundColor);
@@ -1050,7 +1056,7 @@ export class LoomView {
     // warp colour comes per strand (instance colour × white), brighter when lifted
     (this.warps?.material as MeshStandardMaterial | undefined)?.color.setHex(0xffffff);
     const yarn = this.bobbin ? (materialOf(this.bobbin, 'Wound') as MeshStandardMaterial | null) : null;
-    yarn?.color.setHex(this.groundColor);
+    yarn?.color.setHex(UNDO_RED);
     this.boatYarn?.color.setHex(this.groundColor);
   }
 
