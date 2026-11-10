@@ -17,7 +17,7 @@ import {
   type Entity,
   PCFSoftShadowMap,
 } from '@iwsdk/core';
-import { BOBBIN, CARD, LEVER, LEVERS, LOOM, NUDGE, PLACE, SHUTTLE, TOKEN, leverX, nudgeX, tokenX, shuttleY } from '../config.js';
+import { BOBBIN, CARD, LEVER, LEVERS, LOOM, NUDGE, PLACE, SHUTTLE, TOKEN, WARPS, leverX, nudgeX, tokenX, shuttleY } from '../config.js';
 import { applyCalibration, hands, calibration, type Side } from '../input/hands.js';
 import { Calibrator } from '../input/calibration.js';
 import { LoomController, type HandInput } from '../loom/loom-controller.js';
@@ -29,7 +29,9 @@ import { audio } from '../audio/synth.js';
 import { LevelFlow, type HintStep } from './level-flow.js';
 import { CHAPTERS, LEVELS, chapterStates, levelAt } from '../puzzle/catalog.js';
 import type { Level } from '../puzzle/levels.js';
-import type { ShelfItem } from '../loom/plush.js';
+import { PLUSH, ROW_BEAT, type ShelfItem } from '../loom/plush.js';
+import { isLifted } from '../puzzle/tieup.js';
+const PLUSH_SLOTS = PLUSH.slots;
 import { loadProgress, saveProgress, workshopUnlocked, type Progress } from '../persistence/progress.js';
 import { THEMES, highContrast, otherTheme, type Theme, type ThemeId } from '../ui/theme.js';
 import { loadSettings, saveSettings, type Settings } from '../persistence/settings.js';
@@ -111,6 +113,10 @@ export class GameSystem extends createSystem({
   private progress!: Progress;
   private notice = '';
   private noticeAt: 'token' | 'nudge' | 'centre' | 'unlock' = 'token';
+  /** The current chapter's pictures on the shelf (finished ones are pokeable plushes). */
+  private shelf: ShelfItem[] = [];
+  private singUntil = 0;
+  private plushVecs = Array.from({ length: PLUSH_SLOTS }, () => new Vector3());
   private noticeTimer = 0;
   private tokenPop = 1;
   private loomEntity!: Entity;
@@ -160,6 +166,7 @@ export class GameSystem extends createSystem({
       token: () => this.setTheme(otherTheme(this.progress.theme)),
       skein: (i) => this.pickChapter(i),
       nudge: (dir) => this.nudgeDesk(dir),
+      plush: (i) => this.singPlush(i),
     });
     this.controller.tokenEnabled = unlocked;
     this.view.token.visible = unlocked;
@@ -241,7 +248,8 @@ export class GameSystem extends createSystem({
         this.view.setTarget(level.target);
         this.view.card.paper = level.chapter === 'night' ? '#b9beea' : level.chapter === 'sea' ? '#cfeae4' : null;
         this.view.card.setPicture(level.color ?? null, level.par);
-        this.view.plushes.setShelf(shelfItems(level, this.progress), CHAPTERS.find((c) => c.id === level.chapter)?.name ?? '');
+        this.shelf = shelfItems(level, this.progress);
+        this.view.plushes.setShelf(this.shelf, CHAPTERS.find((c) => c.id === level.chapter)?.name ?? '');
         this.syncBasket(level);
         this.view.setShed(0, true);
         this.view.setRows(this.model.rows);
@@ -578,6 +586,38 @@ export class GameSystem extends createSystem({
     ghost.update(dt, busy);
   }
 
+  /** A shelf plush was poked: it sings its picture, a row per hop (rows alternate direction, like the weaving). */
+  private singPlush(i: number): void {
+    const it = this.shelf[i];
+    if (!it?.done || this.time < this.singUntil) return;
+    audio.resume();
+    let n = 0;
+    for (let r = 0; r < it.rows.length; r++) {
+      const ltr = r % 2 === 0;
+      let k = 0;
+      for (let j = 0; j < WARPS; j++) {
+        const w = ltr ? j : WARPS - 1 - j;
+        if (isLifted(it.rows[r], w)) audio.pluck(w, 0.35, r * ROW_BEAT + k++ * 0.045, 0.24);
+      }
+      n = r + 1;
+    }
+    const secs = n * ROW_BEAT + 0.15;
+    this.singUntil = this.time + secs;
+    this.view.plushes.sing(i, secs);
+    this.view.setPipMood('happy');
+  }
+
+  /** Where the shelf plushes are, for touch (no allocation: one vector per slot). */
+  private syncPlushSpots(): void {
+    const c = this.controller;
+    for (let i = 0; i < this.plushVecs.length; i++) {
+      const at = this.view.plushes.plushCentre(i, this.plushVecs[i]);
+      c.plushSpots[i] = this.coopLink ? null : at;
+    }
+    const pl = (t: unknown) => ((t as { kind?: string; i?: number } | null)?.kind === 'plush' ? (t as { i: number }).i : -1);
+    this.view.plushes.hover(Math.max(pl(c.hover.left), pl(c.hover.right)));
+  }
+
   /** Basket balls: one per chapter, coloured when unlocked, lifted for the current one. */
   private syncBasket(level: Level): void {
     const states = chapterStates(this.progress, level.chapter);
@@ -906,6 +946,7 @@ export class GameSystem extends createSystem({
     this.view.setHoverLever(hoverK);
     const sk = (t: unknown) => ((t as { kind?: string; i?: number } | null)?.kind === 'skein' ? (t as { i: number }).i : -1);
     this.view.basket.hover(Math.max(sk(c.hover.left), sk(c.hover.right)));
+    this.syncPlushSpots();
     // A soft tick whenever a hand starts hovering something new.
     const hl = targetCode(c.hover.left);
     const hr = targetCode(c.hover.right);
@@ -1017,6 +1058,8 @@ function targetCode(t: unknown): number {
       return 12;
     case 'skein':
       return 20 + (x.k ?? (x as { i?: number }).i ?? 0);
+    case 'plush':
+      return 30 + ((x as { i?: number }).i ?? 0);
     default:
       return 13 + (x.dir ?? 0);
   }

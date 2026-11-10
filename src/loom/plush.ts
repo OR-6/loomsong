@@ -76,6 +76,9 @@ export const PLUSH = {
   danceY: 0.15,
 } as const;
 
+/** Seconds per row when a shelf plush sings its picture. */
+export const ROW_BEAT = 0.3;
+
 let puff: BufferGeometry | null = null;
 /** A unit cube pulled toward a sphere: a soft quilted pillow. */
 export function puffGeometry(): BufferGeometry {
@@ -348,6 +351,11 @@ export class Plushes {
   private to = new Vector3();
   private bounce = 1;
   private tilt = 1;
+  /** Per shelf slot: seconds left of its song (poked plushes sing and bounce). */
+  private singLeft: number[] = new Array(PLUSH.slots).fill(0);
+  private singT: number[] = new Array(PLUSH.slots).fill(0);
+  /** Hovered shelf slot (-1: none): it leans in a little, inviting a poke. */
+  private hoverSlot = -1;
   /** Called when the plush lands on the shelf (sound). */
   onLand: (() => void) | null = null;
   onHop: (() => void) | null = null;
@@ -527,6 +535,23 @@ export class Plushes {
     this.t = 0;
   }
 
+  /** Centre of the finished plush in a shelf slot, or null when the slot holds none. */
+  plushCentre(i: number, out: Vector3): Vector3 | null {
+    if (!this.slotItems[i] || (this.hero && this.heroSlot === i)) return null;
+    return this.slotPos(i, out).setY(PLUSH.shelfTopY + 0.022);
+  }
+
+  /** A poked plush sings: it bounces and sways on the shelf for `seconds`. */
+  sing(i: number, seconds: number): void {
+    if (!this.slotItems[i]) return;
+    this.singLeft[i] = seconds;
+    this.singT[i] = 0;
+  }
+
+  hover(i: number): void {
+    this.hoverSlot = i;
+  }
+
   /** One row of the song: a bounce and a sway. */
   beat(): void {
     if (this.phase !== 'dance') return;
@@ -585,6 +610,31 @@ export class Plushes {
       const ph = this.sway * 2.1 + i * 0.95;
       this.pennants[i].rotation.x = Math.sin(ph) * 0.1 + Math.sin(ph * 0.43 + i) * 0.05;
       this.pennants[i].rotation.y = Math.sin(ph * 0.7 + 1.3) * 0.06;
+    }
+    for (let i = 0; i < PLUSH.slots; i++) {
+      const p = this.slotItems[i];
+      if (!p || p === this.hero) continue;
+      const base = PLUSH.shelfScale;
+      if (this.singLeft[i] > 0) {
+        this.singLeft[i] -= dt;
+        this.singT[i] += dt;
+        const b = Math.abs(Math.sin((this.singT[i] / ROW_BEAT) * Math.PI)); // a hop per row of its song
+        this.slotPos(i, p.position);
+        p.position.y += 0.012 * b;
+        p.rotation.z = 0.16 * Math.sin((this.singT[i] / ROW_BEAT) * Math.PI * 0.5);
+        p.scale.set(base * (1 + 0.06 * (1 - b)), base * (1 - 0.08 * (1 - b) + 0.06 * b), base);
+        if (this.singLeft[i] <= 0) {
+          this.slotPos(i, p.position);
+          p.rotation.set(0, 0, 0);
+          p.scale.setScalar(base);
+        }
+      } else {
+        // hovered: lean toward the hand and swell a touch
+        const want = i === this.hoverSlot ? 1 : 0;
+        const k = Math.min(1, dt * 12);
+        p.rotation.x += (-0.18 * want - p.rotation.x) * k;
+        p.scale.setScalar(p.scale.x + (base * (1 + 0.1 * want) - p.scale.x) * k);
+      }
     }
     const h = this.hero;
     if (!h) return;
