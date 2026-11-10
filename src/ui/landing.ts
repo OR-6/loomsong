@@ -32,6 +32,7 @@ export function mountLanding(world: World): void {
     </figure>
     <div id="settings">
       <button type="button" id="hc" role="switch" aria-checked="false">High contrast</button>
+      <button type="button" id="music" role="switch" aria-checked="true">Music</button>
       <button type="button" id="fit" aria-pressed="false">Fit to my hands</button>
       <div role="radiogroup" aria-label="Lever side" id="hand-pick">
         <span class="lbl">Levers</span>
@@ -142,11 +143,13 @@ export function mountLanding(world: World): void {
 
   // Accessibility settings.
   const hc = el.querySelector<HTMLButtonElement>('#hc')!;
+  const music = el.querySelector<HTMLButtonElement>('#music')!;
   const handPick = el.querySelector<HTMLElement>('#hand-pick')!;
   const fit = el.querySelector<HTMLButtonElement>('#fit')!;
   const syncSettings = () => {
     const st = loadSettings();
     hc.setAttribute('aria-checked', String(st.highContrast));
+    music.setAttribute('aria-checked', String(st.music));
     fit.setAttribute('aria-pressed', String(st.calibrateNext));
     fit.textContent = st.calibrateNext
       ? 'Fitting on next entry'
@@ -161,6 +164,12 @@ export function mountLanding(world: World): void {
   hc.addEventListener('click', () => {
     const st = loadSettings();
     saveSettings({ ...st, highContrast: !st.highContrast });
+    syncSettings();
+    changed();
+  });
+  music.addEventListener('click', () => {
+    const st = loadSettings();
+    saveSettings({ ...st, music: !st.music });
     syncSettings();
     changed();
   });

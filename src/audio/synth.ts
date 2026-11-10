@@ -20,6 +20,29 @@ const audioUrl = (f: string) => `${import.meta.env.BASE_URL}audio/${f}`;
 /** Major pentatonic degrees in semitones. */
 const PENTA = [0, 2, 4, 7, 9];
 
+/** Background music level (before ducking). */
+const MUSIC_GAIN = 0.55;
+/** Bass roots per bar, in semitones from the key: I – vi – IV – V. */
+const PROGRESSION = [0, -3, 5, 7];
+interface Mood {
+  bpm: number;
+  /** Chance of a melody note per beat. */
+  density: number;
+  /** Melody register above the key (semitones). */
+  octave: number;
+  level: number;
+  padGain: number;
+  padBright: number;
+}
+/** Per chapter: Garden bright and lively, Home warm, Night slow and low, Sea drifting. */
+const MOODS: Record<string, Mood> = {
+  garden: { bpm: 76, density: 0.5, octave: 12, level: 1, padGain: 0.05, padBright: 900 },
+  home: { bpm: 70, density: 0.45, octave: 12, level: 0.95, padGain: 0.055, padBright: 800 },
+  night: { bpm: 58, density: 0.32, octave: 7, level: 0.85, padGain: 0.065, padBright: 520 },
+  sea: { bpm: 64, density: 0.38, octave: 12, level: 0.9, padGain: 0.06, padBright: 650 },
+};
+const midiHz = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
+
 export function scaleFreq(warp: number, rootMidi = 62, scale = PENTA): number {
   const octave = Math.floor(warp / scale.length);
   const deg = scale[warp % scale.length];
@@ -39,6 +62,19 @@ class Synth {
   reverbOn = true;
   freqs: number[] = [];
   private bufs = new Map<string, AudioBuffer>();
+  /** Background music bus (its own gain so plucks can duck it). */
+  private musicBus: GainNode | null = null;
+  private musicOn = true;
+  private mood: Mood = MOODS.garden;
+  /** Next beat time (AudioContext seconds) and position in the phrase. */
+  private nextBeat = 0;
+  private beat = 0;
+  private melodyDeg = 4;
+  /** Music is silent until this time (the win song plays alone). */
+  private holdUntil = 0;
+  private pad: { osc: OscillatorNode[]; gain: GainNode; lp: BiquadFilterNode } | null = null;
+  /** Music notes scheduled so far (debug/E2E). */
+  musicNotes = 0;
 
   constructor() {
     this.setRoot(62);
@@ -91,6 +127,10 @@ class Synth {
     this.dry.connect(this.master);
     this.wet.connect(conv).connect(this.master);
     this.master.connect(comp).connect(ctx.destination);
+    this.musicBus = ctx.createGain();
+    this.musicBus.gain.value = this.musicOn ? MUSIC_GAIN : 0;
+    this.musicBus.connect(this.dry);
+    this.musicBus.connect(this.wet);
     void this.load(ctx);
   }
 
@@ -217,6 +257,7 @@ class Synth {
   pluck(warp: number, speed = 0.3, when = 0, gain = 0.32): void {
     const ctx = this.ready();
     if (!ctx) return;
+    this.duck(ctx, when);
     // Recorded kalimba; faster strums are a touch louder.
     if (this.kalimba(this.midiOf(warp), gain * (0.95 + 0.45 * Math.min(1, speed / 0.6)), when)) return;
     const t = ctx.currentTime + when;
@@ -320,6 +361,144 @@ class Synth {
     let shift = (((this.rootMidi - GLOCK_PC) % 12) + 12) % 12;
     if (shift > 6) shift -= 12;
     this.play('fx/glock-gliss.ogg', 0.28, 0.25, Math.pow(2, shift / 12));
+  }
+
+  // ---- Background music: a soft generative music box in the level's key ----
+
+  /** Music on/off (settings). */
+  setMusic(on: boolean): void {
+    this.musicOn = on;
+    const ctx = this.ctx;
+    if (ctx && this.musicBus) this.musicBus.gain.setTargetAtTime(on ? MUSIC_GAIN : 0, ctx.currentTime, 0.3);
+    if (!on) this.stopPad();
+  }
+
+  /** Per-chapter mood: tempo, register and density. */
+  setMood(chapter: string): void {
+    this.mood = MOODS[chapter] ?? MOODS.garden;
+    if (this.pad && this.ctx) this.pad.lp.frequency.setTargetAtTime(this.mood.padBright, this.ctx.currentTime, 1.5);
+  }
+
+  /** Silence the music for `seconds` (the win song plays alone), then fade back in. */
+  holdMusic(seconds: number): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    this.holdUntil = ctx.currentTime + seconds;
+    this.pad?.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.25);
+  }
+
+  /** Plucks duck the music a little so the threads stay the lead voice. */
+  private duck(ctx: AudioContext, when: number): void {
+    const b = this.musicBus;
+    if (!b || !this.musicOn) return;
+    const t = ctx.currentTime + when;
+    b.gain.cancelScheduledValues(t);
+    b.gain.setTargetAtTime(MUSIC_GAIN * 0.45, t, 0.03);
+    b.gain.setTargetAtTime(MUSIC_GAIN, t + 0.35, 0.5);
+  }
+
+  /** Call every frame: schedules the next few notes ahead on the audio clock. */
+  music(): void {
+    const ctx = this.ctx;
+    if (!ctx || ctx.state !== 'running' || this.paused || !this.musicOn || !this.musicBus) return;
+    const now = ctx.currentTime;
+    if (now < this.holdUntil) {
+      this.nextBeat = this.holdUntil + 0.6;
+      return;
+    }
+    this.ensurePad(ctx);
+    if (this.pad && this.pad.gain.gain.value < 0.001) this.pad.gain.gain.setTargetAtTime(this.mood.padGain, now, 1.2);
+    if (this.nextBeat < now) this.nextBeat = now + 0.05;
+    const m = this.mood;
+    const spb = 60 / m.bpm;
+    while (this.nextBeat < now + 0.25) {
+      const t = this.nextBeat;
+      const when = t - now;
+      const bar = Math.floor(this.beat / 4) % PROGRESSION.length;
+      const inBar = this.beat % 4;
+      const root = this.rootMidi + PROGRESSION[bar];
+      // bass: the chord root, low and soft, on the downbeat
+      if (inBar === 0) {
+        this.kalimbaTo(this.musicBus, root - 12, 0.09 * m.level, when);
+        this.retunePad(root, t);
+      }
+      // melody: a gentle random walk on the pentatonic, sparse, an octave up
+      if (Math.random() < m.density) {
+        const step = [-2, -1, -1, 0, 1, 1, 2][Math.floor(Math.random() * 7)];
+        this.melodyDeg = Math.max(0, Math.min(9, this.melodyDeg + step));
+        const midi = this.rootMidi + m.octave + Math.floor(this.melodyDeg / 5) * 12 + PENTA[this.melodyDeg % 5];
+        this.kalimbaTo(this.musicBus, midi, (inBar === 0 ? 0.075 : 0.055) * m.level, when);
+        // now and then a soft echo a half-beat later
+        if (Math.random() < 0.25) this.kalimbaTo(this.musicBus, midi + 12, 0.025 * m.level, when + spb / 2);
+      }
+      this.nextBeat += spb * (inBar === 3 && Math.random() < 0.3 ? 1.08 : 1); // a little rubato
+      this.beat++;
+    }
+  }
+
+  /** A kalimba note routed to a given bus (the music), pitched from the nearest sample. */
+  private kalimbaTo(bus: AudioNode, midi: number, gain: number, when: number): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    let best = KALIMBA[0];
+    for (const k of KALIMBA) if (Math.abs(k - midi) < Math.abs(best - midi)) best = k;
+    const buf = this.bufs.get(`kalimba/k${best}.ogg`);
+    if (!buf) return;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = Math.pow(2, (midi - best) / 12);
+    const g = ctx.createGain();
+    g.gain.value = gain;
+    src.connect(g).connect(bus);
+    src.start(ctx.currentTime + when);
+    this.musicNotes++;
+  }
+
+  /** A warm, slowly breathing drone under everything (two detuned sines → lowpass). */
+  private ensurePad(ctx: AudioContext): void {
+    if (this.pad || !this.musicBus) return;
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = this.mood.padBright;
+    lp.Q.value = 0.3;
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 0.07;
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 120;
+    lfo.connect(lfoGain).connect(lp.frequency);
+    const osc: OscillatorNode[] = [];
+    for (const [ratio, det, type] of [[0.5, -4, 'sine'], [0.5, 4, 'sine'], [0.75, 0, 'triangle']] as const) {
+      const o = ctx.createOscillator();
+      o.type = type;
+      o.frequency.value = midiHz(this.rootMidi - 12) * ratio * 2;
+      o.detune.value = det;
+      const og = ctx.createGain();
+      og.gain.value = type === 'triangle' ? 0.25 : 0.5;
+      o.connect(og).connect(lp);
+      o.start();
+      osc.push(o);
+    }
+    osc.push(lfo);
+    lfo.start();
+    lp.connect(gain).connect(this.musicBus);
+    this.pad = { osc, gain, lp };
+  }
+
+  private retunePad(root: number, t: number): void {
+    if (!this.pad) return;
+    const f = midiHz(root - 12);
+    this.pad.osc[0].frequency.setTargetAtTime(f, t, 0.4);
+    this.pad.osc[1].frequency.setTargetAtTime(f, t, 0.4);
+    this.pad.osc[2].frequency.setTargetAtTime(f * 1.5, t, 0.4); // the fifth
+  }
+
+  private stopPad(): void {
+    if (!this.pad) return;
+    for (const o of this.pad.osc) o.stop();
+    this.pad.gain.disconnect();
+    this.pad = null;
   }
 
   private noiseBurst(ctx: AudioContext, t: number, dur: number, freq: number, gain: number) {

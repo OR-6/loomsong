@@ -26,7 +26,7 @@ import { TOKEN_SIZE, LoomView } from '../loom/loom-view.js';
 import { Placement, loomPose } from './placement.js';
 import { Label } from '../ui/label.js';
 import { audio } from '../audio/synth.js';
-import { LevelFlow, type HintStep } from './level-flow.js';
+import { LevelFlow, TIMING, type HintStep } from './level-flow.js';
 import { CHAPTERS, LEVELS, chapterStates, levelAt } from '../puzzle/catalog.js';
 import type { Level } from '../puzzle/levels.js';
 import { PLUSH, ROW_BEAT, type ShelfItem } from '../loom/plush.js';
@@ -174,6 +174,7 @@ export class GameSystem extends createSystem({
     this.view.token.visible = unlocked;
     if (this.progress.theme === 'workshop') this.ensureWorkshopFont();
     audio.tone = THEMES[this.progress.theme].tone;
+    audio.setMusic(this.settings.music);
     this.placement = new Placement();
 
     // In-world tutorial label (child of the loom; faces the user).
@@ -192,6 +193,7 @@ export class GameSystem extends createSystem({
     const onSettings = () => {
       this.settings = loadSettings();
       applyCalibration(this.settings.calibration);
+      audio.setMusic(this.settings.music);
       this.restyle();
       this.flow.refresh();
     };
@@ -257,6 +259,7 @@ export class GameSystem extends createSystem({
         this.view.setRows(this.model.rows);
         this.view.setGlowRow(-1);
         audio.setRoot(level.rootMidi);
+        audio.setMood(level.chapter ?? 'garden');
         if (this.debug) {
           this.debug.level = level.id;
           this.debug.levelIndex = this.flow?.index ?? 0;
@@ -280,6 +283,8 @@ export class GameSystem extends createSystem({
         for (let k = 0; k < LEVERS; k++) this.controller.applyLatched(k, false);
         this.model.leverFlips = flips;
         audio.arpeggio();
+        // the win song plays alone: music rests until the plush is on the shelf
+        audio.holdMusic(TIMING.winPause + lv.target.length * TIMING.rowTime + TIMING.afterPlayback);
         this.view.pulseWarp();
         if (this.debug) this.debug.stars = stars;
         if (!this.controller.tokenEnabled && workshopUnlocked(this.progress)) this.revealWorkshop();
@@ -609,6 +614,7 @@ export class GameSystem extends createSystem({
     }
     const secs = n * ROW_BEAT + 0.15;
     this.singUntil = this.time + secs;
+    audio.holdMusic(secs + 0.3);
     this.view.plushes.sing(i, secs);
     this.view.setPipMood('happy');
   }
@@ -681,6 +687,7 @@ export class GameSystem extends createSystem({
     const dt = Math.min(delta, 0.05);
     if (this.paused) return;
     this.watchFrames(delta);
+    audio.music(); // the background music box schedules a few notes ahead
     const immersive = this.visibilityState.peek() !== VisibilityState.NonImmersive;
     this.player.head.getWorldPosition(this.head);
 

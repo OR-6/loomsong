@@ -6,6 +6,8 @@ export type HandPref = 'auto' | 'left' | 'right';
 
 export interface Settings {
   highContrast: boolean;
+  /** Background music box (the threads always play). */
+  music: boolean;
   /** Which side the lever bank sits on; 'auto' = the hand you place with. */
   hand: HandPref;
   /** Run "Fit to my hands" on the next XR entry. */
@@ -20,6 +22,7 @@ export function loadSettings(): Settings {
   const s = (raw && typeof raw === 'object' ? raw : {}) as Partial<Settings>;
   return {
     highContrast: s.highContrast === true,
+    music: s.music !== false,
     hand: s.hand === 'left' || s.hand === 'right' ? s.hand : 'auto',
     calibrateNext: s.calibrateNext === true,
     calibration: validCal(s.calibration) ? s.calibration : undefined,
