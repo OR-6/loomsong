@@ -174,7 +174,7 @@ export const PICTURES: PictureLevel[] = [
     "name": "Cup",
     "chapter": "home",
     "mystery": false,
-    "color": 0x8a5a3b,
+    "color": 0x3d8fd1,
     "picture": [
       "##.##.##",
       "########",
@@ -236,7 +236,7 @@ export const PICTURES: PictureLevel[] = [
     "name": "House",
     "chapter": "home",
     "mystery": false,
-    "color": 0x3d5a80,
+    "color": 0xf08a4b,
     "picture": [
       "...##...",
       "..####..",
@@ -329,7 +329,7 @@ export const PICTURES: PictureLevel[] = [
     "name": "Key",
     "chapter": "night",
     "mystery": true,
-    "color": 0xc9a14a,
+    "color": 0xf5b62b,
     "picture": [
       ".###....",
       "#...####",
@@ -355,7 +355,7 @@ export const PICTURES: PictureLevel[] = [
     "name": "Ghost",
     "chapter": "night",
     "mystery": true,
-    "color": 0x6b6fb3,
+    "color": 0xc9cdf7,
     "picture": [
       "..####..",
       ".######.",
@@ -417,7 +417,7 @@ export const PICTURES: PictureLevel[] = [
     "name": "Cat",
     "chapter": "night",
     "mystery": true,
-    "color": 0x2b2118,
+    "color": 0x8f63c9,
     "picture": [
       "#......#",
       "##....##",
@@ -566,7 +566,7 @@ export const PICTURES: PictureLevel[] = [
     "name": "Rocket",
     "chapter": "sea",
     "mystery": true,
-    "color": 0x534ab7,
+    "color": 0x7d72e0,
     "picture": [
       "...##...",
       "..####..",

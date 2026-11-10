@@ -76,12 +76,12 @@ export class GhostHand {
     // A soft, glowing body with a crisp golden edge (own materials, so the
     // player's hands are untouched).
     const body = new MeshStandardMaterial({
-      color: 0xfff3dc,
-      emissive: 0xffc46b,
+      color: 0xcfe6ff,
+      emissive: 0x9cc8ff,
       emissiveIntensity: 0.3,
       roughness: 0.6,
       transparent: true,
-      opacity: 0.7,
+      opacity: 0.5,
       depthWrite: false,
     });
     m.traverse((o) => {

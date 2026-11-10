@@ -68,8 +68,11 @@ export const PLUSH = {
   shelfX: 0.335,
   shelfZ: -0.02,
   /** Where the plush dances: on the mat in front of the shelf. */
-  stageX: 0.225,
-  stageZ: 0.075,
+  /** The plush dances front and centre, in front of the level plate. */
+  stageX: 0,
+  stageZ: 0.22,
+  /** Hero size while it pops and dances (shelf size is shelfScale). */
+  hero: 1.3,
 } as const;
 
 let puff: BufferGeometry | null = null;
@@ -361,12 +364,12 @@ export class Plushes {
     });
     this.root.add(this.shelf);
     // A felt cushion per slot, and a paper tag naming the chapter.
-    const cushionMat = new MeshPhysicalMaterial({ color: 0xf3e6cf, roughness: 0.95, sheen: 1, sheenRoughness: 0.6, sheenColor: new Color(0xffffff), map: weaveTexture() });
+    const cushionMat = new MeshPhysicalMaterial({ color: 0xf3e6cc, roughness: 0.95, sheen: 1, sheenRoughness: 0.6, sheenColor: new Color(0xffffff), map: weaveTexture() });
     eyeGeo ??= new SphereGeometry(1, 14, 10);
     for (let i = 0; i < PLUSH.slots; i++) {
       const c = new Mesh(eyeGeo, cushionMat);
       c.name = `Cushion${i}`;
-      c.scale.set(0.02, 0.0048, 0.019);
+      c.scale.set(0.017, 0.003, 0.016);
       c.receiveShadow = true;
       this.cushions.push(c);
       this.root.add(c);
@@ -446,7 +449,7 @@ export class Plushes {
     this.bunting.position.set(-side * PLUSH.shelfX, 0, PLUSH.shelfZ);
     for (let i = 0; i < this.cushions.length; i++) {
       this.slotPos(i, this.cushions[i].position);
-      this.cushions[i].position.y = 0.0362;
+      this.cushions[i].position.y = 0.0365;
     }
     // paper tag hung on the shelf's front edge
     this.tag.mesh.position.set(-side * PLUSH.shelfX, 0.022, PLUSH.shelfZ + 0.0315);
@@ -469,7 +472,7 @@ export class Plushes {
     const done = items.filter((it) => it.done).length;
     this.tag.set(chapter ? `${chapter} ${done}/${items.length}` : '');
     // no felt "plates": empty slots show a soft grey silhouette of the plush to come
-    for (let i = 0; i < this.cushions.length; i++) this.cushions[i].visible = false;
+    for (let i = 0; i < this.cushions.length; i++) this.cushions[i].visible = !!(items[i] && items[i].done);
     for (let i = 0; i < PLUSH.slots; i++) {
       const it = items[i];
       const want = it && !it.done ? it.id : null;
@@ -585,8 +588,8 @@ export class Plushes {
     this.t += dt;
     if (this.phase === 'pop') {
       const k = Math.min(1, this.t / 0.35);
-      h.scale.setScalar(Math.max(0.001, back(k)));
-      h.position.y = 0.004 + 0.03 * ease(k);
+      h.scale.setScalar(Math.max(0.001, back(k) * PLUSH.hero));
+      h.position.y = 0.004 + 0.16 * ease(k); // rises high above the loom
       if (k >= 1) {
         this.phase = 'hopOut';
         this.t = 0;
@@ -609,14 +612,14 @@ export class Plushes {
       const b = Math.sin(this.bounce * Math.PI);
       h.position.y = 0.0015 + 0.022 * b;
       const land = this.bounce > 0.85 ? (this.bounce - 0.85) / 0.15 : 0;
-      h.scale.set(1 + 0.08 * land, 1 - 0.12 * land + 0.05 * b, 1);
+      h.scale.set(PLUSH.hero * (1 + 0.08 * land), PLUSH.hero * (1 - 0.12 * land + 0.05 * b), PLUSH.hero);
       h.rotation.z += (this.tilt * 0.14 - h.rotation.z) * Math.min(1, dt * 10);
     } else if (this.phase === 'hopShelf' || this.phase === 'fade') {
       const k = Math.min(1, this.t / 0.7);
       this.arc(h, k, 0.07);
       h.rotation.z *= 0.8;
       const target = this.phase === 'fade' ? 0.001 : PLUSH.shelfScale;
-      h.scale.setScalar(1 + (target - 1) * ease(k));
+      h.scale.setScalar(PLUSH.hero + (target - PLUSH.hero) * ease(k));
       if (k >= 1) {
         if (this.phase === 'hopShelf') this.onLand?.();
         this.settle();

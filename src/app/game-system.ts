@@ -832,7 +832,7 @@ export class GameSystem extends createSystem({
     const m = this.tutor.mesh;
     if (this.notice) {
       this.noticeTimer -= dt;
-      if (this.noticeAt === 'token') m.position.set(tokenX(this.controller.bankSide), 0.06, TOKEN.z - 0.01);
+      if (this.noticeAt === 'token') m.position.set(0, CARD.baseY + this.view.card.heightM + 0.03, CARD.z); // above the card
       else if (this.noticeAt === 'centre') m.position.set(0, 0.08, 0);
       else m.position.set(nudgeX(this.controller.bankSide), 0.075, (NUDGE.upZ + NUDGE.downZ) / 2);
       if (this.noticeTimer <= 0) this.showNotice('', 0);
@@ -848,7 +848,7 @@ export class GameSystem extends createSystem({
     } else if (step === 'shuttle') {
       // Tag hangs just outside the frame beside Pip's perch, never over the threads.
       const end = this.controller.shuttle.t < 0.5 ? -1 : 1;
-      m.position.set(end * SHUTTLE.maxX, 0.11, SHUTTLE.z); // right above Pip's perch
+      m.position.set(end * 0.12, 0.16, SHUTTLE.z); // above and inside Pip's perch: clear of the ghost hand
       if (this.controller.hover.left === null && this.controller.hover.right === null) {
         this.view.setShuttleHighlight(pulse as 0 | 1);
       }

@@ -85,13 +85,6 @@ for sx in (-1, 1):
     lathe(f'PerchPad{nm}', [(0, 0), (0.019, 0), (0.0195, 0.002), (0.018, 0.003), (0, 0.003)], (sx * 0.168, 0.037, SZ), segs=32, mat=SAGE, parent=frame)
     ellipsoid(f'PerchDent{nm}', (0.017, 0.0007, 0.0065), (sx * 0.168, 0.0402, SZ), mat=SAGE_DARK, parent=frame, segs=24)
     lathe(f'PerchLeg{nm}', [(0, 0), (0.006, 0), (0.0055, 0.031), (0, 0.031)], (sx * 0.168, 0, SZ), segs=16, mat=WALNUT, parent=frame)
-# Little walnut ramps from each perch pad down over the rail into the race,
-# so perch → race → perch reads as one continuous track for Pip.
-for sx in (-1, 1):
-    x0, y0, x1, y1 = sx * 0.104, 0.019, sx * 0.148, 0.038
-    dx, dy = x1 - x0, y1 - y0
-    rp = rounded_box(f'Ramp{"L" if sx < 0 else "R"}', (math.hypot(dx, dy) + 0.004, 0.005, 0.018), ((x0 + x1) / 2, (y0 + y1) / 2, SZ), bevel=0.002, segs=2, mat=WALNUT, parent=frame)
-    rp.rotation_euler = (0, -math.atan2(dy, dx) if sx > 0 else math.atan2(dy, -dx), 0)
 for sx in (-1, 1):  # end stops: the boat parks against them
     rounded_box('RaceStop', (0.006, 0.011, 0.018), (sx * (HW - 0.016), 0.022, SZ), bevel=0.0025, segs=3, mat=WALNUT, parent=frame)
 
@@ -121,8 +114,8 @@ for s in (-1, 1):
 # four slots; each slot has two chevrons (push this way) and an end dot.
 CREAM = mat_paint('PaintCream', 0xfff0dc, rough=0.4, clearcoat=0.4)
 x_first, sp, n = LV['firstX'], LV['spacing'], DIMS['LEVERS']
-bx0, bx1 = x_first - 0.019, x_first + sp * (n - 1) + 0.019
-bz0, bz1 = LV['restZ'] - LV['travel'] - 0.02, LV['restZ'] + 0.02
+bx0, bx1 = x_first - 0.025, x_first + sp * (n - 1) + 0.025
+bz0, bz1 = LV['restZ'] - LV['travel'] - 0.026, LV['restZ'] + 0.026
 BW, BD, BX, BZ = bx1 - bx0, bz1 - bz0, (bx0 + bx1) / 2, (bz0 + bz1) / 2
 TOP = 0.029
 # one wooden block (same lacquered wood as the loom), dark slot grooves
