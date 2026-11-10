@@ -300,10 +300,10 @@ function ginghamTexture(): CanvasTexture {
   const g = c.getContext('2d')!;
   g.fillStyle = '#fff3e0';
   g.fillRect(0, 0, 64, 64);
-  g.fillStyle = 'rgba(226,86,59,0.55)';
+  g.fillStyle = 'rgba(226,86,59,0.32)';
   g.fillRect(0, 0, 32, 64);
   g.fillRect(0, 0, 64, 32);
-  g.fillStyle = 'rgba(200,60,40,0.35)';
+  g.fillStyle = 'rgba(200,60,40,0.2)';
   g.fillRect(0, 0, 32, 32);
   const t = new CanvasTexture(c);
   t.wrapS = t.wrapT = RepeatWrapping;

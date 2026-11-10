@@ -79,30 +79,42 @@ for s in (-1, 1):
     for (y, z) in ((RY, Z0 + 0.034), (RY, Z1 - 0.034)):
         ellipsoid('Peg', (0.0035, 0.0052, 0.0052), (s * (HW + 0.013), y, z), mat=TOMATO, parent=frame, segs=16)
 
-# ---- Lever block: a carved beech block with four slots (right-hand layout) ----
+# ---- Lever box: a standalone toy box beside the loom (right-hand layout) ----
+# Cream-painted body with a tomato band and bun feet, a beech top plate with
+# four slots; each slot has two chevrons (push this way) and an end dot.
+CREAM = mat_paint('PaintCream', 0xfff0dc, rough=0.4, clearcoat=0.4)
 x_first, sp, n = LV['firstX'], LV['spacing'], DIMS['LEVERS']
-bx0, bx1 = x_first - 0.017, x_first + sp * (n - 1) + 0.017
-bz0, bz1 = LV['restZ'] - LV['travel'] - 0.018, LV['restZ'] + 0.018
-block = rounded_box('LeverBlock', (bx1 - bx0, 0.02, bz1 - bz0), ((bx0 + bx1) / 2, 0.01, (bz0 + bz1) / 2),
-                    bevel=0.008, segs=4, mat=WOOD, parent=frame)
+bx0, bx1 = x_first - 0.019, x_first + sp * (n - 1) + 0.019
+bz0, bz1 = LV['restZ'] - LV['travel'] - 0.02, LV['restZ'] + 0.02
+BW, BD, BX, BZ = bx1 - bx0, bz1 - bz0, (bx0 + bx1) / 2, (bz0 + bz1) / 2
+TOP = 0.029
+rounded_box('LeverBase', (BW, 0.022, BD), (BX, 0.004 + 0.011, BZ), bevel=0.007, segs=4, mat=CREAM, parent=frame)
+rounded_box('LeverBand', (BW + 0.0012, 0.0045, BD + 0.0012), (BX, 0.0105, BZ), bevel=0.002, segs=2, mat=TOMATO, parent=frame)
+for fx in (bx0 + 0.014, bx1 - 0.014):
+    for fz in (bz0 + 0.013, bz1 - 0.013):
+        ellipsoid('LeverFoot', (0.0075, 0.0042, 0.0075), (fx, 0.0035, fz), mat=TOMATO, parent=frame, segs=16)
+plate = rounded_box('LeverTop', (BW - 0.003, 0.0065, BD - 0.003), (BX, TOP - 0.00325, BZ), bevel=0.003, segs=3, mat=WOOD, parent=frame)
 for k in range(n):
-    cut = rounded_box(f'Slot{k}', (0.0078, 0.03, LV['travel'] + 0.012), (x_first + k * sp, 0.0175, LV['restZ'] - LV['travel'] / 2),
+    cut = rounded_box(f'Slot{k}', (0.0082, 0.03, LV['travel'] + 0.013), (x_first + k * sp, TOP, LV['restZ'] - LV['travel'] / 2),
                       bevel=0.0025, segs=2)
-    mod = block.modifiers.new('slot', 'BOOLEAN')
+    mod = plate.modifiers.new('slot', 'BOOLEAN')
     mod.object = cut
     mod.operation = 'DIFFERENCE'
-    apply_mods(block)
+    apply_mods(plate)
     bpy.data.objects.remove(cut, do_unlink=True)
 for k in range(n):
-    rounded_box(f'SlotFloor{k}', (0.0074, 0.002, LV['travel'] + 0.011), (x_first + k * sp, 0.0035 + 0.0045, LV['restZ'] - LV['travel'] / 2),
+    rounded_box(f'SlotFloor{k}', (0.0078, 0.002, LV['travel'] + 0.012), (x_first + k * sp, TOP - 0.0062, LV['restZ'] - LV['travel'] / 2),
                 bevel=0.0008, segs=1, mat=DARK, parent=frame)
+    # two painted chevrons beside the slot, pointing the way to push
+    for j, zf in enumerate((0.3, 0.68)):
+        zc = LV['restZ'] - LV['travel'] * zf
+        ch = lathe(f'SlotArrow{k}_{j}', [(0, 0), (0.0046, 0), (0.0046, 0.0011), (0, 0.0011)],
+                   (x_first + k * sp + 0.0108, TOP, zc), segs=3, mat=KNOB, parent=frame)
+        ch.scale = (0.75, 1.0, 1.0)
+        ch.rotation_euler = (0, 0, math.radians(90))  # one point toward -Z (away from the player)
     # painted dot at the far (latched) end of each slot: "push it here"; recoloured per lever in code
-    ellipsoid(f'SlotDot{k}', (0.0042, 0.0012, 0.0042), (x_first + k * sp, 0.0198, LV['restZ'] - LV['travel'] - 0.0115),
+    ellipsoid(f'SlotDot{k}', (0.0045, 0.0012, 0.0045), (x_first + k * sp, TOP, LV['restZ'] - LV['travel'] - 0.0125),
               mat=KNOB, parent=frame, segs=16)
-
-# Two painted dowels pin the lever block to the side rail.
-for z in (bz0 + 0.014, bz1 - 0.014):
-    ellipsoid('BlockPeg', (0.0042, 0.0026, 0.0042), (bx0 + 0.009, 0.0205, z), mat=TOMATO, parent=frame, segs=14)
 
 # ---- Easel: a music stand behind the heddle that holds the pattern card ----
 EZ, EY = C['z'], C['baseY']
@@ -164,17 +176,46 @@ for j in range(22):
         st.rotation_quaternion = _V((0, 0, 1)).rotation_difference(d)
         st.location = G(x0, h0, z0)
 
-# ---- Lever knob prototype (cloned ×4 in code; cap recoloured) ----
+# ---- Lever knob prototype (cloned ×4 in code) ----
+# Each lever has its own cap SHAPE as well as colour (colour-blind friendly):
+# Cap0 round, Cap1 square, Cap2 triangle, Cap3 ring. Code shows one per lever
+# and recolours it; the knots on the threads use the same shapes.
 knob = empty('LeverKnob', at=(0, 0, 0))
 r = LV['knobRadius']
-lathe('Stem', [(0, 0.0), (0.0038, 0.0), (0.0034, LV['knobY'] - r * 0.6), (0, LV['knobY'] - r * 0.6)],
+KY = LV['knobY']
+lathe('Stem', [(0, 0.0), (0.0042, 0.0), (0.0036, KY - r * 0.5), (0, KY - r * 0.5)],
       (0, 0, 0), segs=14, mat=DARK, parent=knob)
+lathe('StemWrap', [(0, 0.0), (0.0052, 0.0), (0.0058, 0.0015), (0.0058, 0.0075), (0.0052, 0.009), (0, 0.009)],
+      (0, 0.016, 0), segs=20, mat=KNOB, parent=knob)
+
+def soft(o, levels=2):
+    m = o.modifiers.new('sub', 'SUBSURF')
+    m.levels = levels
+    m.render_levels = levels
+    apply_mods(o)
+    bpy.ops.object.select_all(action='DESELECT')
+    o.select_set(True)
+    bpy.context.view_layer.objects.active = o
+    bpy.ops.object.shade_smooth()
+    return o
+
+# Cap0: a friendly squashed ball
 cap_prof = [(0, -r)] + [(r * math.sin(a), -r * math.cos(a)) for a in [i * math.pi / 16 for i in range(1, 16)]] + [(0, r)]
-cap = lathe('Cap', cap_prof, (0, LV['knobY'], 0), segs=32, mat=KNOB, parent=knob)
-# Yarn wound round the stem in the lever's colour (recoloured with the cap).
-lathe('StemWrap', [(0, 0.0), (0.0046, 0.0), (0.0052, 0.0015), (0.0052, 0.0055), (0.0046, 0.007), (0, 0.007)],
-      (0, 0.0055, 0), segs=20, mat=KNOB, parent=knob)
-cap.scale = (1.06, 1.06, 0.8)  # mushroom-ish: friendly, readable from above
+c0 = lathe('Cap0', cap_prof, (0, KY, 0), segs=32, mat=KNOB, parent=knob)
+c0.scale = (1.06, 1.06, 0.82)
+# Cap1/Cap2: a soft square and a soft triangle (few-sided lathes, subdivided)
+blk = [(0, -r * 0.8), (r * 1.05, -r * 0.8), (r * 1.15, -r * 0.2), (r * 1.15, r * 0.25), (r * 1.0, r * 0.75), (0, r * 0.8)]
+c1 = soft(lathe('Cap1', blk, (0, KY, 0), segs=4, mat=KNOB, parent=knob))
+c1.rotation_euler = (0, 0, math.radians(45))
+tri = [(0, -r * 0.8), (r * 1.15, -r * 0.8), (r * 1.28, -r * 0.2), (r * 1.28, r * 0.25), (r * 1.1, r * 0.75), (0, r * 0.8)]
+c2 = soft(lathe('Cap2', tri, (0, KY, 0), segs=3, mat=KNOB, parent=knob))
+c2.rotation_euler = (0, 0, math.radians(90))  # one point toward the player
+# Cap3: a ring (a fat donut lying flat)
+bpy.ops.mesh.primitive_torus_add(major_radius=r * 0.78, minor_radius=r * 0.42, major_segments=32, minor_segments=14, location=G(0, KY, 0))
+c3 = bpy.context.active_object
+c3.name = 'Cap3'
+bpy.ops.object.shade_smooth()
+finish(c3, KNOB, knob)
 
 # ---- Bobbin (undo spool): beech flanges, wound knit yarn ----
 bob = empty('Bobbin', at=(0, 0, 0))

@@ -20,23 +20,28 @@ export const LOOM = {
   frontBeamZ: 0.088,
   beamY: 0.022,
   frameHalfWidth: 0.115,
-  liftedY: 0.03,
+  liftedY: 0.042,
   loweredY: 0.004,
   shedY: 0.017,
-  rowPitch: 0.0075,
+  /** Woven row depth (taller rows → pictures aren't squashed). */
+  rowPitch: 0.012,
   visibleRows: 12,
+  /** Cloth starts here (front, by the front beam) and builds back toward the heddle. */
+  clothFrontZ: 0.074,
+  /** Rows that fit before the cloth reaches the shuttle line. */
+  maxRows: 8,
 } as const;
 
 /** Shuttle slides along X on the shed line. */
 export const SHUTTLE = {
   z: -0.031,
-  /** Height in the shed (between lowered and lifted threads). */
-  y: 0.017,
+  /** Pip's height in the shed: the boat (20 mm below Pip) slides between the threads. */
+  y: 0.033,
   /** Travel endpoints in loom-local x: Pip's perches on top of the side rails. */
   minX: -0.123,
   maxX: 0.123,
   /** Perch height on the rail top, and where the hop down into the shed starts. */
-  perchY: 0.046,
+  perchY: 0.06,
   shedHalf: 0.088,
   /** Release past this fraction of travel completes the pass. */
   completeAt: 0.6,
@@ -46,14 +51,14 @@ export const SHUTTLE = {
 /** Lever bank beside the loom (mirrored for left-handed play). */
 export const LEVER = {
   /** x of the first lever, measured outward from the loom centre. */
-  firstX: 0.142,
-  spacing: 0.028,
+  firstX: 0.17,
+  spacing: 0.032,
   /** Rest (unlatched) z — nearest the user. Latched = rest - travel. */
   restZ: 0.075,
   travel: 0.05,
-  knobY: 0.024,
+  knobY: 0.046,
   /** ≥ 22 mm diameter touch target (Meta hands guidance). */
-  knobRadius: 0.011,
+  knobRadius: 0.0125,
   /** Final fraction of travel that magnetically pulls to an end. */
   magnet: 0.3,
 } as const;

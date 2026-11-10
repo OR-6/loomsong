@@ -22,6 +22,7 @@ import {
   AdditiveBlending,
   CylinderGeometry,
   TorusGeometry,
+  ConeGeometry,
   Object3D,
   DirectionalLight,
   ShadowMaterial,
@@ -86,6 +87,9 @@ export class LoomView {
   private pipWings: Object3D[] = [];
   /** Pip's model inside the shuttle group: moods move this, facing turns the group. */
   private pipInner: Object3D | null = null;
+  /** The boat shuttle under Pip (highlights with Pip) and the weft bobbin in it. */
+  private boatMat: MeshStandardMaterial | null = null;
+  private boatYarn: MeshStandardMaterial | null = null;
   private mood: 'none' | 'happy' | 'sad' | 'cheer' = 'none';
   private moodT = 0;
   private idleIn = 3;
@@ -99,8 +103,11 @@ export class LoomView {
   private cords!: InstancedMesh;
   private eyes!: InstancedMesh;
   /** Coloured ties: one bead per (lever, thread it lifts), in the lever's colour. */
-  private ties!: InstancedMesh;
+  /** Knots per lever shape (round, square, triangle, ring), matching the knob caps. */
+  private ties: InstancedMesh[] = [];
   private tieUp: readonly Mask8[] = [];
+  /** Where the next row will be laid (moves back toward the heddle as cloth grows). */
+  private fellZ: number = LOOM.fellZ;
   private tieHidden: boolean[] = [];
   private hoverLever = -1;
   /** Picture colour (lifted threads) and ground (cream weft). */
@@ -108,6 +115,7 @@ export class LoomView {
   private groundColor = 0;
   private pictureColor: number | null = null;
   private cloth!: InstancedMesh;
+  private ghostCloth: InstancedMesh | null = null;
   private tracks: InstancedMesh | null = null;
   private leverMats: MeshStandardMaterial[] = [];
   /** Yarn wraps on the knob stems (model only), recoloured with the caps. */
@@ -129,7 +137,8 @@ export class LoomView {
   private activeLevers: number = LEVERS;
   private rowsCache: readonly Mask8[] = [];
   private glowRow = -1;
-  private warpLift = new Float32Array(WARPS); // animated 0..1
+  private warpLift = new Float32Array(WARPS); // animated 0..1 (springy, can overshoot)
+  private warpVel = new Float32Array(WARPS);
   /** Per-warp twang amplitude (pluck visual twin). */
   private twang = new Float32Array(WARPS);
   private clock = 0;
@@ -268,7 +277,8 @@ export class LoomView {
     // Each logical warp is a bundle of STRANDS strands that gather through its eyelet.
     const warpGeo = new CylinderGeometry(0.0015, 0.0015, 1, 8, 1, true);
     warpGeo.rotateX(Math.PI / 2);
-    this.warps = new InstancedMesh(warpGeo, warpMat, WARPS * 2 * STRANDS);
+    // three segments per strand: back beam → heddle → fell → under the cloth to the front beam
+    this.warps = new InstancedMesh(warpGeo, warpMat, WARPS * 3 * STRANDS);
     this.warps.name = 'Warps';
     add(this.warps);
 
@@ -285,18 +295,39 @@ export class LoomView {
 
     // Lever ties: little yarn knots on each warp, coloured like the lever
     // that lifts it, so cause and effect is visible before you pull.
-    const tieGeo = new SphereGeometry(0.0034, 10, 8);
-    this.ties = new InstancedMesh(tieGeo, new MeshStandardMaterial({ roughness: 0.75 }), WARPS * LEVERS);
-    this.ties.name = 'LeverTies';
-    this.ties.frustumCulled = false;
-    this.ties.count = 0;
-    add(this.ties);
+    const tieGeos = [
+      new SphereGeometry(0.0036, 12, 8),
+      new BoxGeometry(0.0062, 0.0062, 0.0062),
+      new ConeGeometry(0.0048, 0.0066, 3),
+      new TorusGeometry(0.0033, 0.0013, 8, 16),
+    ];
+    tieGeos[2].rotateX(Math.PI); // triangle points down the thread, toward the cloth
+    tieGeos[3].rotateY(Math.PI / 2); // ring threaded on the warp
+    const tieMat = new MeshStandardMaterial({ roughness: 0.7 });
+    this.ties = tieGeos.map((g, i) => {
+      const m = new InstancedMesh(g, tieMat, WARPS);
+      m.name = `LeverTies${i}`;
+      m.frustumCulled = false;
+      m.count = 0;
+      add(m);
+      return m;
+    });
 
     // Cloth cells.
     const cellGeo = new BoxGeometry(WARP_PITCH * 0.995, 0.003, LOOM.rowPitch * 0.99);
     const clothMat = new MeshStandardMaterial({ roughness: 0.95, map: weaveTexture() });
     this.cloth = new InstancedMesh(cellGeo, clothMat, WARPS * LOOM.visibleRows);
     this.cloth.name = 'Cloth';
+    // faint target picture on the rows still to weave
+    this.ghostCloth = new InstancedMesh(
+      cellGeo,
+      new MeshStandardMaterial({ transparent: true, opacity: 0.5, roughness: 1, depthWrite: false, map: weaveTexture(), emissive: 0x1a1a1a }),
+      WARPS * LOOM.maxRows,
+    );
+    this.ghostCloth.name = 'TargetGhost';
+    this.ghostCloth.frustumCulled = false;
+    this.ghostCloth.count = 0;
+    add(this.ghostCloth);
     this.cloth.count = 0;
     add(this.cloth);
     // InstancedMesh caches its bounding sphere on first use; the cloth starts
@@ -317,7 +348,12 @@ export class LoomView {
     for (let k = 0; k < LEVERS; k++) {
       if (models) {
         const knob = cloneModel(models.knob, tint);
-        const cap = materialOf(knob, 'Cap') as MeshStandardMaterial;
+        // one cap shape per lever (round, square, triangle, ring), not colour alone
+        for (let c = 0; c < 4; c++) {
+          const o = knob.getObjectByName(`Cap${c}`);
+          if (o) o.visible = c === k % 4;
+        }
+        const cap = materialOf(knob, `Cap${k % 4}`) as MeshStandardMaterial;
         cap.color.setHex(palette.knobs[k]);
         // yarn wrap on the stem, a shade deeper than the cap
         const wrap = materialOf(knob, 'StemWrap') as MeshStandardMaterial | null;
@@ -358,7 +394,10 @@ export class LoomView {
       // Pip, the shuttle songbird (faces its direction of travel).
       // Wrapped so squash-and-stretch scales around a slightly smaller Pip.
       const pip = cloneModel(models.pip);
-      pip.scale.setScalar(0.85);
+      pip.scale.setScalar(0.95);
+      this.boatYarn = materialOf(pip, 'BoatYarn') as MeshStandardMaterial | null;
+      const boat = materialOf(pip, 'Boat') as MeshStandardMaterial | null;
+      if (boat) this.boatMat = boat;
       this.shuttle = new Group();
       this.shuttle.add(pip);
       this.pipInner = pip;
@@ -492,6 +531,10 @@ export class LoomView {
       // Only active levers get a "push it here" dot; unused slots stay plain wood.
       const dot = this.frameNode?.getObjectByName(`SlotDot${k}`);
       if (dot) dot.visible = on;
+      for (let j = 0; j < 2; j++) {
+        const a = this.frameNode?.getObjectByName(`SlotArrow${k}_${j}`);
+        if (a) a.visible = on;
+      }
     }
     if (this.tracks) this.tracks.instanceMatrix.needsUpdate = true;
     this.mirrorFrame();
@@ -506,7 +549,7 @@ export class LoomView {
     if (!f) return;
     for (const child of f.children) {
       const n = child.name;
-      const toBank = n.startsWith('LeverBlock') || n.startsWith('SlotFloor') || n.startsWith('SlotDot') || n.startsWith('BlockPeg');
+      const toBank = n.startsWith('Lever') || n.startsWith('SlotFloor') || n.startsWith('SlotDot') || n.startsWith('SlotArrow');
       // The front-beam crank sits on the side away from the lever bank.
       const toCard = n.startsWith('FrontBeamCrank') || n.startsWith('FrontBeamHandle');
       if (!toBank && !toCard) continue;
@@ -548,7 +591,7 @@ export class LoomView {
   setPreview(mask: Mask8, visible: boolean): void {
     this.preview.visible = visible;
     if (!visible) return;
-    const z = LOOM.fellZ - LOOM.rowPitch * 0.6;
+    const z = this.fellZ - LOOM.rowPitch * 0.5;
     for (let i = 0; i < WARPS; i++) {
       _p.set(warpX(i), 0.0065, z);
       _m.compose(_p, _q.identity(), _s.set(1, 1, 1));
@@ -663,7 +706,7 @@ export class LoomView {
     }
     p.position.y = y;
     p.rotation.set(0, spin + look, pitch);
-    p.scale.set(0.85, 0.85 * squash, 0.85);
+    p.scale.set(0.95, 0.95 * squash, 0.95);
   }
 
   /** Visual twin for one plucked warp: it twangs. */
@@ -692,6 +735,7 @@ export class LoomView {
 
   setShuttleHighlight(level: 0 | 1 | 2): void {
     this.shuttleMat.emissive.copy(this.shuttleMat.color).multiplyScalar(level === 2 ? 0.6 : level === 1 ? 0.3 : 0);
+    this.boatMat?.emissive.copy(this.boatMat.color).multiplyScalar(level === 2 ? 0.5 : level === 1 ? 0.28 : 0);
   }
 
   /** Set the target shed; `immediate` skips the lift animation. */
@@ -704,7 +748,17 @@ export class LoomView {
   }
   private targetShed: Mask8 = 0;
 
-  /** Rows, oldest first; only the last `visibleRows` are drawn. */
+  /**
+   * Cloth builds like a real frame loom: row 0 by the front beam, each new row
+   * beaten in behind it toward the heddle. (If wrong rows overflow the space,
+   * the newest stays at the back and older ones slide forward.)
+   */
+  private rowZ(r: number, count: number): number {
+    const shift = Math.max(0, count - LOOM.maxRows);
+    return LOOM.clothFrontZ - (r - shift + 0.5) * LOOM.rowPitch;
+  }
+
+  /** Rows, oldest first. */
   setRows(rows: readonly Mask8[]): void {
     this.rowsCache = rows;
     const n = Math.min(rows.length, LOOM.visibleRows);
@@ -712,8 +766,8 @@ export class LoomView {
     let idx = 0;
     for (let r = 0; r < n; r++) {
       const row = rows[start + r];
-      // newest row sits at the fell; older rows move toward the user.
-      const z = LOOM.fellZ + (n - 1 - r) * LOOM.rowPitch + LOOM.rowPitch / 2;
+      const z = this.rowZ(start + r, rows.length);
+      if (z > LOOM.clothFrontZ) continue; // slid off the front (only with many wrong rows)
       for (let i = 0; i < WARPS; i++) {
         _p.set(warpX(i), 0.006, z);
         _m.compose(_p, _q.identity(), _s.set(1, 1, 1));
@@ -728,6 +782,42 @@ export class LoomView {
     this.cloth.count = idx;
     this.cloth.instanceMatrix.needsUpdate = true;
     if (this.cloth.instanceColor) this.cloth.instanceColor.needsUpdate = true;
+    // the fell (where the next row goes) moves back as the cloth grows
+    this.fellZ = this.rowZ(rows.length, rows.length + 1) + LOOM.rowPitch / 2;
+    this.writeTarget();
+    this.writeWarps();
+  }
+
+  /** The whole picture, faint, on the rows still to weave: you watch it fill in. */
+  setTarget(target: readonly Mask8[]): void {
+    this.target = target;
+    this.writeTarget();
+  }
+  private target: readonly Mask8[] = [];
+
+  private writeTarget(): void {
+    if (!this.ghostCloth) return;
+    let idx = 0;
+    const done = this.rowsCache.length;
+    if (this.rowsCache.length < LOOM.maxRows) {
+      for (let r = done; r < this.target.length && r < LOOM.maxRows; r++) {
+        const z = this.rowZ(r, done);
+        for (let i = 0; i < WARPS; i++) {
+          const lifted = isLifted(this.target[r], i);
+          _p.set(warpX(i), 0.0042, z);
+          _m.compose(_p, _q.identity(), _s.set(lifted ? 0.97 : 0.9, 0.6, lifted ? 0.97 : 0.9));
+          this.ghostCloth.setMatrixAt(idx, _m);
+          // picture pixels in the picture colour; the rest a faint cream canvas
+          _c.setHex(lifted ? this.liftColor : this.groundColor);
+          if (!lifted) _c.multiplyScalar(0.45);
+          this.ghostCloth.setColorAt(idx, _c);
+          idx++;
+        }
+      }
+    }
+    this.ghostCloth.count = idx;
+    this.ghostCloth.instanceMatrix.needsUpdate = true;
+    if (this.ghostCloth.instanceColor) this.ghostCloth.instanceColor.needsUpdate = true;
   }
 
   /** Brief visual twin for every sound (deaf/HoH accessibility). */
@@ -780,13 +870,17 @@ export class LoomView {
         dirty = true;
       }
     }
-    const k = Math.min(1, dt * 14);
+    // Springy lift: threads pop up with a small overshoot and settle.
     for (let i = 0; i < WARPS; i++) {
       const target = isLifted(this.targetShed, i) ? 1 : this.hoverLift(i);
       const d = target - this.warpLift[i];
-      if (Math.abs(d) > 1e-4) {
-        this.warpLift[i] += d * k;
+      if (Math.abs(d) > 1e-4 || Math.abs(this.warpVel[i]) > 1e-3) {
+        this.warpVel[i] += (520 * d - 26 * this.warpVel[i]) * h;
+        this.warpLift[i] += this.warpVel[i] * h;
         dirty = true;
+      } else if (this.warpVel[i] !== 0) {
+        this.warpVel[i] = 0;
+        this.warpLift[i] = target;
       }
     }
     if (this.pulse > 0) {
@@ -802,11 +896,18 @@ export class LoomView {
       const a = this.twang[i];
       const x = warpX(i) + (a > 0 ? Math.sin(this.clock * 85 + i) * 0.0014 * a * a : 0);
       const hy = LOOM.loweredY + (LOOM.liftedY - LOOM.loweredY) * this.warpLift[i];
+      // lifted threads glow brighter in the picture colour; lowered ones sit a shade darker
+      const lift = Math.max(0, Math.min(1, this.warpLift[i]));
+      _c.setHex(this.liftColor).multiplyScalar(0.72 + 0.28 * lift).lerp(_glow, 0.18 * lift);
       for (let s = 0; s < STRANDS; s++) {
         const dx = (s - (STRANDS - 1) / 2) * STRAND_GAP;
-        const n = (i * STRANDS + s) * 2;
+        const n = (i * STRANDS + s) * 3;
         this.segment(n, x + dx, LOOM.beamY + 0.007, LOOM.backBeamZ, x + dx * 0.3, hy, LOOM.heddleZ);
-        this.segment(n + 1, x + dx * 0.3, hy, LOOM.heddleZ, x + dx, fellY, LOOM.fellZ);
+        this.segment(n + 1, x + dx * 0.3, hy, LOOM.heddleZ, x + dx, fellY, this.fellZ);
+        this.segment(n + 2, x + dx, fellY - 0.0005, this.fellZ, x + dx, fellY - 0.0005, LOOM.clothFrontZ + 0.006);
+        this.warps.setColorAt(n, _c);
+        this.warps.setColorAt(n + 1, _c);
+        this.warps.setColorAt(n + 2, _c);
       }
       // heddle cord from the bar down to the eyelet, eyelet around the warp
       const top = HEDDLE_BAR_BOTTOM_Y;
@@ -821,6 +922,7 @@ export class LoomView {
     this.cords.instanceMatrix.needsUpdate = true;
     this.eyes.instanceMatrix.needsUpdate = true;
     this.warps.instanceMatrix.needsUpdate = true;
+    if (this.warps.instanceColor) this.warps.instanceColor.needsUpdate = true;
     this.writeTies();
   }
 
@@ -853,6 +955,10 @@ export class LoomView {
     this.wrapMats[k]?.color.setHex(hex).multiplyScalar(0.82);
     const dot = this.frameNode?.getObjectByName(`SlotDot${k}`) as Mesh | undefined;
     (dot?.material as MeshStandardMaterial | undefined)?.color.setHex(hex);
+    for (let j = 0; j < 2; j++) {
+      const a = this.frameNode?.getObjectByName(`SlotArrow${k}_${j}`) as Mesh | undefined;
+      (a?.material as MeshStandardMaterial | undefined)?.color.setHex(hex);
+    }
   }
 
   /** Reveal a mystery lever's ties once it has been tried. */
@@ -876,37 +982,43 @@ export class LoomView {
     const p = this.palette;
     this.liftColor = this.pictureColor ?? p.weft;
     this.groundColor = p.warp;
-    (this.warps?.material as MeshStandardMaterial | undefined)?.color.setHex(this.liftColor);
+    // warp colour comes per strand (instance colour × white), brighter when lifted
+    (this.warps?.material as MeshStandardMaterial | undefined)?.color.setHex(0xffffff);
     const yarn = this.bobbin ? (materialOf(this.bobbin, 'Wound') as MeshStandardMaterial | null) : null;
     yarn?.color.setHex(this.groundColor);
+    this.boatYarn?.color.setHex(this.groundColor);
   }
 
   /** One knot per (lever, lifted thread), riding the warp just in front of the heddle. */
   private writeTies(): void {
-    if (!this.ties) return;
-    let n = 0;
+    if (!this.ties.length) return;
     const fellY = 0.006;
+    for (const m of this.ties) m.count = 0;
     for (let k = 0; k < this.tieUp.length && k < this.activeLevers; k++) {
+      const mesh = this.ties[k % this.ties.length];
       if (this.tieHidden[k]) continue;
       const mask = this.tieUp[k];
       // stacked along the warp: lever 0 nearest the heddle
       const f = 0.1 + 0.13 * k;
+      let n = mesh.count;
       for (let i = 0; i < WARPS; i++) {
         if (!isLifted(mask, i)) continue;
         const hy = LOOM.loweredY + (LOOM.liftedY - LOOM.loweredY) * this.warpLift[i];
-        _p.set(warpX(i), hy + (fellY - hy) * f + 0.0012, LOOM.heddleZ + (LOOM.fellZ - LOOM.heddleZ) * f);
-        const big = k === this.hoverLever ? 1.35 : 1;
-        _m.compose(_p, _q.identity(), _s.set(big, big * 0.8, big));
-        this.ties.setMatrixAt(n, _m);
+        _p.set(warpX(i), hy + (fellY - hy) * f + 0.0012, LOOM.heddleZ + (this.fellZ - LOOM.heddleZ) * f);
+        const big = k === this.hoverLever ? 1.4 : 1;
+        _m.compose(_p, _q.identity(), _s.set(big, big, big));
+        mesh.setMatrixAt(n, _m);
         _c.setHex(this.palette.knobs[k]);
         if (k === this.hoverLever) _c.lerp(_glow, 0.35);
-        this.ties.setColorAt(n, _c);
+        mesh.setColorAt(n, _c);
         n++;
       }
+      mesh.count = n;
     }
-    this.ties.count = n;
-    this.ties.instanceMatrix.needsUpdate = true;
-    if (this.ties.instanceColor) this.ties.instanceColor.needsUpdate = true;
+    for (const m of this.ties) {
+      m.instanceMatrix.needsUpdate = true;
+      if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    }
   }
 
   /** Instance `idx` as a unit-Z strand stretched from (x0,y0,z0) to (x1,y1,z1). */

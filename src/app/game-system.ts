@@ -237,6 +237,7 @@ export class GameSystem extends createSystem({
         // Picture colour on the warps; mystery chapters hide the lever ties
         // until each lever has been tried once.
         this.view.setPicture(level.color ?? null, level.tieUp, level.tieUp.map(() => !!level.mystery));
+        this.view.setTarget(level.target);
         this.view.card.setPicture(level.color ?? null, level.par);
         this.view.plushes.setShelf(shelfItems(level, this.progress), CHAPTERS.find((c) => c.id === level.chapter)?.name ?? '');
         this.syncBasket(level);

@@ -35,6 +35,19 @@ for i, dz in enumerate((-0.0028, 0.0028)):
 for i, (dx, rz) in enumerate(((-0.003, 25), (0.0005, 5), (0.0035, -18))):
     ellipsoid(f'Tuft{i}', (0.0014, 0.0042, 0.0012), (0.016 + dx, 0.0185, 0), rot=(0, 0, rz), mat=WING, parent=pip, segs=10)
 
+# The boat shuttle Pip rides: a pointed beech boat (the thing you grab and
+# slide) with a bobbin of weft yarn in its hollow. Boat centre is 20 mm below Pip.
+BOATW = mat_paint('BoatWood', 0xe0b07a, rough=0.45, clearcoat=0.35)
+TIPS = mat_paint('BoatTips', 0x7a4e32, rough=0.4, clearcoat=0.4)
+YARN = mat_paint('BoatYarn', 0xfff6e8, rough=0.95, clearcoat=0.0)
+BY = -0.02
+prof = [(0.0, -0.046), (0.0025, -0.042), (0.0065, -0.032), (0.0092, -0.018), (0.0102, 0.0), (0.0092, 0.018), (0.0065, 0.032), (0.0025, 0.042), (0.0, 0.046)]
+boat = lathe('Boat', prof, (0, BY, 0), axis='X', segs=28, mat=BOATW, parent=pip)
+boat.scale = (1.0, 1.0, 0.62)  # flatter than round (blender Z = game up), like a real boat shuttle
+# bobbin of weft yarn showing in the boat's hollow (recoloured to the weft in code)
+lathe('BoatYarn', [(0, -0.017), (0.0052, -0.017), (0.0058, -0.012), (0.0058, 0.012), (0.0052, 0.017), (0, 0.017)],
+      (0, BY + 0.0035, 0), axis='X', segs=20, mat=YARN, parent=pip)
+
 for o in pip.children_recursive:
     if o.type == 'MESH' and len(o.data.uv_layers) == 0:
         uv_project(o, 0.05)
