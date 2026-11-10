@@ -103,7 +103,8 @@ export class TargetCard {
     const g = this.ctx;
     const lift = hex(this.color ?? th.palette.weft);
     // empty cells take a little of the chapter paper tint (Night's cells read dusk, not white)
-    const ground = this.paper ? mixHex('#efe6d2', this.paper, 0.5) : '#efe6d2';
+    // empty cells: Night's are a pale moonlit lilac so the picture pops on the dusk paper
+    const ground = this.sparkles ? '#f3f1fa' : this.paper ? mixHex('#efe6d2', this.paper, 0.5) : '#efe6d2';
     const grace = '#c9b79c';
     const px = (m: number) => m * PX_PER_M;
     g.clearRect(0, 0, c.width, c.height);
@@ -146,6 +147,10 @@ export class TargetCard {
         const spent = i >= total - this.used;
         drawKnot(g, x0 + j * px(gap), y, px(r), i < this.par ? lift : grace, spent, highContrast);
       }
+      // a live star meter beside the knots: the stars you'd get right now (knots buy stars)
+      const live = this.used <= this.par ? 3 : this.used <= this.par + 2 ? 2 : 1;
+      const sx = px(pad + markW + WARPS * cell + markW / 2);
+      for (let i = 0; i < 3; i++) drawStar(g, sx, px(pad + titleH / 2 + (i - 1) * 0.0082), px(0.0038), i < live);
     }
     void title;
 
@@ -170,7 +175,7 @@ export class TargetCard {
         g.fillRect(px(x) + 1, px(y) + 1, px(cell) - 2, px(cell) - 2);
         if (!highContrast) {
           // a faint grid: count columns against the threads
-          g.strokeStyle = '#d8cbb0';
+          g.strokeStyle = this.sparkles ? '#b8b2d8' : '#d8cbb0';
           g.lineWidth = 1.5;
           g.strokeRect(px(x) + 1, px(y) + 1, px(cell) - 2, px(cell) - 2);
         }
@@ -328,12 +333,14 @@ function mixHex(a: string, b: string, t: number): string {
 
 /** Margin stars for the Night card: (x, y) as fractions of the card, radius in m. */
 const NIGHT_STARS: [number, number, number][] = [
-  [0.04, 0.05, 0.0034],
-  [0.96, 0.06, 0.0028],
-  [0.035, 0.55, 0.0024],
-  [0.965, 0.48, 0.0032],
-  [0.05, 0.95, 0.0028],
-  [0.95, 0.94, 0.0024],
+  [0.05, 0.06, 0.0085],
+  [0.95, 0.07, 0.007],
+  [0.045, 0.36, 0.006],
+  [0.955, 0.3, 0.0075],
+  [0.04, 0.66, 0.0072],
+  [0.96, 0.62, 0.006],
+  [0.06, 0.94, 0.0068],
+  [0.94, 0.93, 0.0082],
 ];
 
 /** A soft four-point twinkle. */
@@ -346,7 +353,7 @@ function drawTwinkle(g: CanvasRenderingContext2D, x: number, y: number, r: numbe
     g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
   }
   g.closePath();
-  g.fillStyle = '#ffe9a8';
+  g.fillStyle = '#ffe6a0';
   g.fill();
   g.lineWidth = r * 0.16;
   g.strokeStyle = '#b89a4a';

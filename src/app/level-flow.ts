@@ -15,9 +15,10 @@ export type FlowPhase = 'play' | 'won' | 'playback' | 'between';
 /**
  * What to touch next. 'lever': lift lever k; 'unlatch': put lever k back;
  * 'shuttle': slide Pip; 'undo': pull the spool (last row is wrong);
- * 'card': read the card (the goal, or "match the next row" in idle hints).
+ * 'card': read the card (the goal, or "match the next row" in idle hints);
+ * 'knots': the tutorial explains the knot budget once, after the goal.
  */
-export type HintStep = 'lever' | 'unlatch' | 'shuttle' | 'undo' | 'card' | 'none';
+export type HintStep = 'lever' | 'unlatch' | 'shuttle' | 'undo' | 'card' | 'knots' | 'none';
 
 export interface FlowHooks {
   load(level: Level, index: number): void;
@@ -109,10 +110,14 @@ export class LevelFlow {
   }
 
   update(dt: number): void {
-    if (this.hintStep === 'card' && this.hintTimer > 0) {
+    if ((this.hintStep === 'card' || this.hintStep === 'knots') && this.hintTimer > 0) {
       this.hintTimer -= dt;
       if (this.hintTimer <= 0) {
-        if (this.tutorial) this.guide();
+        if (this.tutorial && this.hintStep === 'card') {
+          // then, once: what the knots above the card mean
+          this.setHint('knots');
+          this.hintTimer = TIMING.cardHint;
+        } else if (this.tutorial) this.guide();
         else this.setHint('none');
       }
     }
@@ -209,7 +214,7 @@ export class LevelFlow {
       this.hintTimer = TIMING.cardHint;
       return;
     }
-    if (this.hintStep === 'card' && this.hintTimer > 0) return;
+    if ((this.hintStep === 'card' || this.hintStep === 'knots') && this.hintTimer > 0) return;
     if (e.type === 'lever' || e.type === 'row' || e.type === 'undo') this.guide();
   }
 

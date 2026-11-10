@@ -386,14 +386,22 @@ export class Plushes {
     this.root.add(this.halo);
     this.stage = new Group();
     this.stage.name = 'PlushStage';
-    const felt = new Mesh(new CylinderGeometry(PLUSH.stageR, PLUSH.stageR * 0.96, 0.006, 40), new MeshStandardMaterial({ color: 0xfff3d6, roughness: 0.95 }));
+    // a navy felt disc (like the loom's bed) with a dashed cream running stitch and thin gold piping
+    const felt = new Mesh(new CylinderGeometry(PLUSH.stageR, PLUSH.stageR * 0.96, 0.006, 40), new MeshStandardMaterial({ color: 0x2f4a7a, roughness: 0.95 }));
     felt.castShadow = true;
-    const stitch = new Mesh(new TorusGeometry(PLUSH.stageR * 0.84, 0.0011, 6, 64), new MeshStandardMaterial({ color: 0xd6aa6e, roughness: 0.9 }));
-    stitch.rotation.x = Math.PI / 2;
-    stitch.position.y = 0.0032;
-    const rim = new Mesh(new TorusGeometry(PLUSH.stageR, 0.0024, 8, 64), new MeshStandardMaterial({ color: 0xe8b04a, roughness: 0.7 }));
+    this.stage.add(felt);
+    const stitchMat = new MeshStandardMaterial({ color: 0xfff1d6, roughness: 0.9 });
+    const dashes = 22;
+    const dash = new TorusGeometry(PLUSH.stageR - 0.008, 0.0011, 4, 4, ((Math.PI * 2) / dashes) * 0.55);
+    for (let i = 0; i < dashes; i++) {
+      const d = new Mesh(dash, stitchMat);
+      d.rotation.set(Math.PI / 2, 0, (i / dashes) * Math.PI * 2);
+      d.position.y = 0.0032;
+      this.stage.add(d);
+    }
+    const rim = new Mesh(new TorusGeometry(PLUSH.stageR, 0.0014, 6, 64), new MeshStandardMaterial({ color: 0xe8b04a, roughness: 0.6 }));
     rim.rotation.x = Math.PI / 2;
-    this.stage.add(felt, stitch, rim);
+    this.stage.add(rim);
     this.stage.visible = false;
     this.root.add(this.stage);
     // a butterfly wind-up key: brass shaft out of the shelf end, two loops for fingers

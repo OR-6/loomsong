@@ -106,6 +106,8 @@ describe('level flow', () => {
     model.commitRow();
     expect(log.at(-1)).toBe('hint card 0'); // the goal, said once
     for (let t = 0; t < TIMING.cardHint + 0.1; t += 0.05) flow.update(0.05);
+    expect(log.at(-1)).toBe('hint knots 0'); // then what the knots mean, once
+    for (let t = 0; t < TIMING.cardHint + 0.1; t += 0.05) flow.update(0.05);
     expect(log.at(-1)).toBe('hint shuttle 0'); // row 1 is the stem again: lever 0 is still up
     // a wrong row (both levers) → undo
     model.setLatched(1, true);

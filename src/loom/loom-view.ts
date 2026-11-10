@@ -79,7 +79,7 @@ const _white = new Color(0xffffff);
 /** Seconds the newest row animates (beat-in, flash or shake). */
 const ROW_FX = 0.45;
 /** Opacity of the ghost picture on the rows still to weave. */
-const GHOST_OPACITY = 0.62;
+const GHOST_OPACITY = 0.8;
 const backOut = (x: number) => 1 + 2.2 * Math.pow(x - 1, 3) + 1.2 * Math.pow(x - 1, 2);
 /** Underside of the heddle bar in the Blender model (bar centre 0.071, 17 mm tall). */
 const HEDDLE_BAR_BOTTOM_Y = 0.0625;
@@ -1059,8 +1059,8 @@ export class LoomView {
           this.ghostCloth.setMatrixAt(idx, _m);
           // the row to weave next is bright; later rows sink toward the navy felt
           _c.setHex(this.liftColor);
-          if (r === done) _c.lerp(_c2.setHex(0xfff4dc), 0.15);
-          else _c.lerp(_c2.setHex(0x2b3a67), 0.55);
+          if (r === done) _c.lerp(_c2.setHex(0xfff4dc), 0.08); // the next row: the picture's own colour
+          else _c.lerp(_c2.setHex(0x2b3a67), 0.68);
           this.ghostCloth.setColorAt(idx, _c);
           idx++;
         }

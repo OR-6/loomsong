@@ -13,7 +13,7 @@ export default async function run({ page, frame }) {
       for (let w = 0; w < 40 && g.model.rows.length <= n; w++) await sleep(100);
       await sleep(300);
     }
-    await sleep(3800);
+    await sleep(7600); // goal tag, then the knots tag
     if (wrong) {
       c.toggleLever(1); // both up: the leaves row needs lever 0 down
       const n = g.model.rows.length;

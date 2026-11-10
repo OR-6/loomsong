@@ -57,6 +57,7 @@ const HINT_TEXT: Record<HintStep, string> = {
   shuttle: 'Slide Pip across',
   undo: 'Pull to undo',
   card: 'Match the next row',
+  knots: 'Each lever move unties a knot',
   none: '',
 };
 
@@ -133,6 +134,7 @@ export class GameSystem extends createSystem({
   private undoNotch = 0;
   private plushVecs = Array.from({ length: PLUSH_SLOTS }, () => new Vector3());
   private keyVec = new Vector3();
+  private tagAt = { x: 0, y: 0, z: 0 };
   private noticeTimer = 0;
   private tokenPop = 1;
   private loomEntity!: Entity;
@@ -214,6 +216,9 @@ export class GameSystem extends createSystem({
     // In-world tutorial label (child of the loom; faces the user).
     this.tutor = new Label(0.17, 0.036);
     this.tutor.mesh.rotation.x = -0.35;
+    // hints are never hidden behind a bowl or a post
+    (this.tutor.mesh.material as import('@iwsdk/core').MeshBasicMaterial).depthTest = false;
+    this.tutor.mesh.renderOrder = 20;
     this.view.root.add(this.tutor.mesh);
     this.tutor.setTheme(this.shown());
     this.tutor.set('');
@@ -1005,11 +1010,13 @@ export class GameSystem extends createSystem({
     if (step === 'lever' || step === 'unlatch') {
       const k = this.hintLever;
       const up = this.model.latched[k];
-      m.position.set(leverX(k, side), 0.045, LEVER.restZ + 0.05); // in front of that very lever, toward you
+      // floats right above that very knob, wherever it is (latched knobs sit further back)
+      this.controller.leverPos(k, this.tagAt);
+      m.position.set(this.tagAt.x, this.tagAt.y + 0.04, this.tagAt.z + 0.004);
       if (up === (step === 'unlatch')) this.view.setLeverHighlight(k, 0, up, pulse);
     } else if (step === 'undo') {
       // the red spool breathes, with the tag above it
-      m.position.set(bobbinX(side), 0.03, BOBBIN.z + 0.045); // just in front of the spool it means
+      m.position.set(bobbinX(side), BOBBIN.y + 0.045, BOBBIN.z + 0.02); // just above the spool it means
       this.view.undoHint = pulse;
     } else if (step === 'shuttle') {
       // Tag hangs just outside the frame beside Pip's perch, never over the threads.
