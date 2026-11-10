@@ -361,7 +361,7 @@ export class LoomView {
     // faint target picture on the rows still to weave
     this.ghostCloth = new InstancedMesh(
       cellGeo,
-      new MeshBasicMaterial({ transparent: true, opacity: 0.5, depthWrite: false }), // unlit: reads clearly from the seat
+      new MeshBasicMaterial({ transparent: true, opacity: 0.62, depthWrite: false }), // unlit: reads clearly from the seat
       WARPS * LOOM.maxRows,
     );
     this.ghostCloth.name = 'TargetGhost';
@@ -900,7 +900,7 @@ export class LoomView {
           _p.set(warpX(i), 0.0049, z);
           _m.compose(_p, _q.identity(), _s.set(0.9, 0.15, 0.88)); // flat faint tile on the felt
           this.ghostCloth.setMatrixAt(idx, _m);
-          this.ghostCloth.setColorAt(idx, _c.setHex(this.liftColor).lerp(_c2.setHex(this.groundColor), 0.3)); // softer than woven rows
+          this.ghostCloth.setColorAt(idx, _c.setHex(this.liftColor).lerp(_c2.setHex(this.groundColor), 0.2)); // softer than woven rows
           idx++;
         }
       }
@@ -1117,7 +1117,7 @@ export class LoomView {
   private applyColors(): void {
     const p = this.palette;
     this.liftColor = this.pictureColor ?? p.weft;
-    this.groundColor = 0xf3e7cf; // warm oatmeal-cream yarn: the picture colour reads against it, not white tile
+    this.groundColor = 0xe2d2b2; // oatmeal yarn: the picture colour is the brightest thing on the cloth: the picture colour reads against it, not white tile
     // warp colour comes per strand (instance colour × white), brighter when lifted
     (this.warps?.material as MeshStandardMaterial | undefined)?.color.setHex(0xffffff);
     const yarn = this.bobbin ? (materialOf(this.bobbin, 'Wound') as MeshStandardMaterial | null) : null;
@@ -1266,16 +1266,16 @@ function mysteryMark(): Mesh {
   const c = document.createElement('canvas');
   c.width = c.height = 128;
   const g = c.getContext('2d')!;
-  g.font = 'bold 124px system-ui, sans-serif';
+  g.font = '900 128px system-ui, sans-serif';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
   g.lineWidth = 10;
   g.strokeStyle = '#f3e6cc';
   g.strokeText('?', 64, 72);
-  g.fillStyle = '#3a3550';
+  g.fillStyle = '#2b3a67';
   g.fillText('?', 64, 72);
-  g.lineWidth = 5; // a bolder stitched glyph that reads from the seat
-  g.strokeStyle = '#3a3550';
+  g.lineWidth = 9; // a bolder stitched glyph that reads from the seat
+  g.strokeStyle = '#2b3a67';
   g.strokeText('?', 64, 72);
   const tex = new CanvasTexture(c);
   tex.colorSpace = SRGBColorSpace;

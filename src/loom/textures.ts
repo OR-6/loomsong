@@ -128,7 +128,7 @@ export function knitTexture(): CanvasTexture {
     g.rotate(sx * 0.62);
     const grad = g.createLinearGradient(-20, 0, 20, 0);
     grad.addColorStop(0, '#e6dccc');
-    grad.addColorStop(0.45, '#ffffff');
+    grad.addColorStop(0.45, '#f6efe4'); // matte: no near-white glint
     grad.addColorStop(1, '#d6c8b2');
     g.fillStyle = grad;
     g.beginPath();

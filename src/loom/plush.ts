@@ -70,15 +70,15 @@ export const PLUSH = {
   shelfZ: 0.03,
   /** The plush dances in the air right above the loom it was woven on (seen face-on from the seat). */
   stageX: 0,
-  stageZ: 0.13,
+  stageZ: 0.19,
   /** Hero size while it pops and dances (shelf size is shelfScale). */
-  hero: 1.15,
+  hero: 0.95,
   /** Hover height while it dances (it faces the seated player). */
-  danceY: 0.165,
+  danceY: 0.11,
   /** Width of the cream halo behind the dancing plush (m). */
-  haloSize: 0.2,
+  haloSize: 0.17,
   /** Radius of the felt stage disc under the dancing plush (m). */
-  stageR: 0.062,
+  stageR: 0.052,
 } as const;
 
 /** Seconds per row when a shelf plush sings its picture. */
@@ -670,7 +670,7 @@ export class Plushes {
     const staged = !!h && (this.phase === 'pop' || this.phase === 'hopOut' || this.phase === 'dance');
     this.haloA += ((staged ? 1 : 0) - this.haloA) * Math.min(1, dt * (staged ? 6 : 9));
     const hm = this.halo.material as MeshBasicMaterial;
-    hm.opacity = this.haloA * 0.45;
+    hm.opacity = this.haloA * 0.32;
     this.halo.visible = this.haloA > 0.02 && !!h;
     this.stage.visible = this.halo.visible && (this.phase === 'hopOut' || this.phase === 'dance' || this.phase === 'hopShelf');
     if (h && this.stage.visible) {

@@ -116,6 +116,8 @@ export class GameSystem extends createSystem({
   /** The current chapter's pictures on the shelf (finished ones are pokeable plushes). */
   private shelf: ShelfItem[] = [];
   private singUntil = 0;
+  /** Seconds until the 'New style unlocked' tag shows (0: none pending). */
+  private unlockNoticeIn = 0;
   private plushVecs = Array.from({ length: PLUSH_SLOTS }, () => new Vector3());
   private noticeTimer = 0;
   private tokenPop = 1;
@@ -444,7 +446,7 @@ export class GameSystem extends createSystem({
     this.view.token.visible = true;
     this.tokenPop = 0;
     this.debug.workshopUnlocked = true;
-    this.showNotice('New style unlocked', 6, 'unlock'); // over the token it unlocked, clear of the dancing plush
+    this.unlockNoticeIn = 4.2; // once the plush has danced and hopped to the shelf: one moment at a time
     void loadFont('Fraunces', 4000); // warm the cache before the first switch
     window.dispatchEvent(new CustomEvent('loomsong:unlocked'));
   }
@@ -873,12 +875,16 @@ export class GameSystem extends createSystem({
   /** Position the tutorial label over its target and pulse that target. */
   private syncHint(dt: number) {
     const step = this.flow.hintStep;
+    if (this.unlockNoticeIn > 0) {
+      this.unlockNoticeIn -= dt;
+      if (this.unlockNoticeIn <= 0) this.showNotice('New style unlocked', 6, 'unlock');
+    }
     this.syncGhost(dt, step);
     const m = this.tutor.mesh;
     if (this.notice) {
       this.noticeTimer -= dt;
       if (this.noticeAt === 'token') m.position.set(0, CARD.baseY + this.view.card.heightM + 0.03, CARD.z); // above the card
-      else if (this.noticeAt === 'unlock') m.position.set(tokenX(this.controller.bankSide), 0.05, TOKEN.z);
+      else if (this.noticeAt === 'unlock') m.position.set(tokenX(this.controller.bankSide), 0.06, TOKEN.z);
       else if (this.noticeAt === 'centre') m.position.set(0, 0.08, 0);
       else m.position.set(nudgeX(this.controller.bankSide), 0.075, (NUDGE.upZ + NUDGE.downZ) / 2);
       if (this.noticeTimer <= 0) this.showNotice('', 0);
