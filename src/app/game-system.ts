@@ -52,7 +52,7 @@ const HINT_TEXT: Record<HintStep, string> = {
   lever: 'Slide it away',
   unlatch: 'Slide it back',
   shuttle: 'Slide Pip across',
-  undo: 'Pull the spool to undo',
+  undo: 'Pull to undo',
   card: 'Match the next row',
   none: '',
 };
@@ -993,7 +993,7 @@ export class GameSystem extends createSystem({
       if (up === (step === 'unlatch')) this.view.setLeverHighlight(k, 0, up, pulse);
     } else if (step === 'undo') {
       // the red spool breathes, with the tag above it
-      m.position.set(bobbinX(side), BOBBIN.y + 0.07, BOBBIN.z);
+      m.position.set(bobbinX(side) - side * 0.01, 0.062, BOBBIN.z + 0.012); // just above the spool it means
       this.view.undoHint = pulse;
     } else if (step === 'shuttle') {
       // Tag hangs just outside the frame beside Pip's perch, never over the threads.
