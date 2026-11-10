@@ -20,7 +20,7 @@ knit_img = load_image(os.path.join(SRC, 'Fabric019_1K-JPG', 'Fabric019_rgb256.pn
 # Two wood values: honey for the loom frame (the hero), walnut for the
 # furniture around it (lever box, shelf, easel) so the loom stands out.
 WOOD = mat_tex('Beech', wood_img, tint=0xf2cc98, rough=0.48, clearcoat=0.15)
-WALNUT = mat_tex('WalnutWood', wood_img, tint=0x9a6038, rough=0.5, clearcoat=0.12)
+WALNUT = mat_tex('WalnutWood', wood_img, tint=0x9a6038, rough=0.62, clearcoat=0.0)
 SLOT = mat_paint('SlotDark', 0x2e1c12, rough=0.7, clearcoat=0.0)
 SAGE = mat_paint('PaintSage', 0x9cbf86, rough=0.45, clearcoat=0.3)
 SAGE_DARK = mat_paint('PaintSageDark', 0x7a9d66, rough=0.6, clearcoat=0.1)

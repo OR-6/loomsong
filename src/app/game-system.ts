@@ -239,7 +239,7 @@ export class GameSystem extends createSystem({
         // until each lever has been tried once.
         this.view.setPicture(level.color ?? null, level.tieUp, level.tieUp.map(() => !!level.mystery));
         this.view.setTarget(level.target);
-        this.view.card.paper = level.chapter === 'night' ? '#d6e0f2' : level.chapter === 'sea' ? '#d8eee9' : null;
+        this.view.card.paper = level.chapter === 'night' ? '#c9cff0' : level.chapter === 'sea' ? '#cfeae4' : null;
         this.view.card.setPicture(level.color ?? null, level.par);
         this.view.plushes.setShelf(shelfItems(level, this.progress), CHAPTERS.find((c) => c.id === level.chapter)?.name ?? '');
         this.syncBasket(level);
@@ -849,7 +849,7 @@ export class GameSystem extends createSystem({
     } else if (step === 'shuttle') {
       // Tag hangs just outside the frame beside Pip's perch, never over the threads.
       const end = this.controller.shuttle.t < 0.5 ? -1 : 1;
-      m.position.set(end * SHUTTLE.maxX, 0.165, SHUTTLE.z); // 10 cm above Pip, clear of the hand
+      m.position.set(end * SHUTTLE.maxX, 0.215, SHUTTLE.z); // well above Pip, clear of the hand's fingertips
       if (this.controller.hover.left === null && this.controller.hover.right === null) {
         this.view.setShuttleHighlight(pulse as 0 | 1);
       }

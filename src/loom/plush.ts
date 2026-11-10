@@ -68,13 +68,13 @@ export const PLUSH = {
   shelfX: 0.335,
   shelfZ: 0.03,
   /** Where the plush dances: on the mat in front of the shelf. */
-  /** The plush dances on the open desk at the front, on the lever side (clear of plate and loom). */
-  stageX: -0.12,
-  stageZ: 0.22,
+  /** The plush dances in the air right above the loom it was woven on (seen face-on from the seat). */
+  stageX: 0,
+  stageZ: 0.01,
   /** Hero size while it pops and dances (shelf size is shelfScale). */
   hero: 1.0,
   /** Hover height while it dances (it faces the seated player). */
-  danceY: 0.07,
+  danceY: 0.115,
 } as const;
 
 let puff: BufferGeometry | null = null;
@@ -188,22 +188,30 @@ function addFace(g: Group, rows: readonly Mask8[], color: number): void {
   const want = Math.floor(rows.length * 0.66);
   let best = -1;
   let bestScore = -Infinity;
+  // the face goes on one solid run of cells (the longest contiguous stretch in a
+  // row near the top two-thirds), so it's never split across separate lobes
+  let bestA = 0;
+  let bestB = WARPS - 1;
   for (let r = 0; r < rows.length; r++) {
-    let a = -1;
-    let b = -1;
-    for (let i = 0; i < WARPS; i++) if (isLifted(rows[r], i)) (a < 0 && (a = i), (b = i));
-    if (a < 0 || b - a < 2) continue;
-    const score = -Math.abs(r - want) * 2 + (b - a);
-    if (score > bestScore) {
-      bestScore = score;
-      best = r;
+    for (let i = 0; i < WARPS; ) {
+      if (!isLifted(rows[r], i)) { i++; continue; }
+      let j = i;
+      while (j + 1 < WARPS && isLifted(rows[r], j + 1)) j++;
+      if (j - i >= 1) {
+        const score = -Math.abs(r - want) * 2 + (j - i) * 1.5;
+        if (score > bestScore) {
+          bestScore = score;
+          best = r;
+          bestA = i;
+          bestB = j;
+        }
+      }
+      i = j + 1;
     }
   }
   if (best < 0) best = rows.length - 1;
-  let a = 0;
-  let b = WARPS - 1;
-  for (let i = 0; i < WARPS; i++) if (isLifted(rows[best], i)) { a = i; break; }
-  for (let i = WARPS - 1; i >= 0; i--) if (isLifted(rows[best], i)) { b = i; break; }
+  const a = bestA;
+  const b = bestB;
   eyeGeo ??= new SphereGeometry(1, 14, 10);
   eyeGeo.userData.sharedGeometry = true;
   eyeMat ??= new MeshStandardMaterial({ color: 0x1a1412, roughness: 0.15 });
@@ -607,7 +615,7 @@ export class Plushes {
       this.bounce = Math.min(1, this.bounce + dt / 0.32);
       const b = Math.sin(this.bounce * Math.PI);
       h.position.y = PLUSH.danceY + 0.02 * b; // hovering, bouncing to the song
-      h.rotation.x += (-0.2 - h.rotation.x) * Math.min(1, dt * 8); // upright, a slight lean to face you
+      h.rotation.x += (-0.3 - h.rotation.x) * Math.min(1, dt * 8); // leaning a little toward you
       const land = this.bounce > 0.85 ? (this.bounce - 0.85) / 0.15 : 0;
       h.scale.set(PLUSH.hero * (1 + 0.08 * land), PLUSH.hero * (1 - 0.12 * land + 0.05 * b), PLUSH.hero);
       h.rotation.z += (this.tilt * 0.14 - h.rotation.z) * Math.min(1, dt * 10);

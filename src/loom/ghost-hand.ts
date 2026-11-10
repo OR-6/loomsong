@@ -81,15 +81,15 @@ export class GhostHand {
       emissiveIntensity: 0.25,
       roughness: 0.6,
       transparent: true,
-      opacity: 0.42,
+      opacity: 0.55,
       depthWrite: false,
     });
     // a soft blue rim (fresnel) so the fingers' outlines read, not a milky blob
     body.onBeforeCompile = (sh) => {
       sh.fragmentShader = sh.fragmentShader.replace(
         '#include <dithering_fragment>',
-        `float rim = pow(1.0 - clamp(abs(dot(normalize(normal), normalize(vViewPosition))), 0.0, 1.0), 2.0);
-        gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.31, 0.64, 1.0), rim * 0.85);
+        `float rim = pow(1.0 - clamp(abs(dot(normalize(normal), normalize(vViewPosition))), 0.0, 1.0), 1.4);
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.29, 0.565, 0.886), rim);
         gl_FragColor.a = max(gl_FragColor.a, rim * 0.65);
         #include <dithering_fragment>`,
       );

@@ -1060,7 +1060,7 @@ export class LoomView {
     if (cap) {
       let ring = cap.getObjectByName('MysterySeam') as Mesh | undefined;
       if (!ring && hidden) {
-        ring = new Mesh(new TorusGeometry(LEVER.knobRadius * 1.0, LEVER.knobRadius * 0.12, 6, 28), new MeshStandardMaterial({ color: 0x8a7a63, roughness: 0.9 }));
+        ring = new Mesh(new TorusGeometry(LEVER.knobRadius * 1.0, 0.0018, 8, 32), new MeshStandardMaterial({ color: 0x3a2e2a, roughness: 0.9 }));
         ring.name = 'MysterySeam';
         ring.rotation.x = Math.PI / 2;
         cap.add(ring);

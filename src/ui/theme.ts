@@ -56,7 +56,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     },
     beam: 'round',
     woodRoughness: 0.75,
-    knobRoughness: 0.28,
+    knobRoughness: 0.5, // satin, not glossy plastic
     knobMetalness: 0,
     track: 0x2b2118,
     font: "'Lilita One', system-ui, -apple-system, sans-serif",
