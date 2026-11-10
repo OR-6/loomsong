@@ -83,6 +83,12 @@ export class LoomView {
   shuttle!: Object3D;
   /** Pip parts animated in update(). */
   private pipWings: Object3D[] = [];
+  /** Pip's model inside the shuttle group: moods move this, facing turns the group. */
+  private pipInner: Object3D | null = null;
+  private mood: 'none' | 'happy' | 'sad' | 'cheer' = 'none';
+  private moodT = 0;
+  private idleIn = 3;
+  private idleKind = 0;
   private pipEyes: Object3D[] = [];
   private pipFacing = 1;
   private blinkIn = 2.5;
@@ -353,6 +359,7 @@ export class LoomView {
       pip.scale.setScalar(0.85);
       this.shuttle = new Group();
       this.shuttle.add(pip);
+      this.pipInner = pip;
       this.shuttleMat = materialOf(this.shuttle, 'Body') as MeshStandardMaterial;
       // Head shares the body's material so the hover glow covers all of Pip.
       const head = this.shuttle.getObjectByName('Head') as Mesh | undefined;
@@ -579,6 +586,12 @@ export class LoomView {
     this.levers[k]?.position.set(leverX(k, this.side), y, LEVER.restZ - LEVER.travel * this.leverX[k]);
   }
 
+  /** Pip reacts: 'happy' (good row), 'sad' (wrong row), 'cheer' (picture finished). */
+  setPipMood(m: 'happy' | 'sad' | 'cheer'): void {
+    this.mood = m;
+    this.moodT = 0;
+  }
+
   /** Pip faces where it's flying, flaps while moving, and blinks now and then. */
   private animatePip(dt: number): void {
     const speed = Math.abs(this.shuttleVel);
@@ -596,6 +609,59 @@ export class LoomView {
     const closed = this.blinkIn < 0 && this.blinkIn > -0.12;
     for (const e of this.pipEyes) e.scale.y = closed ? 0.15 : 1;
     if (this.blinkIn <= -0.12) this.blinkIn = 2.5 + Math.random() * 3;
+    this.animateMood(dt, speed);
+  }
+
+  /** Mood and idle motion on Pip's inner model (the outer group handles facing). */
+  private animateMood(dt: number, speed: number): void {
+    const p = this.pipInner;
+    if (!p) return;
+    let y = 0;
+    let pitch = 0;
+    let spin = 0;
+    let look = 0;
+    let squash = 1;
+    const hop = (t: number, period: number, h: number) => h * Math.abs(Math.sin((Math.PI * t) / period));
+    if (this.mood !== 'none') {
+      this.moodT += dt;
+      const t = this.moodT;
+      if (this.mood === 'happy') {
+        if (t < 0.7) y = hop(t, 0.35, 0.012);
+        for (const w of this.pipWings) w.rotation.x *= 0; // reset, then flutter
+        const flutter = t < 0.8 ? Math.sin(t * 40) * 0.7 : 0;
+        this.pipWings.forEach((w, i) => (w.rotation.x = (i === 0 ? 1 : -1) * flutter));
+        if (t > 0.2 && t < 0.6 && this.pipEyes[1]) this.pipEyes[1].scale.y = 0.15; // wink
+        if (t > 1.0) this.mood = 'none';
+      } else if (this.mood === 'sad') {
+        const env = Math.min(1, t / 0.25) * Math.min(1, Math.max(0, (1.6 - t) / 0.4));
+        pitch = -0.38 * env;
+        squash = 1 - 0.08 * env;
+        for (const e of this.pipEyes) e.scale.y = Math.min(e.scale.y, 1 - 0.5 * env);
+        this.pipWings.forEach((w, i) => (w.rotation.x = (i === 0 ? -1 : 1) * 0.25 * env));
+        if (t > 1.6) this.mood = 'none';
+      } else {
+        if (t < 1.2) y = hop(t, 0.4, 0.02);
+        spin = t < 1.2 ? Math.PI * 2 * Math.min(1, t / 1.2) : 0;
+        const flutter = t < 1.4 ? Math.sin(t * 38) * 0.8 : 0;
+        this.pipWings.forEach((w, i) => (w.rotation.x = (i === 0 ? 1 : -1) * flutter));
+        if (t > 1.5) this.mood = 'none';
+      }
+    } else if (speed < 0.05) {
+      // idle on the perch: now and then look around, or a tiny hop
+      this.idleIn -= dt;
+      if (this.idleIn < 0) {
+        const t = -this.idleIn;
+        if (this.idleKind === 0) look = Math.sin((t / 0.9) * Math.PI * 2) * 0.45;
+        else y = hop(t, 0.25, 0.006);
+        if (t > (this.idleKind === 0 ? 0.9 : 0.5)) {
+          this.idleIn = 3.5 + Math.random() * 4;
+          this.idleKind = 1 - this.idleKind;
+        }
+      }
+    }
+    p.position.y = y;
+    p.rotation.set(0, spin + look, pitch);
+    p.scale.set(0.85, 0.85 * squash, 0.85);
   }
 
   /** Visual twin for one plucked warp: it twangs. */

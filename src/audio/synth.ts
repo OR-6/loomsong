@@ -96,11 +96,21 @@ class Synth {
 
   /** Fetch + decode every sample once (≈ 250 KB). Failures just keep the synth. */
   private async load(ctx: AudioContext): Promise<void> {
-    const names = [
-      ...KALIMBA.map((m) => `kalimba/k${m}.ogg`),
-      ...Object.entries(FX).flatMap(([n, c]) => Array.from({ length: c }, (_, i) => `fx/${n}-${i}.ogg`)),
-      'fx/glock-gliss.ogg',
-    ];
+    // index.json lists exactly the files that exist (optional ones like Pip's voice included).
+    let names: string[];
+    try {
+      const res = await fetch(audioUrl('index.json'));
+      names = res.ok ? ((await res.json()) as string[]) : [];
+    } catch {
+      names = [];
+    }
+    if (!names.length) {
+      names = [
+        ...KALIMBA.map((m) => `kalimba/k${m}.ogg`),
+        ...Object.entries(FX).flatMap(([n, c]) => Array.from({ length: c }, (_, i) => `fx/${n}-${i}.ogg`)),
+        'fx/glock-gliss.ogg',
+      ];
+    }
     await Promise.all(
       names.map(async (n) => {
         try {
@@ -131,11 +141,31 @@ class Synth {
     return true;
   }
 
-  /** One of the numbered variants (`wood-light-0..4`), picked at random. */
+  /** One of the loaded numbered variants (`wood-light-0..4`), picked at random. */
   private fx(name: string, gain: number, when = 0, wet = false): boolean {
-    const n = FX[name] ?? 1;
+    let n = 0;
+    while (this.bufs.has(`fx/${name}-${n}.ogg`)) n++;
+    if (!n) return false;
     const i = Math.floor(Math.random() * n);
     return this.play(`fx/${name}-${i}.ogg`, gain, when, 0.96 + Math.random() * 0.08, wet);
+  }
+
+  /**
+   * Pip's voice: recorded bird chirps when present (public/audio/fx/pip-*),
+   * otherwise quick high kalimba grace notes (still a real recording).
+   */
+  chirp(kind: 'happy' | 'sad' | 'cheer'): void {
+    if (this.fx(`pip-${kind}`, kind === 'sad' ? 0.35 : 0.4, 0, true)) return;
+    const r = this.rootMidi;
+    if (kind === 'happy') {
+      this.kalimba(r + 24, 0.12, 0);
+      this.kalimba(r + 28, 0.12, 0.06);
+    } else if (kind === 'sad') {
+      this.kalimba(r + 19, 0.12, 0);
+      this.kalimba(r + 14, 0.11, 0.16);
+    } else {
+      [24, 28, 31, 36, 31, 36].forEach((d, i) => this.kalimba(r + d, 0.1, 0.05 + i * 0.07));
+    }
   }
 
   /** Kalimba note at a MIDI pitch from the nearest recorded note. */

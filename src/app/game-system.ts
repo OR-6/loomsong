@@ -221,6 +221,12 @@ export class GameSystem extends createSystem({
         this.view.card.setUsed(this.model.leverFlips);
       }
       if (e.type === 'row' || e.type === 'undo' || e.type === 'sync') this.view.setRows(this.model.rows);
+      // Pip reacts to each row: a happy hop and wink, or a droop.
+      if (e.type === 'row' && this.flow?.level) {
+        const good = e.row === this.flow.level.target[e.index];
+        this.view.setPipMood(good ? 'happy' : 'sad');
+        audio.chirp(good ? 'happy' : 'sad');
+      }
     });
 
     this.flow = new LevelFlow(this.model, levelAt, this.progress, {
@@ -249,6 +255,8 @@ export class GameSystem extends createSystem({
       },
       win: (stars) => {
         this.controller.enabled = false;
+        this.view.setPipMood('cheer');
+        audio.chirp('cheer');
         // It comes alive: the woven picture pops out as a plush.
         const lv = this.flow.level;
         this.view.plushes.celebrate(lv.id, lv.target, lv.color ?? this.shown().palette.weft, this.flow.challenge ? -1 : shelfSlot(lv));

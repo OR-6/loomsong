@@ -35,4 +35,19 @@ i=0; for f in "$K"/impact-sounds/Audio/impactSoft_medium_00{0..4}.ogg; do enc "$
 i=0; for f in "$K"/rpg-audio/Audio/cloth{1..4}.ogg; do enc "$f" "$OUT/fx/cloth-$i.ogg"; i=$((i+1)); done
 i=0; for f in "$K"/rpg-audio/Audio/bookFlip{1..3}.ogg; do enc "$f" "$OUT/fx/flip-$i.ogg"; i=$((i+1)); done
 i=0; for f in "$K"/kenney_interfaceSounds/Audio/tick_00{1,2,4}.ogg; do enc "$f" "$OUT/fx/tick-$i.ogg"; i=$((i+1)); done
+# Pip's voice (optional): Freesound CC0 clips dropped into assets-src/freesound/,
+# matched by their Freesound id (the number the download's file name starts with).
+if [ -d "$SRC/freesound" ]; then
+  h=0; c=0; d=0
+  for f in "$SRC"/freesound/*; do
+    id=$(basename "$f" | sed -E 's/^([0-9]+).*/\1/')
+    case "$id" in
+      233255|85404) enc "$f" "$OUT/fx/pip-happy-$h.ogg" "highpass=f=900,silenceremove=start_periods=1:start_threshold=-40dB,atrim=0:0.7,afade=t=out:st=0.5:d=0.2"; h=$((h+1));;
+      85403) enc "$f" "$OUT/fx/pip-cheer-$c.ogg" "highpass=f=900,silenceremove=start_periods=1:start_threshold=-40dB,atrim=0:1.4,afade=t=out:st=1.1:d=0.3"; c=$((c+1));;
+      703254) enc "$f" "$OUT/fx/pip-sad-$d.ogg" "highpass=f=600,silenceremove=start_periods=1:start_threshold=-40dB,atrim=0:1.2,afade=t=out:st=0.9:d=0.3"; d=$((d+1));;
+    esac
+  done
+fi
+# Index of every sample, so the game loads exactly what exists (no 404s).
+( cd "$OUT" && find kalimba fx -name '*.ogg' | sort | awk 'BEGIN{printf "["} {printf "%s\"%s\"", (NR>1?",":""), $0} END{print "]"}' ) > "$OUT/index.json"
 du -sh "$OUT"; ls "$OUT"/kalimba

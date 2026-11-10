@@ -136,7 +136,7 @@ export class Basket {
     this.setSide(1);
   }
 
-  /** Two beech knitting needles with painted ends, stuck in at the back. */
+  /** Two beech knitting needles with painted ends, lying crossed on the mat beside the basket. */
   private buildNeedles(): void {
     const wood = new MeshStandardMaterial({ color: 0xe8c79a, roughness: 0.6 });
     const g = new CylinderGeometry(0.0019, 0.0016, 0.07, 8);
@@ -149,8 +149,10 @@ export class Basket {
       const end = new Mesh(ball, new MeshStandardMaterial({ color: paints[n], roughness: 0.4 }));
       end.position.y = 0.071;
       stick.add(shaft, end);
-      stick.position.set(n ? 0.012 : -0.016, 0.006, -0.018);
-      stick.rotation.set(-0.62, 0, n ? -0.45 : 0.5);
+      // lying on the mat, shaft pointing toward the player; the second crosses over the first
+      stick.rotation.order = 'YXZ';
+      stick.rotation.set(Math.PI / 2, n ? 0.38 : -0.22, 0);
+      stick.position.set(n ? -0.088 : -0.072, 0.0019 + n * 0.0034, -0.035);
       stick.traverse((o) => ((o as Mesh).isMesh ? (o.castShadow = true) : null));
       this.needles.add(stick);
     }
@@ -163,6 +165,8 @@ export class Basket {
     this.bowl?.position.set(x, 0, BASKET.z);
     this.lining.position.set(x, 0, BASKET.z);
     this.needles.position.set(x, 0, BASKET.z);
+    // on the outer side of the basket, away from the loom
+    this.needles.scale.x = side;
     this.place();
     this.layTails();
     this.label.mesh.position.set(x, 0.088, BASKET.z);
