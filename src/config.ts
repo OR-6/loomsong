@@ -75,10 +75,10 @@ export const BOBBIN = {
 
 /** Style token: on the front beam's lever-side end. */
 export const TOKEN = {
-  /** Beside the level plate on the desk (style swap: Toy / Workshop). */
-  x: 0.13,
+  /** Docked at the level plate's end (style swap: Toy / Workshop). */
+  x: 0.055,
   y: 0.012,
-  z: 0.14,
+  z: 0.138,
   radius: 0.011,
 } as const;
 

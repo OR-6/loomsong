@@ -239,6 +239,7 @@ export class GameSystem extends createSystem({
         // until each lever has been tried once.
         this.view.setPicture(level.color ?? null, level.tieUp, level.tieUp.map(() => !!level.mystery));
         this.view.setTarget(level.target);
+        this.view.card.paper = level.chapter === 'night' ? '#e3e8f7' : level.chapter === 'sea' ? '#e2f1ee' : null;
         this.view.card.setPicture(level.color ?? null, level.par);
         this.view.plushes.setShelf(shelfItems(level, this.progress), CHAPTERS.find((c) => c.id === level.chapter)?.name ?? '');
         this.syncBasket(level);
@@ -848,7 +849,7 @@ export class GameSystem extends createSystem({
     } else if (step === 'shuttle') {
       // Tag hangs just outside the frame beside Pip's perch, never over the threads.
       const end = this.controller.shuttle.t < 0.5 ? -1 : 1;
-      m.position.set(end * 0.12, 0.16, SHUTTLE.z); // above and inside Pip's perch: clear of the ghost hand
+      m.position.set(end * 0.215, 0.095, SHUTTLE.z + 0.01); // just outside Pip's perch, clear of the hand and the card
       if (this.controller.hover.left === null && this.controller.hover.right === null) {
         this.view.setShuttleHighlight(pulse as 0 | 1);
       }

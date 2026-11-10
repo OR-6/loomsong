@@ -76,12 +76,12 @@ export class GhostHand {
     // A soft, glowing body with a crisp golden edge (own materials, so the
     // player's hands are untouched).
     const body = new MeshStandardMaterial({
-      color: 0xcfe6ff,
-      emissive: 0x9cc8ff,
-      emissiveIntensity: 0.2,
+      color: 0xf4f7ff,
+      emissive: 0xb8d6ff,
+      emissiveIntensity: 0.25,
       roughness: 0.6,
       transparent: true,
-      opacity: 0.25,
+      opacity: 0.55,
       depthWrite: false,
     });
     // a soft blue rim (fresnel) so the fingers' outlines read, not a milky blob
@@ -89,7 +89,7 @@ export class GhostHand {
       sh.fragmentShader = sh.fragmentShader.replace(
         '#include <dithering_fragment>',
         `float rim = pow(1.0 - clamp(abs(dot(normalize(normal), normalize(vViewPosition))), 0.0, 1.0), 2.0);
-        gl_FragColor.rgb += vec3(0.5, 0.72, 1.0) * rim * 0.9;
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.31, 0.64, 1.0), rim * 0.85);
         gl_FragColor.a = max(gl_FragColor.a, rim * 0.65);
         #include <dithering_fragment>`,
       );

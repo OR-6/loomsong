@@ -30,7 +30,7 @@ import {
 import { Label } from '../ui/label.js';
 import { LOOM, WARPS } from '../config.js';
 import { isLifted, type Mask8 } from '../puzzle/tieup.js';
-import { weaveTexture } from './textures.js';
+import { knitTexture, weaveTexture } from './textures.js';
 import { cloneModel, loomModels } from './models.js';
 
 /** A soft felt pennant: a subdivided triangle, top edge at y = 0, gently cupped. */
@@ -59,7 +59,7 @@ export const PLUSH = {
   cell: 0.014,
   /** Depth of the plush, in cells. */
   depth: 1.6,
-  shelfScale: 0.46,
+  shelfScale: 0.42,
   slots: 5,
   slotGap: 0.047,
   /** Plush base height on the shelf: the bench top (36 mm). */
@@ -68,13 +68,13 @@ export const PLUSH = {
   shelfX: 0.335,
   shelfZ: 0.03,
   /** Where the plush dances: on the mat in front of the shelf. */
-  /** The plush dances front and centre, in front of the level plate. */
-  stageX: 0,
-  stageZ: 0.22,
+  /** The plush dances on the open desk at the front, on the lever side (clear of plate and loom). */
+  stageX: -0.2,
+  stageZ: 0.2,
   /** Hero size while it pops and dances (shelf size is shelfScale). */
   hero: 1.3,
   /** Hover height while it dances (it faces the seated player). */
-  danceY: 0.09,
+  danceY: 0.07,
 } as const;
 
 let puff: BufferGeometry | null = null;
@@ -119,7 +119,7 @@ export function buildPlush(rows: readonly Mask8[], color: number): Group {
     sheen: 1,
     sheenRoughness: 0.55,
     sheenColor: new Color(0xffffff),
-    map: weaveTexture(),
+    map: knitTexture(), // the same crisp knitted stitch as the cloth on the loom
   });
   const body = new InstancedMesh(puffGeometry(), mat, Math.max(1, n));
   body.name = 'PlushBody';
@@ -591,7 +591,7 @@ export class Plushes {
     if (this.phase === 'pop') {
       const k = Math.min(1, this.t / 0.35);
       h.scale.setScalar(Math.max(0.001, back(k) * PLUSH.hero));
-      h.position.y = 0.004 + 0.16 * ease(k); // rises high above the loom
+      h.position.y = 0.004 + 0.07 * ease(k); // pops up out of the cloth
       if (k >= 1) {
         this.phase = 'hopOut';
         this.t = 0;

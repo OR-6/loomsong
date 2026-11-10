@@ -29,6 +29,9 @@ export class TargetCard {
   private par = 0;
   private used = 0;
 
+  /** Optional paper tint for the chapter (e.g. a cool dusk for Night). */
+  paper: string | null = null;
+
   setPicture(color: number | null, par: number): void {
     this.color = color;
     this.par = par;
@@ -103,7 +106,7 @@ export class TargetCard {
     g.clearRect(0, 0, c.width, c.height);
 
     // Card body (linen paper).
-    g.fillStyle = highContrast ? '#ffffff' : th.paper;
+    g.fillStyle = highContrast ? '#ffffff' : (this.paper ?? th.paper);
     roundRect(g, 0, 0, c.width, c.height, px(0.006));
     g.fill();
     g.lineWidth = px(highContrast ? 0.0015 : 0.0008);

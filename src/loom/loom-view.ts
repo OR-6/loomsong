@@ -79,7 +79,7 @@ const THREAD_CREAM = 0xeed7b0;
 const UNDO_RED = 0xe4573d;
 
 /** Undyed wool: the colour of a mystery lever before it's been tried. */
-const UNDYED = 0xe6dccb;
+const UNDYED = 0xcbb89a; // oatmeal: clearly not the cream stems
 /** Strands per warp bundle, and their spread (they pinch to 30 % at the eyelet). */
 const STRANDS = 1;
 const STRAND_GAP = 0.0052;
@@ -357,7 +357,7 @@ export class LoomView {
     // faint target picture on the rows still to weave
     this.ghostCloth = new InstancedMesh(
       cellGeo,
-      new MeshStandardMaterial({ transparent: true, opacity: 0.55, roughness: 1, depthWrite: false, map: weaveTexture() }),
+      new MeshStandardMaterial({ transparent: true, opacity: 0.7, roughness: 1, depthWrite: false, map: weaveTexture() }),
       WARPS * LOOM.maxRows,
     );
     this.ghostCloth.name = 'TargetGhost';
