@@ -34,6 +34,39 @@ function cloneSkinned(src: Object3D): Object3D {
   return out;
 }
 
+/** Extra curl (radians per joint: proximal, intermediate, distal) for the three free fingers,
+ * so the pose reads as a pinch (thumb and index together, the rest tucked), not an open hand. */
+const CURL = [-1.05, -1.2, -0.7];
+const FREE = ['middle-finger', 'ring-finger', 'pinky-finger'];
+const JOINTS = ['metacarpal', 'phalanx-proximal', 'phalanx-intermediate', 'phalanx-distal', 'tip'];
+
+/** Curls fingers in model space (the WebXR hand rig's joints are flat siblings). */
+function curlFingers(model: Object3D, angles: number[]): void {
+  const by = new Map<string, Object3D>();
+  model.traverse((o) => by.set(o.name, o));
+  const a = by.get('index-finger-phalanx-proximal');
+  const b = by.get('pinky-finger-phalanx-proximal');
+  if (!a || !b) return;
+  const axis = new Vector3().subVectors(b.position, a.position).normalize();
+  const r = new Quaternion();
+  const piv = new Vector3();
+  for (const f of FREE) {
+    const chain = JOINTS.map((j) => by.get(`${f}-${j}`));
+    if (chain.some((c) => !c)) continue;
+    for (let j = 1; j <= 3; j++) {
+      r.setFromAxisAngle(axis, angles[j - 1]);
+      piv.copy(chain[j]!.position);
+      for (let k = j + 1; k < chain.length; k++) {
+        const o = chain[k]!;
+        o.position.sub(piv).applyQuaternion(r).add(piv);
+        o.quaternion.premultiply(r);
+      }
+      // the joint itself turns too (its bone segment points at the next joint)
+      chain[j]!.quaternion.premultiply(r);
+    }
+  }
+}
+
 export class GhostHand {
   readonly root = new Group();
   private inner = new Group();
@@ -73,6 +106,7 @@ export class GhostHand {
       o.position.fromArray(b.p);
       o.quaternion.fromArray(b.q);
     });
+    curlFingers(m, CURL);
     // A soft, glowing body with a crisp golden edge (own materials, so the
     // player's hands are untouched).
     const body = new MeshStandardMaterial({
@@ -124,8 +158,17 @@ export class GhostHand {
     this.gesture = g;
     this.side = side;
     this.t = 0;
-    // a right hand for a right-hand lever bank; mirrored for the left
-    this.inner.scale.set(side * 0.75, 0.75, 0.75);
+    if (g?.kind === 'shuttle') {
+      // Side-on from the outside end: the hand on that side reaches in, fingers
+      // pointing along the race, so the seat sees thumb and index pinch in profile.
+      const out = g.fromEnd === 0 ? -1 : 1;
+      this.inner.scale.set(out * 0.85, 0.85, 0.85);
+      this.inner.rotation.set(0, out * Math.PI / 2, 0);
+    } else {
+      // a right hand for a right-hand lever bank; mirrored for the left
+      this.inner.scale.set(side * 0.75, 0.75, 0.75);
+      this.inner.rotation.set(0, 0, 0);
+    }
   }
 
   /** `busy`: the player's hand is hovering or holding something. */

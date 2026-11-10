@@ -7,6 +7,7 @@
 import {
   BoxGeometry,
   CanvasTexture,
+  SRGBColorSpace,
   CapsuleGeometry,
   Color,
   Group,
@@ -74,7 +75,7 @@ const _glow = new Color(0xffe2a8);
 /** Underside of the heddle bar in the Blender model (bar centre 0.071, 17 mm tall). */
 const HEDDLE_BAR_BOTTOM_Y = 0.0625;
 /** Lowered warp threads: warm undyed yarn, not white (white reads as plastic). */
-const THREAD_CREAM = 0xeed7b0;
+const THREAD_CREAM = 0xe2cca0;
 /** The style token is drawn 1.6x (it read as a stray bead at 2 cm). */
 export const TOKEN_SIZE = 1.6;
 /** The undo spool's yarn: red, so it reads as a control, not debris. */
@@ -360,7 +361,7 @@ export class LoomView {
     // faint target picture on the rows still to weave
     this.ghostCloth = new InstancedMesh(
       cellGeo,
-      new MeshBasicMaterial({ transparent: true, opacity: 0.5, depthWrite: false }), // unlit: reads clearly from the seat
+      new MeshBasicMaterial({ transparent: true, opacity: 0.7, depthWrite: false }), // unlit: reads clearly from the seat
       WARPS * LOOM.maxRows,
     );
     this.ghostCloth.name = 'TargetGhost';
@@ -1060,10 +1061,17 @@ export class LoomView {
     if (cap) {
       let ring = cap.getObjectByName('MysterySeam') as Mesh | undefined;
       if (!ring && hidden) {
-        ring = new Mesh(new TorusGeometry(LEVER.knobRadius * 1.0, 0.0018, 8, 32), new MeshStandardMaterial({ color: 0x3a2e2a, roughness: 0.9 }));
+        ring = new Mesh(new TorusGeometry(LEVER.knobRadius * 1.0, 0.0026, 8, 32), new MeshStandardMaterial({ color: 0x4a3a2a, roughness: 0.9 }));
         ring.name = 'MysterySeam';
         ring.rotation.x = Math.PI / 2;
+        // the cap's vertices are baked at knob height: sit the seam on the dome's equator
+        const g = (cap as Mesh).geometry;
+        if (g) {
+          g.computeBoundingBox();
+          g.boundingBox!.getCenter(ring.position);
+        }
         cap.add(ring);
+        ring.add(mysteryMark()); // a stitched '?' on the dome (child of the ring: shown and hidden with it)
       }
       if (ring) ring.visible = hidden;
     }
@@ -1099,7 +1107,7 @@ export class LoomView {
   private applyColors(): void {
     const p = this.palette;
     this.liftColor = this.pictureColor ?? p.weft;
-    this.groundColor = 0xf1e3c4; // warm cream yarn, not white tile
+    this.groundColor = 0xf5e6c4; // warm cream yarn, not white tile
     // warp colour comes per strand (instance colour × white), brighter when lifted
     (this.warps?.material as MeshStandardMaterial | undefined)?.color.setHex(0xffffff);
     const yarn = this.bobbin ? (materialOf(this.bobbin, 'Wound') as MeshStandardMaterial | null) : null;
@@ -1234,3 +1242,32 @@ function radialTexture(): CanvasTexture {
 }
 
 export { UP };
+
+/** A dark stitched '?' printed on the top of a mystery lever's dome (in the seam ring's space:
+ * the ring is rotated +90° about x, so the dome's up is the ring's -z). */
+function mysteryMark(): Mesh {
+  const R = LEVER.knobRadius * 1.012;
+  const th = 0.72;
+  const geo = new SphereGeometry(R, 28, 8, 0, Math.PI * 2, 0, th);
+  const w = R * Math.sin(th);
+  const pos = geo.attributes.position;
+  const uv = geo.attributes.uv;
+  for (let i = 0; i < pos.count; i++) uv.setXY(i, 0.5 + pos.getX(i) / (2 * w), 0.5 - pos.getZ(i) / (2 * w));
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d')!;
+  g.font = 'bold 104px system-ui, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.lineWidth = 10;
+  g.strokeStyle = '#f3e6cc';
+  g.strokeText('?', 64, 70);
+  g.fillStyle = '#4a3a2a';
+  g.fillText('?', 64, 70);
+  const tex = new CanvasTexture(c);
+  tex.colorSpace = SRGBColorSpace;
+  const m = new Mesh(geo, new MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -2 }));
+  m.name = 'MysteryMark';
+  m.rotation.x = -Math.PI / 2; // undo the ring's turn: dome up again
+  return m;
+}
