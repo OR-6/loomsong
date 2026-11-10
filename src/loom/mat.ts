@@ -4,7 +4,7 @@
  */
 import { CanvasTexture, Mesh, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace } from '@iwsdk/core';
 
-export const MAT = { width: 0.72, depth: 0.32, backZ: -0.165, y: 0.0012, offsetX: 0.06 } as const;
+export const MAT = { width: 0.72, depth: 0.39, backZ: -0.165, y: 0.0012, offsetX: 0.06 } as const;
 
 function feltTexture(): CanvasTexture {
   const c = document.createElement('canvas');

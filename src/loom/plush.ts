@@ -20,12 +20,20 @@ import {
   SphereGeometry,
   TorusGeometry,
   Vector3,
+  CylinderGeometry,
+  TubeGeometry,
+  CatmullRomCurve3,
+  Shape,
+  ShapeGeometry,
 } from '@iwsdk/core';
 import { Label } from '../ui/label.js';
 import { LOOM, WARPS } from '../config.js';
 import { isLifted, type Mask8 } from '../puzzle/tieup.js';
 import { weaveTexture } from './textures.js';
 import { cloneModel, loomModels } from './models.js';
+
+/** Shelf bunting: posts at the shelf ends, a sagging string, pennants per slot. */
+const BUNT = { halfW: 0.112, postH: 0.122, sag: 0.014 } as const;
 
 export const PLUSH = {
   cell: 0.014,
@@ -254,6 +262,7 @@ export class Plushes {
   private hero: Group | null = null;
   private heroSlot = -1;
   private heroId = '';
+  private heroColor = 0;
   private phase: ShowPhase = 'none';
   private t = 0;
   private from = new Vector3();
@@ -291,8 +300,61 @@ export class Plushes {
     }
     this.tag.mesh.name = 'ChapterTag';
     this.root.add(this.tag.mesh);
+    this.buildBunting();
     this.setSide(1);
   }
+
+  /**
+   * Bunting over the shelf: a pennant per picture on a yarn string between two
+   * dowel posts. A pennant takes the picture's colour once it's been woven.
+   */
+  private buildBunting(): void {
+    const g = this.bunting;
+    g.name = 'Bunting';
+    const wood = new MeshStandardMaterial({ color: 0xe8c79a, roughness: 0.6 });
+    const post = new CylinderGeometry(0.0028, 0.0032, BUNT.postH, 10);
+    const knob = new SphereGeometry(0.0055, 12, 8);
+    const knobMat = new MeshStandardMaterial({ color: 0xe2563b, roughness: 0.4 });
+    for (const sx of [-1, 1]) {
+      const p = new Mesh(post, wood);
+      p.position.set(sx * BUNT.halfW, PLUSH.shelfTopY - 0.004 + BUNT.postH / 2, -0.018);
+      const k = new Mesh(knob, knobMat);
+      k.position.set(sx * BUNT.halfW, PLUSH.shelfTopY - 0.004 + BUNT.postH + 0.003, -0.018);
+      p.castShadow = k.castShadow = true;
+      g.add(p, k);
+    }
+    // the string: a gentle catenary between the post tops
+    const top = PLUSH.shelfTopY - 0.004 + BUNT.postH - 0.004;
+    const pts: Vector3[] = [];
+    for (let i = 0; i <= 16; i++) {
+      const u = i / 16;
+      const x = -BUNT.halfW + 2 * BUNT.halfW * u;
+      pts.push(new Vector3(x, top - BUNT.sag * 4 * u * (1 - u), -0.018));
+    }
+    const str = new Mesh(new TubeGeometry(new CatmullRomCurve3(pts), 32, 0.0007, 4), new MeshStandardMaterial({ color: 0xf3e6cf, roughness: 0.9 }));
+    g.add(str);
+    // pennants: felt triangles hanging from the string at each slot
+    const tri = new Shape();
+    tri.moveTo(-0.016, 0);
+    tri.lineTo(0.016, 0);
+    tri.lineTo(0, -0.033);
+    tri.closePath();
+    const tg = new ShapeGeometry(tri);
+    for (let i = 0; i < PLUSH.slots; i++) {
+      const x = (i - (PLUSH.slots - 1) / 2) * PLUSH.slotGap;
+      const u = (x + BUNT.halfW) / (2 * BUNT.halfW);
+      const pen = new Mesh(tg, new MeshStandardMaterial({ color: 0xf3e6cf, roughness: 0.95, side: 2, map: weaveTexture() }));
+      pen.position.set(x, top - BUNT.sag * 4 * u * (1 - u) - 0.0008, -0.017);
+      pen.castShadow = true;
+      this.pennants.push(pen);
+      g.add(pen);
+    }
+    this.root.add(g);
+  }
+
+  private bunting = new Group();
+  private pennants: Mesh[] = [];
+  private sway = 0;
 
   private cushions: Mesh[] = [];
   private tag = new Label(0.13, 0.024);
@@ -300,6 +362,7 @@ export class Plushes {
   setSide(side: 1 | -1): void {
     this.side = side;
     this.shelf.position.set(-side * PLUSH.shelfX, 0, PLUSH.shelfZ);
+    this.bunting.position.set(-side * PLUSH.shelfX, 0, PLUSH.shelfZ);
     for (let i = 0; i < this.cushions.length; i++) {
       this.slotPos(i, this.cushions[i].position);
       this.cushions[i].position.y = 0.0362;
@@ -323,6 +386,11 @@ export class Plushes {
     const done = items.filter((it) => it.done).length;
     this.tag.set(chapter ? `${chapter} ${done}/${items.length}` : '');
     for (let i = 0; i < this.cushions.length; i++) this.cushions[i].visible = i < items.length;
+    for (let i = 0; i < this.pennants.length; i++) {
+      const it = items[i];
+      this.pennants[i].visible = !!it;
+      (this.pennants[i].material as MeshStandardMaterial).color.set(it?.done ? it.color : 0xf3e6cf);
+    }
     for (let i = 0; i < PLUSH.slots; i++) {
       const it = items[i];
       const id = it && it.done ? it.id : null;
@@ -346,6 +414,7 @@ export class Plushes {
     this.hero = buildPlush(rows, color);
     this.heroSlot = slot;
     this.heroId = id;
+    this.heroColor = color;
     this.hero.position.set(0, 0.004, LOOM.fellZ + 0.035);
     this.hero.scale.setScalar(0.001);
     this.root.add(this.hero);
@@ -392,9 +461,15 @@ export class Plushes {
     this.slotPos(this.heroSlot, h.position);
     this.slotItems[this.heroSlot] = h;
     this.slotIds[this.heroSlot] = this.heroId;
+    // its pennant on the bunting takes the picture's colour
+    const pen = this.pennants[this.heroSlot];
+    if (pen) (pen.material as MeshStandardMaterial).color.set(this.heroColor);
   }
 
   update(dt: number): void {
+    // pennants sway a little, each out of step
+    this.sway += dt;
+    for (let i = 0; i < this.pennants.length; i++) this.pennants[i].rotation.x = Math.sin(this.sway * 1.6 + i * 1.3) * 0.12;
     const h = this.hero;
     if (!h) return;
     this.t += dt;

@@ -146,6 +146,23 @@ bowl.scale = (1.45, 1, 1)  # oval (game x is blender x)
 rim = lathe('BasketRim', [(0.0385, 0.0275), (0.0425, 0.0275), (0.0435, 0.0305), (0.0405, 0.0325), (0.0385, 0.0305)],
             (0, 0, 0), segs=40, mat=DARK, parent=basket)
 rim.scale = (1.45, 1, 1)
+# Upright wicker stakes around the wall: the woven look (rows + stakes).
+STAKE = mat_paint('WickerStake', 0xa8743f, rough=0.85, clearcoat=0.05)
+for j in range(22):
+    th = j / 22 * math.tau
+    for h0, h1, r0, r1 in ((0.003, 0.0285, 0.0312, 0.0412),):
+        x0, z0 = math.cos(th) * (r0 + 0.0009) * 1.45, math.sin(th) * (r0 + 0.0009)
+        x1, z1 = math.cos(th) * (r1 + 0.0009) * 1.45, math.sin(th) * (r1 + 0.0009)
+        st = lathe(f'Stake{j}', [(0, 0), (0.0014, 0), (0.0014, 1), (0, 1)], (0, 0, 0), segs=6, mat=STAKE, parent=basket)
+        # unit stake along +Y → stretch and tilt it to span (x0,h0,z0)→(x1,h1,z1)
+        dx, dy, dz = x1 - x0, h1 - h0, z1 - z0
+        L_ = math.sqrt(dx * dx + dy * dy + dz * dz)
+        st.scale = (1, 1, L_)
+        from mathutils import Vector as _V
+        d = G(dx, dy, dz).normalized()
+        st.rotation_mode = 'QUATERNION'
+        st.rotation_quaternion = _V((0, 0, 1)).rotation_difference(d)
+        st.location = G(x0, h0, z0)
 
 # ---- Lever knob prototype (cloned ×4 in code; cap recoloured) ----
 knob = empty('LeverKnob', at=(0, 0, 0))
