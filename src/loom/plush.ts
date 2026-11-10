@@ -268,20 +268,8 @@ function cutout(rows: readonly Mask8[]): Group {
   };
   g.fillStyle = '#efe4cc';
   blob(3); // a cream stitched edge
-  g.fillStyle = '#8d9099';
+  g.fillStyle = '#8f8a84';
   blob(0);
-  // running stitch just inside the edge
-  g.globalCompositeOperation = 'source-atop';
-  g.strokeStyle = 'rgba(239,228,204,0.55)';
-  g.setLineDash([5, 4]);
-  g.lineWidth = 2;
-  for (let r = 0; r < n; r++)
-    for (let i = 0; i < WARPS; i++) {
-      if (!isLifted(rows[r], i)) continue;
-      const x = (i + 0.5) * PX;
-      const y = (n - r - 0.5) * PX;
-      g.strokeRect(x + 4, y + 4, PX - 8, PX - 8);
-    }
   const tex = new CanvasTexture(c);
   tex.colorSpace = SRGBColorSpace;
   const cell = PLUSH.cell * PLUSH.shelfScale * 1.5;
@@ -295,6 +283,11 @@ function cutout(rows: readonly Mask8[]): Group {
   peg.position.y = 0.003;
   (peg.material as MeshStandardMaterial).userData.own = true;
   const grp = new Group();
+  // a darker backing gives the felt real thickness (~6 mm) and a shadow edge
+  const back = new Mesh(mesh.geometry, new MeshStandardMaterial({ map: tex, color: 0x777270, transparent: true, alphaTest: 0.4, roughness: 1, side: 2 }));
+  (back.material as MeshStandardMaterial).userData.own = true;
+  back.position.z = -0.003;
+  mesh.add(back);
   grp.add(mesh, peg);
   mesh.rotation.x = -0.45; // leaning back toward the seated player
   return grp;

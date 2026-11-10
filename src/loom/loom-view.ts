@@ -820,7 +820,7 @@ export class LoomView {
       for (let i = 0; i < WARPS; i++) {
         _p.set(warpX(i), 0.0062, z);
         // slightly domed yarn cells with a little gap (the felt shows as the seam)
-        _m.compose(_p, _q.identity(), _s.set(WARP_PITCH * 0.95, 0.0055, LOOM.rowPitch * 0.92));
+        _m.compose(_p, _q.identity(), _s.set(WARP_PITCH * 0.96, 0.0036, LOOM.rowPitch * 0.93));
         this.cloth.setMatrixAt(idx, _m);
         // warp visible if lifted in that row, else weft visible
         _c.setHex(isLifted(row, i) ? this.liftColor : this.groundColor);

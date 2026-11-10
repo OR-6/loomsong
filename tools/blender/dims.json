@@ -19,7 +19,7 @@
     "spacing": 0.04,
     "restZ": 0.075,
     "travel": 0.05,
-    "knobY": 0.056,
+    "knobY": 0.068,
     "knobRadius": 0.0172,
     "magnet": 0.3
   },
@@ -27,9 +27,9 @@
   "SHUTTLE": {
     "z": -0.018,
     "y": 0.044,
-    "minX": -0.152,
-    "maxX": 0.152,
-    "perchY": 0.065,
+    "minX": -0.168,
+    "maxX": 0.168,
+    "perchY": 0.058,
     "shedHalf": 0.1,
     "completeAt": 0.6,
     "autoThrowSpeed": 0.35

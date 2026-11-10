@@ -80,9 +80,9 @@ rounded_box('ShuttleRace', (HW * 2 - 0.024, 0.006, 0.018), (0, 0.016, SZ), bevel
 # race (clear of the posts), with a tomato pad on top. Identical both sides.
 for sx in (-1, 1):
     nm = 'L' if sx < 0 else 'R'
-    lathe(f'Perch{nm}', [(0, 0), (0.0225, 0), (0.0235, 0.003), (0.0225, 0.006), (0, 0.006)], (sx * 0.152, 0.031, SZ), segs=32, mat=WALNUT, parent=frame)
-    lathe(f'PerchPad{nm}', [(0, 0), (0.019, 0), (0.0195, 0.002), (0.018, 0.003), (0, 0.003)], (sx * 0.152, 0.037, SZ), segs=32, mat=SAGE, parent=frame)
-    lathe(f'PerchLeg{nm}', [(0, 0), (0.006, 0), (0.0055, 0.031), (0, 0.031)], (sx * 0.152, 0, SZ), segs=16, mat=WALNUT, parent=frame)
+    lathe(f'Perch{nm}', [(0, 0), (0.0225, 0), (0.0235, 0.003), (0.0225, 0.006), (0, 0.006)], (sx * 0.168, 0.031, SZ), segs=32, mat=WALNUT, parent=frame)
+    lathe(f'PerchPad{nm}', [(0, 0), (0.019, 0), (0.0195, 0.002), (0.018, 0.003), (0, 0.003)], (sx * 0.168, 0.037, SZ), segs=32, mat=SAGE, parent=frame)
+    lathe(f'PerchLeg{nm}', [(0, 0), (0.006, 0), (0.0055, 0.031), (0, 0.031)], (sx * 0.168, 0, SZ), segs=16, mat=WALNUT, parent=frame)
 for sx in (-1, 1):  # end stops: the boat parks against them
     rounded_box('RaceStop', (0.006, 0.011, 0.018), (sx * (HW - 0.016), 0.022, SZ), bevel=0.0025, segs=3, mat=WALNUT, parent=frame)
 
@@ -182,7 +182,7 @@ rim.scale = (1.45, 1, 1)
 knob = empty('LeverKnob', at=(0, 0, 0))
 r = LV['knobRadius']
 KY = LV['knobY']
-lathe('Stem', [(0, 0.0), (0.0042, 0.0), (0.0040, KY - r * 0.55), (0, KY - r * 0.55)], (0, 0, 0), segs=18, mat=WALNUT, parent=knob)
+lathe('Stem', [(0, 0.0), (0.0048, 0.0), (0.0045, KY - r * 0.55), (0, KY - r * 0.55)], (0, 0, 0), segs=18, mat=CREAM, parent=knob)
 head = [(0, -r)] + [(r * math.sin(a), -r * math.cos(a)) for a in [i * math.pi / 18 for i in range(1, 18)]] + [(0, r)]
 cap = lathe('Cap0', head, (0, KY, 0), segs=36, mat=KNOB, parent=knob)
 cap.scale = (1.0, 1.0, 0.95)  # a round lollipop handle on its stem: reads as 'grab me'

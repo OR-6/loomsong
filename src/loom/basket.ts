@@ -94,7 +94,7 @@ export class Basket {
 
     const R = BASKET.ballR;
     const core = new SphereGeometry(R * 0.93, 20, 14);
-    const wrapGeo = new TorusGeometry(R * 0.97, R * 0.075, 5, 28);
+    const wrapGeo = new TorusGeometry(R * 0.95, R * 0.05, 5, 32);
     this.wraps = new InstancedMesh(wrapGeo, new MeshStandardMaterial({ roughness: 0.95, map: yarnTexture() }), BASKET.balls * WRAPS);
     this.wraps.name = 'YarnWraps';
     this.wraps.castShadow = true;
