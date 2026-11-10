@@ -27,7 +27,9 @@ import { Placement, loomPose } from './placement.js';
 import { Label } from '../ui/label.js';
 import { audio } from '../audio/synth.js';
 import { LevelFlow, type HintStep } from './level-flow.js';
-import { levelAt } from '../puzzle/catalog.js';
+import { CHAPTERS, LEVELS, levelAt } from '../puzzle/catalog.js';
+import type { Level } from '../puzzle/levels.js';
+import type { ShelfItem } from '../loom/plush.js';
 import { loadProgress, saveProgress, workshopUnlocked, type Progress } from '../persistence/progress.js';
 import { THEMES, highContrast, otherTheme, type Theme, type ThemeId } from '../ui/theme.js';
 import { loadSettings, saveSettings, type Settings } from '../persistence/settings.js';
@@ -142,6 +144,8 @@ export class GameSystem extends createSystem({
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = PCFSoftShadowMap;
     this.view = new LoomView(this.shown());
+    this.view.plushes.onLand = () => audio.hop();
+    this.view.plushes.onHop = () => audio.pluck(7, 0.6, 0, 0.1);
     this.controller = new LoomController(this.model, {
       pluck: (i, speed) => {
         audio.pluck(i, speed);
@@ -226,6 +230,7 @@ export class GameSystem extends createSystem({
         // until each lever has been tried once.
         this.view.setPicture(level.color ?? null, level.tieUp, level.tieUp.map(() => !!level.mystery));
         this.view.card.setPicture(level.color ?? null, level.par);
+        this.view.plushes.setShelf(shelfItems(level, this.progress));
         this.view.setShed(0, true);
         this.view.setRows(this.model.rows);
         this.view.setGlowRow(-1);
@@ -241,6 +246,9 @@ export class GameSystem extends createSystem({
       },
       win: (stars) => {
         this.controller.enabled = false;
+        // It comes alive: the woven picture pops out as a plush.
+        const lv = this.flow.level;
+        this.view.plushes.celebrate(lv.id, lv.target, lv.color ?? this.shown().palette.weft, this.flow.challenge ? -1 : shelfSlot(lv));
         this.controller.releaseAll();
         audio.arpeggio();
         this.view.pulseWarp();
@@ -260,7 +268,12 @@ export class GameSystem extends createSystem({
         audio.pluck(i, 0.35, delay, 0.26);
         setTimeout(() => this.view.pluckWarp(i), delay * 1000);
       },
-      glowRow: (r) => this.view.setGlowRow(r),
+      glowRow: (r) => {
+        this.view.setGlowRow(r);
+        // The plush dances a beat per row, then hops up to the shelf.
+        if (r >= 0) this.view.plushes.beat();
+        else this.view.plushes.finish();
+      },
       hint: (step, lever) => {
         this.hintLever = lever;
         this.tutor.set(HINT_TEXT[step]);
@@ -576,6 +589,7 @@ export class GameSystem extends createSystem({
       const b = this.bloom - 1;
       const e = 1 + 2.2 * b * b * b + 1.2 * b * b;
       this.view.root.scale.setScalar(0.05 + 0.95 * e);
+      this.view.setReveal(this.bloom * 1.15);
       this.view.root.updateMatrixWorld();
     }
 
@@ -729,6 +743,7 @@ export class GameSystem extends createSystem({
     root.updateMatrixWorld(true);
     this.hint.mesh.visible = false;
     this.bloom = 0;
+    this.view.setReveal(0);
     this.debug.phase = 'placed';
     this.debug.deskY = this.placement.deskY;
     this.debug.deskSource = this.placement.source;
@@ -899,6 +914,22 @@ export function insidePolygon(
     minD = Math.min(minD, Math.hypot(x - (a.x + t * ex), z - (a.z + t * ez)));
   }
   return inside || minD <= margin;
+}
+
+/** The current chapter's pictures, for the shelf (finished ones become plushes). */
+function shelfItems(level: Level, progress: Progress): ShelfItem[] {
+  const ch = CHAPTERS.find((c) => c.id === level.chapter);
+  if (!ch) return [];
+  return ch.levels.map((id) => {
+    const l = LEVELS.find((x) => x.id === id);
+    return { id, rows: l?.target ?? [], color: l?.color ?? 0xe2563b, done: (progress.best[id] ?? 0) > 0 };
+  });
+}
+
+/** Shelf slot of a picture within its chapter (-1: not a chapter picture). */
+function shelfSlot(level: Level): number {
+  const ch = CHAPTERS.find((c) => c.id === level.chapter);
+  return ch ? ch.levels.indexOf(level.id) : -1;
 }
 
 /** Small stable code for a hover target (no allocation): -1 = nothing. */

@@ -120,6 +120,19 @@ for s in (-1, 1):
     lathe(f'PegSpring{"L" if s < 0 else "R"}', [(0, -0.0045), (0.0019, -0.0045), (0.0019, 0.0045), (0, 0.0045)],
           (s * 0.048, EY + 0.006, EZ + 0.0062), axis='Z', segs=10, mat=DARK, parent=frame)
 
+# ---- Plush shelf: a low beech bench, five slots, origin on the desk at its centre ----
+shelf = empty('Shelf', at=(0, 0, 0))
+SW, SD, SY = 0.245, 0.05, 0.03
+rounded_box('ShelfTop', (SW, 0.012, SD), (0, SY, 0), bevel=0.005, segs=3, mat=WOOD, parent=shelf)
+rounded_box('ShelfLip', (SW - 0.004, 0.006, 0.006), (0, SY + 0.004, SD / 2 - 0.002), bevel=0.0025, segs=2, mat=TEAL, parent=shelf)
+for s_ in (-1, 1):
+    lathe(f'ShelfLeg{"L" if s_ < 0 else "R"}', [(0, 0), (0.011, 0), (0.0125, 0.003), (0.0085, 0.008), (0.0075, SY - 0.006), (0.0095, SY - 0.006), (0, SY - 0.006)],
+          (s_ * (SW / 2 - 0.022), 0, 0), segs=24, mat=WOOD, parent=shelf)
+    ellipsoid(f'ShelfFoot{"L" if s_ < 0 else "R"}', (0.0115, 0.004, 0.0115), (s_ * (SW / 2 - 0.022), 0.0025, 0), mat=TOMATO, parent=shelf, segs=20)
+# little brass-less pegs marking the five slots
+for i in range(5):
+    ellipsoid(f'ShelfDot{i}', (0.0022, 0.0008, 0.0022), ((i - 2) * 0.047, SY + 0.0062, SD / 2 - 0.0095), mat=DARK, parent=shelf, segs=10)
+
 # ---- Lever knob prototype (cloned ×4 in code; cap recoloured) ----
 knob = empty('LeverKnob', at=(0, 0, 0))
 r = LV['knobRadius']
@@ -140,13 +153,13 @@ lathe('Spool', [(0, -0.012), (br * 1.25, -0.012), (br * 1.32, -0.010), (br * 0.5
 lathe('Wound', [(0, -0.0078), (br * 1.05, -0.0078), (br * 1.14, -0.004), (br * 1.14, 0.004), (br * 1.05, 0.0078), (0, 0.0078)],
       (0, 0, 0), axis='X', segs=28, mat=YARN, parent=bob)
 
-for o in [*root.children_recursive, *knob.children_recursive, *bob.children_recursive]:
+for o in [*root.children_recursive, *knob.children_recursive, *bob.children_recursive, *shelf.children_recursive]:
     if o.type == 'MESH' and len(o.data.uv_layers) == 0:
         uv_project(o, 0.12)
 
 out = os.path.join(HERE, '..', '..', 'public', 'models', 'loom.glb')
 bpy.ops.object.select_all(action='DESELECT')
-for o in [root, *root.children_recursive, knob, *knob.children_recursive, bob, *bob.children_recursive]:
+for o in [root, *root.children_recursive, knob, *knob.children_recursive, bob, *bob.children_recursive, shelf, *shelf.children_recursive]:
     o.select_set(True)
 os.makedirs(os.path.dirname(out), exist_ok=True)
 bpy.ops.export_scene.gltf(filepath=os.path.abspath(out), export_format='GLB', use_selection=True, export_yup=True,

@@ -32,6 +32,8 @@ import { THEMES, type Palette, type Theme } from '../ui/theme.js';
 import { PLAQUE, Plaque } from '../ui/plaque.js';
 import { grainTexture, weaveTexture, yarnTexture } from './textures.js';
 import { cloneModel, loomModels, materialOf } from './models.js';
+import { Plushes } from './plush.js';
+import { makeMat, MAT } from './mat.js';
 import {
   BOBBIN,
   CARD,
@@ -137,6 +139,14 @@ export class LoomView {
   }
   /** Warm key light (moves with the loom) and a desk shadow catcher. */
   private key = new DirectionalLight(0xfff0dc, 1.6);
+  /** Felt mat under everything; the chapter shelf and plush show. */
+  readonly mat = makeMat();
+  readonly plushes = new Plushes();
+
+  /** Placement reveal 0→1: the mat unrolls toward the player. */
+  setReveal(t: number): void {
+    this.mat.scale.z = Math.max(0.001, Math.min(1, t));
+  }
   private catcher = new Mesh(new PlaneGeometry(0.8, 0.6), new ShadowMaterial({ opacity: 0.34, depthWrite: false }));
   private side: 1 | -1 = 1;
   private pulse = 0;
@@ -187,6 +197,7 @@ export class LoomView {
     this.catcher.receiveShadow = true;
     this.catcher.renderOrder = -1;
     this.root.add(this.catcher);
+    this.root.add(this.mat, this.plushes.root);
 
     this.build(theme);
     this.setSide(1);
@@ -439,6 +450,8 @@ export class LoomView {
     this.layoutLevers();
     this.setBobbinT(0);
     this.placeCard();
+    this.plushes.setSide(side);
+    this.mat.position.x = -side * MAT.offsetX;
   }
 
   /** Show only the levers this level uses. */
@@ -672,6 +685,7 @@ export class LoomView {
       this.shuttle.scale.set(1, 1, 1);
     }
     this.animatePip(dt);
+    this.plushes.update(dt);
     // Twang decay.
     for (let i = 0; i < WARPS; i++) {
       if (this.twang[i] > 0) {
