@@ -108,3 +108,46 @@ export function yarnTexture(): CanvasTexture {
   yarn = t;
   return t;
 }
+
+let knit: CanvasTexture | null = null;
+/**
+ * One knitted "V" stitch per woven cell (white, tinted by the cell colour):
+ * two plump angled loops with soft shading and a dark gap between them, so
+ * woven rows read as yarn rather than beads or tiles.
+ */
+export function knitTexture(): CanvasTexture {
+  if (knit) return knit;
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#9a9a9a';
+  g.fillRect(0, 0, 128, 128);
+  const loop = (sx: number) => {
+    g.save();
+    g.translate(64 + sx * 22, 64);
+    g.rotate(sx * 0.62);
+    const grad = g.createLinearGradient(-20, 0, 20, 0);
+    grad.addColorStop(0, '#d8d8d8');
+    grad.addColorStop(0.45, '#ffffff');
+    grad.addColorStop(1, '#c4c4c4');
+    g.fillStyle = grad;
+    g.beginPath();
+    g.ellipse(0, 0, 21, 62, 0, 0, Math.PI * 2);
+    g.fill();
+    // ply twist lines across the loop
+    g.strokeStyle = 'rgba(0,0,0,0.12)';
+    g.lineWidth = 2;
+    for (let y = -50; y <= 50; y += 12) {
+      g.beginPath();
+      g.moveTo(-17, y + 5);
+      g.quadraticCurveTo(0, y - 3, 17, y + 5);
+      g.stroke();
+    }
+    g.restore();
+  };
+  loop(-1);
+  loop(1);
+  knit = new CanvasTexture(c);
+  knit.colorSpace = SRGBColorSpace;
+  return knit;
+}

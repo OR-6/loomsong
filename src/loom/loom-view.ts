@@ -34,7 +34,7 @@ import {
 import { TargetCard } from '../ui/target-card.js';
 import { THEMES, type Palette, type Theme } from '../ui/theme.js';
 import { PLAQUE, Plaque } from '../ui/plaque.js';
-import { grainTexture, weaveTexture, yarnTexture } from './textures.js';
+import { grainTexture, knitTexture, weaveTexture, yarnTexture } from './textures.js';
 import { cloneModel, loomModels, materialOf } from './models.js';
 import { Plushes, puffGeometry } from './plush.js';
 import { Basket } from './basket.js';
@@ -350,9 +350,9 @@ export class LoomView {
 
     // Cloth cells.
     const cellGeo = new BoxGeometry(WARP_PITCH * 0.995, 0.003, LOOM.rowPitch * 0.99);
-    const clothMat = new MeshStandardMaterial({ roughness: 0.95, map: weaveTexture() });
+    const clothMat = new MeshStandardMaterial({ roughness: 0.95, map: knitTexture() }); // a knitted V stitch per cell
     // Woven cells: flat, square yarn cells in one continuous band on the felt.
-    this.cloth = new InstancedMesh(puffGeometry(), clothMat, WARPS * LOOM.visibleRows);
+    this.cloth = new InstancedMesh(new BoxGeometry(1, 1, 1), clothMat, WARPS * LOOM.visibleRows);
     this.cloth.name = 'Cloth';
     // faint target picture on the rows still to weave
     this.ghostCloth = new InstancedMesh(
@@ -625,7 +625,7 @@ export class LoomView {
       new Vector3(sx * 0.104, 0.0062, LOOM.clothFrontZ - 0.004),
     ];
     this.undoTail.geometry.dispose();
-    this.undoTail.geometry = new TubeGeometry(new CatmullRomCurve3(pts), 24, 0.0012, 5);
+    this.undoTail.geometry = new TubeGeometry(new CatmullRomCurve3(pts), 28, 0.002, 6);
   }
 
   setBobbinT(t: number): void {
@@ -884,7 +884,7 @@ export class LoomView {
           // only the picture's own pixels, faint: no grey "canvas" cells
           if (!isLifted(this.target[r], i)) continue;
           _p.set(warpX(i), 0.0049, z);
-          _m.compose(_p, _q.identity(), _s.set(0.96, 0.6, 0.96));
+          _m.compose(_p, _q.identity(), _s.set(0.9, 0.15, 0.88)); // flat faint tile on the felt
           this.ghostCloth.setMatrixAt(idx, _m);
           this.ghostCloth.setColorAt(idx, _c.setHex(this.liftColor));
           idx++;

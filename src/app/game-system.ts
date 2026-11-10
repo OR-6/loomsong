@@ -848,7 +848,7 @@ export class GameSystem extends createSystem({
     } else if (step === 'shuttle') {
       // Tag hangs just outside the frame beside Pip's perch, never over the threads.
       const end = this.controller.shuttle.t < 0.5 ? -1 : 1;
-      m.position.set(end * 0.205, 0.07, SHUTTLE.z);
+      m.position.set(end * SHUTTLE.maxX, 0.11, SHUTTLE.z); // right above Pip's perch
       if (this.controller.hover.left === null && this.controller.hover.right === null) {
         this.view.setShuttleHighlight(pulse as 0 | 1);
       }

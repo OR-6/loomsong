@@ -53,7 +53,7 @@ export const SHUTTLE = {
 export const LEVER = {
   /** x of the first lever, measured outward from the loom centre. */
   firstX: 0.215,
-  spacing: 0.04,
+  spacing: 0.046,
   /** Rest (unlatched) z — nearest the user. Latched = rest - travel. */
   restZ: 0.075,
   travel: 0.05,
