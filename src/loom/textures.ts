@@ -80,10 +80,10 @@ export function yarnTexture(): CanvasTexture {
   // Two plies twisting: diagonal bands with a darker groove between them.
   for (let k = -64; k < 128; k += 16) {
     const grad = g.createLinearGradient(k, 0, k + 16, 0);
-    grad.addColorStop(0, 'rgba(0,0,0,0.28)');
+    grad.addColorStop(0, 'rgba(60,35,15,0.5)');
     grad.addColorStop(0.25, 'rgba(255,255,255,0)');
     grad.addColorStop(0.6, 'rgba(255,255,255,0)');
-    grad.addColorStop(1, 'rgba(0,0,0,0.18)');
+    grad.addColorStop(1, 'rgba(60,35,15,0.32)');
     g.save();
     g.transform(1, 0, -1, 1, 0, 0); // shear → diagonal twist
     g.fillStyle = grad;
@@ -103,7 +103,7 @@ export function yarnTexture(): CanvasTexture {
   }
   const t = new CanvasTexture(c);
   t.wrapS = t.wrapT = RepeatWrapping;
-  t.repeat.set(1, 14);
+  t.repeat.set(1, 34); // ~3–4 mm per twist on a warp: reads as plied yarn
   t.colorSpace = SRGBColorSpace;
   yarn = t;
   return t;

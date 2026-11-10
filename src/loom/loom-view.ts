@@ -71,6 +71,9 @@ const UP = new Vector3(0, 1, 0);
 const _glow = new Color(0xffe2a8);
 /** Underside of the heddle bar in the Blender model (bar centre 0.071, 17 mm tall). */
 const HEDDLE_BAR_BOTTOM_Y = 0.0625;
+/** Lowered warp threads: warm undyed yarn, not white (white reads as plastic). */
+const THREAD_CREAM = 0xeed7b0;
+
 /** Undyed wool: the colour of a mystery lever before it's been tried. */
 const UNDYED = 0xe6dccb;
 /** Strands per warp bundle, and their spread (they pinch to 30 % at the eyelet). */
@@ -298,10 +301,10 @@ export class LoomView {
 
 
     // Warps: 2 segments each (back beam → heddle → fell).
-    const warpMat = new MeshStandardMaterial({ color: palette.warp, roughness: 0.95, map: yarnTexture() });
+    const warpMat = new MeshStandardMaterial({ color: palette.warp, roughness: 1, map: yarnTexture() });
     // Round twisted yarn: a cylinder along Z, stretched per segment.
     // Each logical warp is a bundle of STRANDS strands that gather through its eyelet.
-    const warpGeo = new CylinderGeometry(0.0027, 0.0027, 1, 10, 1, true);
+    const warpGeo = new CylinderGeometry(0.0031, 0.0031, 1, 12, 1, true);
     warpGeo.rotateX(Math.PI / 2);
     // three segments per strand: back beam → heddle → fell → under the cloth to the front beam
     this.warps = new InstancedMesh(warpGeo, warpMat, WARPS * 3 * STRANDS);
@@ -528,7 +531,7 @@ export class LoomView {
     this.nudges.position.set(nudgeX(side), NUDGE.y, 0);
     // Plaque leans on the front beam, shifted away from the token.
     const tilt = (PLAQUE.tiltDeg * Math.PI) / 180;
-    this.plaque.mesh.position.set(-side * 0.035, 0.012, LOOM.frontBeamZ + 0.04);
+    this.plaque.mesh.position.set(-side * 0.035, 0.01, LOOM.frontBeamZ + 0.058);
     this.plaque.mesh.rotation.set(-tilt, 0, 0);
     this.layoutLevers();
     this.setBobbinT(0);
@@ -568,18 +571,23 @@ export class LoomView {
    * The model's lever block sits on the right; the card stand on the left.
    * Mirror both to match the player's lever side.
    */
+  /**
+   * The model is authored for a right-hand lever bank (levers right; crank and
+   * bobbin rod left). For a left-hand bank, mirror those side-specific parts.
+   * Mirroring is relative to the authored layout (geometry is often baked with
+   * the node at the origin, so only the scale sign moves it).
+   */
   private mirrorFrame(): void {
     const f = this.frameNode;
     if (!f) return;
     for (const child of f.children) {
       const n = child.name;
-      const toBank = n.startsWith('Lever') || n.startsWith('SlotFloor') || n.startsWith('SlotDot') || n.startsWith('SlotArrow');
-      // The front-beam crank sits on the side away from the lever bank.
-      const toCard = n.startsWith('FrontBeamCrank') || n.startsWith('FrontBeamHandle');
-      if (!toBank && !toCard) continue;
-      const sgn = toBank ? this.side : -this.side;
-      child.position.x = Math.abs(child.position.x) * sgn;
-      child.scale.x = Math.abs(child.scale.x) * sgn;
+      const sided =
+        n.startsWith('Lever') || n.startsWith('SlotFloor') || n.startsWith('FrontBeamCrank') || n.startsWith('FrontBeamHandle') || n.startsWith('BobbinRod');
+      if (!sided) continue;
+      if (child.userData.authoredX === undefined) child.userData.authoredX = child.position.x;
+      child.position.x = (child.userData.authoredX as number) * this.side;
+      child.scale.x = Math.abs(child.scale.x) * this.side;
     }
   }
 
@@ -835,14 +843,12 @@ export class LoomView {
       for (let r = done; r < this.target.length && r < LOOM.maxRows; r++) {
         const z = this.rowZ(r, done);
         for (let i = 0; i < WARPS; i++) {
-          const lifted = isLifted(this.target[r], i);
-          _p.set(warpX(i), 0.0042, z);
-          _m.compose(_p, _q.identity(), _s.set(lifted ? 0.97 : 0.9, 0.6, lifted ? 0.97 : 0.9));
+          // only the picture's own pixels, faint: no grey "canvas" cells
+          if (!isLifted(this.target[r], i)) continue;
+          _p.set(warpX(i), 0.0049, z);
+          _m.compose(_p, _q.identity(), _s.set(0.96, 0.6, 0.96));
           this.ghostCloth.setMatrixAt(idx, _m);
-          // picture pixels in the picture colour; the rest a faint cream canvas
-          _c.setHex(lifted ? this.liftColor : this.groundColor);
-          if (!lifted) _c.multiplyScalar(0.45);
-          this.ghostCloth.setColorAt(idx, _c);
+          this.ghostCloth.setColorAt(idx, _c.setHex(this.liftColor));
           idx++;
         }
       }
@@ -946,7 +952,7 @@ export class LoomView {
       // Touching a lever lights its threads in the lever's colour (motion + colour,
       // no icons): that's how you see which threads a lever lifts.
       const lift = Math.max(0, Math.min(1, this.warpLift[i]));
-      _c.setHex(this.groundColor).lerp(_c2.setHex(this.liftColor), lift);
+      _c.setHex(THREAD_CREAM).lerp(_c2.setHex(this.liftColor), lift);
       const hk = this.hoverLever;
       if (hk >= 0 && hk < this.tieUp.length && !this.tieHidden[hk] && isLifted(this.tieUp[hk], i)) {
         _c.lerp(_c2.setHex(this.palette.knobs[hk]), 0.75).lerp(_glow, 0.15);

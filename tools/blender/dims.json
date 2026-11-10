@@ -6,8 +6,8 @@
     "frontBeamZ": 0.088,
     "beamY": 0.022,
     "frameHalfWidth": 0.115,
-    "liftedY": 0.042,
-    "loweredY": 0.004,
+    "liftedY": 0.064,
+    "loweredY": 0.024,
     "shedY": 0.017,
     "rowPitch": 0.012,
     "visibleRows": 12,
@@ -26,7 +26,7 @@
   "LEVERS": 4,
   "SHUTTLE": {
     "z": -0.031,
-    "y": 0.033,
+    "y": 0.044,
     "minX": -0.123,
     "maxX": 0.123,
     "perchY": 0.06,
@@ -44,9 +44,9 @@
   "CARD": {
     "x": 0,
     "z": -0.118,
-    "baseY": 0.094,
+    "baseY": 0.104,
     "width": 0.075,
-    "cell": 0.0105,
+    "cell": 0.0147,
     "tiltDeg": 14
   },
   "TOKEN": {

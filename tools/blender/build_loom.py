@@ -1,16 +1,12 @@
 """Build public/models/loom.glb: the toy loom + lever box + knob + bobbin + shelf + basket.
 Run: /Applications/Blender.app/Contents/MacOS/Blender -b -P tools/blender/build_loom.py
 
-Art direction ("chunky toy tray", see docs/ART-DIRECTION.md): one bold
-silhouette, a thick sunny-yellow rim around a navy felt bed, tomato-red
-accents, flat glossy paint, no photo textures, no thin parts. Shapes are soft
-and rounded like moulded toys. Colour lives on big things; the yarn and the
-woven picture are the brightest.
-
+Art direction: a chunky lacquered-wood toy loom (warm glossy wood, soft round
+beams on tomato bun feet, spool tops) with bright painted accents only on
+small round parts. The lever box (cream, tomato band) stands beside it.
 Named nodes the game relies on: Loom/Frame/* (Lever*, SlotFloor* mirror with
-the lever side), LeverKnob (Stem, Cap0: material 'KnobPaint' recoloured per
-lever), Bobbin (Spool, Wound), Shelf, Basket. Material 'Beech' is the rim paint
-(the workshop theme tints it). Origin = loom-local desk contact (game coords)."""
+the lever side), LeverKnob (Stem, Cap0 'KnobPaint'), Bobbin (Spool, Wound),
+Shelf, Basket. Origin = loom-local desk contact (game coords)."""
 import sys, os, math
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import bpy
@@ -18,95 +14,135 @@ from lib import *
 
 reset()
 L, LV, B, C = DIMS['LOOM'], DIMS['LEVER'], DIMS['BOBBIN'], DIMS['CARD']
-# Palette (sRGB). Glossy toy paint everywhere; no textures.
-YELLOW = mat_paint('Beech', 0xf7be3b, rough=0.4, clearcoat=0.45)   # the rim (name kept for theme tint)
-NAVY = mat_paint('FeltBed', 0x34507a, rough=0.85, clearcoat=0.0)    # felt bed: matte
-TOMATO = mat_paint('PaintTomato', 0xe8553e, rough=0.38, clearcoat=0.5)
-CREAM = mat_paint('PaintCream', 0xfff2dc, rough=0.45, clearcoat=0.35)
-TEAL = mat_paint('PaintTeal', 0x2a9d8f, rough=0.38, clearcoat=0.5)
-INK = mat_paint('Walnut', 0x3a2a22, rough=0.5, clearcoat=0.2)
-KNOB = mat_paint('KnobPaint', 0xe8553e, rough=0.28, clearcoat=0.8)  # glossy gumball
-YARN = mat_paint('Yarn', 0xfff6e8, rough=0.95, clearcoat=0.0)
-CLOTH = mat_paint('ClothRoll', 0xfff2dc, rough=0.95, clearcoat=0.0)
-YARN_L = mat_paint('SpoolYarnTomato', 0xe8553e, rough=0.9, clearcoat=0.0)
-YARN_R = mat_paint('SpoolYarnTeal', 0x2a9d8f, rough=0.9, clearcoat=0.0)
+SRC = os.path.join(HERE, '..', '..', 'assets-src', 'ambientcg')
+wood_img = load_image(os.path.join(SRC, 'Wood095_1K-JPG', 'Wood095_beech512.png'), 512)  # desaturated, lighter: beech not pine
+knit_img = load_image(os.path.join(SRC, 'Fabric019_1K-JPG', 'Fabric019_rgb256.png'), 256)
+WOOD = mat_tex('Beech', wood_img, tint=0xffe8c8, rough=0.42, clearcoat=0.4)  # warm lacquered wood
+DARK = mat_paint('Walnut', 0x7a4e32, rough=0.45, clearcoat=0.2)
+TOMATO = mat_paint('PaintTomato', 0xe2563b, rough=0.38, clearcoat=0.45)
+MUSTARD = mat_paint('PaintMustard', 0xf2b632, rough=0.38, clearcoat=0.45)
+TEAL = mat_paint('PaintTeal', 0x2a9d8f, rough=0.38, clearcoat=0.45)
+KNOB = mat_paint('KnobPaint', 0xe2563b, rough=0.35, clearcoat=0.5)
+YARN = mat_tex('Yarn', knit_img, tint=0xffffff, rough=0.95)
+CLOTH = mat_tex('ClothRoll', knit_img, tint=0xfff3e0, rough=0.95)
+YARN_L = mat_tex('SpoolYarnTomato', knit_img, tint=0xe2563b, rough=0.95)
+YARN_R = mat_tex('SpoolYarnTeal', knit_img, tint=0x2a9d8f, rough=0.95)
 
 root = empty('Loom')
 frame = empty('Frame', parent=root)
 
-HW = L['frameHalfWidth'] + 0.008          # rail centre x
-Z0, Z1 = L['backBeamZ'] - 0.04, L['frontBeamZ'] + 0.026
+HW = L['frameHalfWidth'] + 0.008          # rail centre x (kept clear of lever slot 0)
+Z0, Z1 = L['backBeamZ'] - 0.04, L['frontBeamZ'] + 0.016
 ZM, ZL = (Z0 + Z1) / 2, (Z1 - Z0)
+RY = 0.02                                  # rail centre height
 
-# ---- The tray: a navy felt bed inside one thick, very round yellow rim ----
-rounded_box('Bed', (HW * 2 + 0.02, 0.005, ZL - 0.01), (0, 0.0025, ZM), bevel=0.0024, segs=2, mat=NAVY, parent=frame)
+# Painted accents shared with the props (shelf, basket, knobs).
+YELLOW = mat_paint('PaintYellow', 0xf7be3b, rough=0.4, clearcoat=0.45)
+CREAM = mat_paint('PaintCream', 0xfff2dc, rough=0.45, clearcoat=0.35)
+NAVY = mat_paint('FeltBed', 0x34507a, rough=0.85, clearcoat=0.0)
+INK = DARK
+# ---- Rails: fat, very soft beech beams on bun feet ----
 for s, n in ((-1, 'RailL'), (1, 'RailR')):
-    rounded_box(n, (0.03, 0.028, ZL), (s * HW, 0.014, ZM), bevel=0.012, segs=5, mat=YELLOW, parent=frame)
-rounded_box('RailBack', (HW * 2 + 0.03, 0.024, 0.03), (0, 0.012, Z0 + 0.015), bevel=0.011, segs=5, mat=YELLOW, parent=frame)
-rounded_box('RailFront', (HW * 2 + 0.03, 0.02, 0.028), (0, 0.01, Z1 - 0.014), bevel=0.0095, segs=5, mat=YELLOW, parent=frame)
-# tomato corner bumpers (like the coloured corners on a mini-golf course)
-for s in (-1, 1):
-    for zc in (Z0 + 0.015, Z1 - 0.014):
-        ellipsoid('Bumper', (0.019, 0.017, 0.019), (s * HW, 0.017, zc), mat=TOMATO, parent=frame, segs=24)
+    rounded_box(n, (0.026, 0.028, ZL), (s * HW, RY, ZM), bevel=0.009, segs=4, mat=WOOD, parent=frame)
+    for zf, fn in ((Z0 + 0.016, 'Back'), (Z1 - 0.016, 'Front')):
+        lathe(f'Foot{n[-1]}{fn}', [(0.0, 0.0), (0.0135, 0.0), (0.0155, 0.003), (0.0145, 0.0065), (0.011, 0.0085), (0.0, 0.009)],
+              (s * HW, 0.0, zf), segs=28, mat=TOMATO, parent=frame)
 
-# Pip's perches: a round tomato pad on each side rail where the shuttle rests,
-# so the yellow bird always sits on a contrasting colour.
-for s, n in ((-1, 'PerchL'), (1, 'PerchR')):
-    lathe(n, [(0, 0), (0.0175, 0), (0.0185, 0.003), (0.0175, 0.006), (0, 0.006)], (s * HW, 0.0275, DIMS['SHUTTLE']['z']), segs=32, mat=TOMATO, parent=frame)
+def roller(name, y, z, r, cap_r, body_mat, cap_mat, crank=False):
+    half = HW + 0.016
+    lathe(name, [(0.0, -half + 0.004), (r, -half + 0.004), (r, half - 0.004), (0.0, half - 0.004)],
+          (0, y, z), axis='X', segs=32, mat=body_mat, parent=frame)
+    for s in (-1, 1):  # round painted end caps
+        ellipsoid(f'{name}Cap{"L" if s < 0 else "R"}', (0.006, cap_r, cap_r), (s * (half - 0.001), y, z), mat=cap_mat, parent=frame, segs=24)
+    if crank:
+        # On the left (away from the lever bank); mirrored in code for left-handed play.
+        lathe(name + 'Crank', [(0, 0), (0.0032, 0), (0.0032, 0.018), (0, 0.018)], (-(half + 0.022), y, z), axis='X', segs=12, mat=DARK, parent=frame)
+        ellipsoid(name + 'Handle', (0.0062, 0.0062, 0.0062), (-(half + 0.024), y, z), mat=MUSTARD, parent=frame, segs=18)
 
-# ---- Rollers: the warp beam at the back, the cloth roll at the front ----
-def roller(name, y, z, r, body, cap):
-    half = HW - 0.018
-    lathe(name, [(0.0, -half), (r, -half), (r, half), (0.0, half)], (0, y, z), axis='X', segs=32, mat=body, parent=frame)
-    for sx in (-1, 1):
-        ellipsoid(f'{name}Cap{"L" if sx < 0 else "R"}', (0.006, r * 1.15, r * 1.15), (sx * half, y, z), mat=cap, parent=frame, segs=20)
-roller('BackBeam', L['beamY'] + 0.006, L['backBeamZ'], 0.011, TOMATO, CREAM)
-roller('FrontBeam', L['beamY'] + 0.001, L['frontBeamZ'], 0.0125, CLOTH, TOMATO)
+roller('BackBeam', L['beamY'] + 0.006, L['backBeamZ'], 0.0115, 0.0135, WOOD, DARK)
+roller('FrontBeam', L['beamY'] - 0.004, L['frontBeamZ'], 0.0072, 0.0098, WOOD, DARK, crank=True)
+# Woven cloth wound onto the front beam: a thin wrap only as wide as the cloth.
+lathe('ClothWrap', [(0.0, -0.098), (0.0078, -0.098), (0.0086, -0.094), (0.0086, 0.094), (0.0078, 0.098), (0.0, 0.098)],
+      (0, L['beamY'] - 0.004, L['frontBeamZ']), axis='X', segs=32, mat=CLOTH, parent=frame)
 
-# ---- Uprights + heddle bar: chunky tomato posts, a yellow bar, spool tops ----
-PH = 0.074
+# Navy felt bed inset inside the frame: the picture reads on it (figure/ground),
+# and the floor or desk never shows through the weaving area.
+rounded_box('Bed', (HW * 2 - 0.024, 0.004, ZL - 0.05), (0, 0.002, ZM + 0.004), bevel=0.0018, segs=2, mat=NAVY, parent=frame)
+# Pip's lane: a slim wooden shuttle race across the loom; the lowered threads lie on it.
+SZ = DIMS['SHUTTLE']['z']
+rounded_box('ShuttleRace', (HW * 2 - 0.022, 0.006, 0.016), (0, 0.016, SZ), bevel=0.0026, segs=3, mat=WOOD, parent=frame)
+
+# ---- Uprights + heddle bar, crowned with big painted ball finials ----
+PH = 0.086  # the heddle bar clears the fully lifted threads
 for s, n in ((-1, 'PostL'), (1, 'PostR')):
-    lathe(n, [(0, 0), (0.0125, 0), (0.0125, PH - 0.004), (0.0105, PH), (0, PH)], (s * HW, 0.012, L['heddleZ']), segs=28, mat=TOMATO, parent=frame)
-    top = PH + 0.012
-    lathe(n + 'Spool', [(0, 0), (0.0118, 0), (0.0122, 0.003), (0.0072, 0.0045), (0.0072, 0.0175), (0.0122, 0.019), (0.0118, 0.022), (0, 0.022)],
-          (s * HW, top, L['heddleZ']), segs=28, mat=CREAM, parent=frame)
-    lathe(n + 'SpoolYarn', [(0, 0.0045), (0.0098, 0.0045), (0.0106, 0.007), (0.0106, 0.015), (0.0098, 0.0175), (0, 0.0175)],
-          (s * HW, top, L['heddleZ']), segs=28, mat=(YARN_L if s < 0 else YARN_R), parent=frame)
-rounded_box('HeddleBar', (HW * 2 + 0.006, 0.019, 0.019), (0, PH + 0.004, L['heddleZ']), bevel=0.0085, segs=5, mat=YELLOW, parent=frame)
+    rounded_box(n, (0.024, PH, 0.024), (s * HW, PH / 2 + 0.01, L['heddleZ']), bevel=0.009, segs=4, mat=WOOD, parent=frame)
+    # Post top: a turned collar holding a little spool of yarn (a craft-table detail,
+    # not a generic ball). Tomato yarn on the left post, teal on the right.
+    top = PH + 0.01 + 0.0005
+    lathe(n + 'Collar', [(0, 0), (0.0105, 0), (0.0118, 0.002), (0.0105, 0.004), (0.004, 0.0045), (0, 0.0045)],
+          (s * HW, top, L['heddleZ']), segs=28, mat=DARK, parent=frame)
+    lathe(n + 'Spool', [(0, 0), (0.0095, 0), (0.0098, 0.0025), (0.0052, 0.0032), (0.0052, 0.0158), (0.0098, 0.0165),
+                        (0.0095, 0.019), (0.0022, 0.019), (0.0022, 0.0205), (0, 0.0205)],
+          (s * HW, top + 0.0045, L['heddleZ']), segs=28, mat=WOOD, parent=frame)
+    lathe(n + 'SpoolYarn', [(0, 0.0032), (0.0078, 0.0032), (0.0086, 0.0055), (0.0086, 0.0135), (0.0078, 0.0158), (0, 0.0158)],
+          (s * HW, top + 0.0045, L['heddleZ']), segs=28, mat=(YARN_L if s < 0 else YARN_R), parent=frame)
+rounded_box('HeddleBar', (HW * 2 + 0.004, 0.017, 0.016), (0, PH - 0.003, L['heddleZ']), bevel=0.0065, segs=4, mat=WOOD, parent=frame)
 
-# ---- Lever box: a mini version of the tray (yellow rim, navy felt top) beside
-# the loom, aligned with it. Slots are dark grooves; the knobs are gumballs. ----
+# Painted dowel ends where beams meet (reads as "built from wood").
+for s in (-1, 1):
+    for (y, z) in ((RY, Z0 + 0.034), (RY, Z1 - 0.034)):
+        ellipsoid('Peg', (0.0035, 0.0052, 0.0052), (s * (HW + 0.013), y, z), mat=TOMATO, parent=frame, segs=16)
+
+# ---- Lever box: a standalone toy box beside the loom (right-hand layout) ----
+# Cream-painted body with a tomato band and bun feet, a beech top plate with
+# four slots; each slot has two chevrons (push this way) and an end dot.
+CREAM = mat_paint('PaintCream', 0xfff0dc, rough=0.4, clearcoat=0.4)
 x_first, sp, n = LV['firstX'], LV['spacing'], DIMS['LEVERS']
-bx0, bx1 = x_first - 0.021, x_first + sp * (n - 1) + 0.021
-bz0, bz1 = LV['restZ'] - LV['travel'] - 0.022, LV['restZ'] + 0.022
+bx0, bx1 = x_first - 0.019, x_first + sp * (n - 1) + 0.019
+bz0, bz1 = LV['restZ'] - LV['travel'] - 0.02, LV['restZ'] + 0.02
 BW, BD, BX, BZ = bx1 - bx0, bz1 - bz0, (bx0 + bx1) / 2, (bz0 + bz1) / 2
-TOP = 0.024
-rounded_box('LeverBase', (BW, TOP, BD), (BX, TOP / 2, BZ), bevel=0.011, segs=5, mat=YELLOW, parent=frame)
-plate = rounded_box('LeverTop', (BW - 0.014, 0.004, BD - 0.014), (BX, TOP - 0.0005, BZ), bevel=0.0018, segs=2, mat=NAVY, parent=frame)
+TOP = 0.029
+# one wooden block (same lacquered wood as the loom), dark slot grooves
+plate = rounded_box('LeverBase', (BW, TOP, BD), (BX, TOP / 2, BZ), bevel=0.008, segs=4, mat=WOOD, parent=frame)
 for k in range(n):
-    cut = rounded_box(f'Slot{k}', (0.0085, 0.03, LV['travel'] + 0.012), (x_first + k * sp, TOP, LV['restZ'] - LV['travel'] / 2),
-                      bevel=0.003, segs=2)
+    cut = rounded_box(f'Slot{k}', (0.0082, 0.03, LV['travel'] + 0.013), (x_first + k * sp, TOP, LV['restZ'] - LV['travel'] / 2),
+                      bevel=0.0025, segs=2)
     mod = plate.modifiers.new('slot', 'BOOLEAN')
     mod.object = cut
     mod.operation = 'DIFFERENCE'
     apply_mods(plate)
     bpy.data.objects.remove(cut, do_unlink=True)
 for k in range(n):
-    rounded_box(f'SlotFloor{k}', (0.0082, 0.002, LV['travel'] + 0.011), (x_first + k * sp, TOP - 0.004, LV['restZ'] - LV['travel'] / 2),
-                bevel=0.0008, segs=1, mat=INK, parent=frame)
+    rounded_box(f'SlotFloor{k}', (0.0078, 0.002, LV['travel'] + 0.012), (x_first + k * sp, TOP - 0.0062, LV['restZ'] - LV['travel'] / 2),
+                bevel=0.0008, segs=1, mat=DARK, parent=frame)
 
-# ---- Card stand: a yellow easel behind the heddle (same family as the rim) ----
+# The undo bobbin slides along a wooden rod mounted on the left rail.
+BX0 = -B['x']
+rod = lathe('BobbinRod', [(0, 0), (0.0022, 0), (0.0022, B['pull'] + 0.03), (0, B['pull'] + 0.03)],
+            (BX0, B['y'], B['z'] - 0.014), axis='Z', segs=12, mat=DARK, parent=frame)
+for zc in (B['z'] - 0.016, B['z'] + B['pull'] + 0.016):
+    rounded_box('BobbinRodMount', (abs(BX0) - (HW + 0.013) + 0.006, 0.008, 0.008), (-(abs(BX0) + HW + 0.013) / 2, B['y'], zc), bevel=0.003, segs=2, mat=WOOD, parent=frame)
+
+# ---- Easel: a music stand behind the heddle that holds the pattern card ----
 EZ, EY = C['z'], C['baseY']
+rounded_box('EaselStretcher', (HW * 2, 0.018, 0.016), (0, RY, EZ), bevel=0.006, segs=3, mat=WOOD, parent=frame)
 for s in (-1, 1):
-    lathe(f'EaselPost{"L" if s < 0 else "R"}', [(0, 0), (0.0062, 0), (0.0062, EY - 0.02), (0, EY - 0.02)],
-          (s * 0.05, 0.02, EZ), segs=18, mat=YELLOW, parent=frame)
-rounded_box('EaselLedge', (0.15, 0.009, 0.022), (0, EY - 0.0035, EZ - 0.002), bevel=0.004, segs=3, mat=YELLOW, parent=frame)
-rounded_box('EaselLip', (0.15, 0.009, 0.006), (0, EY + 0.002, EZ + 0.0075), bevel=0.0028, segs=3, mat=TOMATO, parent=frame)
+    lathe(f'EaselPost{"L" if s < 0 else "R"}', [(0, 0), (0.005, 0), (0.005, EY - RY), (0, EY - RY)],
+          (s * 0.062, RY, EZ), segs=16, mat=WOOD, parent=frame)
+rounded_box('EaselLedge', (0.172, 0.009, 0.022), (0, EY - 0.0035, EZ - 0.002), bevel=0.003, segs=3, mat=WOOD, parent=frame)
+rounded_box('EaselLip', (0.172, 0.009, 0.005), (0, EY + 0.002, EZ + 0.0075), bevel=0.0022, segs=3, mat=TOMATO, parent=frame)
+# Two little clothes pegs clip the card to the ledge.
+for s in (-1, 1):
+    for side, dz in (('F', 0.0028), ('B', -0.0028)):
+        rounded_box(f'Peg{"L" if s < 0 else "R"}{side}', (0.007, 0.026, 0.0034), (s * 0.048, EY + 0.008, EZ + 0.0062 + dz),
+                    bevel=0.0014, segs=2, mat=MUSTARD, parent=frame)
+    lathe(f'PegSpring{"L" if s < 0 else "R"}', [(0, -0.0045), (0.0019, -0.0045), (0.0019, 0.0045), (0, 0.0045)],
+          (s * 0.048, EY + 0.006, EZ + 0.0062), axis='Z', segs=10, mat=DARK, parent=frame)
 
 # ---- Plush shelf: a yellow bench with tomato feet, origin on the desk ----
 shelf = empty('Shelf', at=(0, 0, 0))
 SW, SD, SY = 0.245, 0.056, 0.03
-rounded_box('ShelfTop', (SW, 0.012, SD), (0, SY, 0), bevel=0.0055, segs=4, mat=YELLOW, parent=shelf)
+rounded_box('ShelfTop', (SW, 0.012, SD), (0, SY, 0), bevel=0.0055, segs=4, mat=WOOD, parent=shelf)
 for s_ in (-1, 1):
     lathe(f'ShelfLeg{"L" if s_ < 0 else "R"}', [(0, 0), (0.0105, 0), (0.0095, SY - 0.006), (0, SY - 0.006)],
           (s_ * (SW / 2 - 0.024), 0, 0), segs=24, mat=TOMATO, parent=shelf)

@@ -20,8 +20,9 @@ export const LOOM = {
   frontBeamZ: 0.088,
   beamY: 0.022,
   frameHalfWidth: 0.115,
-  liftedY: 0.042,
-  loweredY: 0.004,
+  liftedY: 0.064,
+  /** Lowered threads at the heddle: a straight, taut line from the back beam to the cloth. */
+  loweredY: 0.024,
   shedY: 0.017,
   /** Woven row depth (taller rows → pictures aren't squashed). */
   rowPitch: 0.012,
@@ -36,7 +37,7 @@ export const LOOM = {
 export const SHUTTLE = {
   z: -0.031,
   /** Pip's height in the shed: the boat (20 mm below Pip) slides between the threads. */
-  y: 0.033,
+  y: 0.044,
   /** Travel endpoints in loom-local x: Pip's perches on top of the side rails. */
   minX: -0.123,
   maxX: 0.123,
@@ -100,10 +101,10 @@ export const CARD = {
   x: 0,
   z: -0.118,
   /** Height of the easel ledge the card stands on. */
-  baseY: 0.094,
+  baseY: 0.104,
   width: 0.075,
   /** Cell pitch on the card (≥ 7 mm). */
-  cell: 0.0105,
+  cell: 0.0147,
   tiltDeg: 14,
 } as const;
 
