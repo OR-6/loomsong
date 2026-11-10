@@ -77,7 +77,7 @@ export class Label {
     ctx.strokeStyle = 'rgba(90,60,35,0.35)';
     ctx.stroke();
     // punched hole with a yarn loop through it
-    const hx = x0 + hole * 0.42;
+    const hx = x0 + hole * 0.62;
     const hy = y0 + th / 2;
     ctx.fillStyle = 'rgba(0,0,0,0)';
     ctx.save();
@@ -90,7 +90,7 @@ export class Label {
     ctx.lineWidth = h * 0.05;
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.arc(hx - th * 0.2, hy, th * 0.2, -Math.PI * 0.55, Math.PI * 0.55, true);
+    ctx.arc(hx - th * 0.12, hy, th * 0.12, -Math.PI * 0.55, Math.PI * 0.55, true);
     ctx.stroke();
     ctx.fillStyle = this.theme.ink;
     ctx.textAlign = 'left';

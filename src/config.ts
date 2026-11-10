@@ -42,7 +42,7 @@ export const SHUTTLE = {
   minX: -0.168,
   maxX: 0.168,
   /** Perch height on the rail top, and where the hop down into the shed starts. */
-  perchY: 0.0578, // boat bottom rests on the perch pad (measured at rest: tools/pip-probe.mjs)
+  perchY: 0.0635, // boat bottom rests on the perch pad (measured at rest: tools/pip-probe.mjs)
   shedHalf: 0.1,
   /** Release past this fraction of travel completes the pass. */
   completeAt: 0.6,
@@ -52,7 +52,7 @@ export const SHUTTLE = {
 /** Lever bank beside the loom (mirrored for left-handed play). */
 export const LEVER = {
   /** x of the first lever, measured outward from the loom centre. */
-  firstX: 0.195,
+  firstX: 0.215,
   spacing: 0.04,
   /** Rest (unlatched) z — nearest the user. Latched = rest - travel. */
   restZ: 0.075,

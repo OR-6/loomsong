@@ -43,10 +43,10 @@ YARN = mat_paint('BoatYarn', 0xfff6e8, rough=0.95, clearcoat=0.0)
 BY = -0.02
 prof = [(0.0, -0.046), (0.0025, -0.042), (0.0065, -0.032), (0.0092, -0.018), (0.0102, 0.0), (0.0092, 0.018), (0.0065, 0.032), (0.0025, 0.042), (0.0, 0.046)]
 boat = lathe('Boat', prof, (0, BY, 0), axis='X', segs=28, mat=BOATW, parent=pip)
-boat.scale = (1.0, 1.0, 0.62)  # flatter than round (blender Z = game up), like a real boat shuttle
+boat.scale = (0.74, 1.0, 0.82)  # shorter and deeper: it nests in the perch's dent
 # bobbin of weft yarn showing in the boat's hollow (recoloured to the weft in code)
 lathe('BoatYarn', [(0, -0.017), (0.0052, -0.017), (0.0058, -0.012), (0.0058, 0.012), (0.0052, 0.017), (0, 0.017)],
-      (0, BY + 0.0035, 0), axis='X', segs=20, mat=YARN, parent=pip)
+      (0, BY + 0.0045, 0), axis='X', segs=20, mat=YARN, parent=pip)
 
 for o in pip.children_recursive:
     if o.type == 'MESH' and len(o.data.uv_layers) == 0:

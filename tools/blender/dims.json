@@ -15,7 +15,7 @@
     "maxRows": 8
   },
   "LEVER": {
-    "firstX": 0.195,
+    "firstX": 0.215,
     "spacing": 0.04,
     "restZ": 0.075,
     "travel": 0.05,
@@ -29,7 +29,7 @@
     "y": 0.044,
     "minX": -0.168,
     "maxX": 0.168,
-    "perchY": 0.058,
+    "perchY": 0.0578,
     "shedHalf": 0.1,
     "completeAt": 0.6,
     "autoThrowSpeed": 0.35

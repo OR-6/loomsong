@@ -271,15 +271,17 @@ function cutout(rows: readonly Mask8[]): Group {
   blob(0);
   const tex = new CanvasTexture(c);
   tex.colorSpace = SRGBColorSpace;
-  const cell = PLUSH.cell * PLUSH.shelfScale * 1.5;
+  // sized to fit its own slot (≤ slot width), so the cut-outs never merge
+  const cell = PLUSH.slotGap / (WARPS + 1.4);
   const w = (WARPS + 1) * cell;
   const h = (n + 1) * cell;
   const mesh = new Mesh(new PlaneGeometry(w, h), new MeshStandardMaterial({ map: tex, transparent: true, alphaTest: 0.4, roughness: 0.95, side: 2 }));
-  mesh.position.y = h / 2 + 0.004;
+  mesh.position.y = h / 2 + 0.0035;
   mesh.castShadow = true;
   (mesh.material as MeshStandardMaterial).userData.own = true;
-  const peg = new Mesh(new CylinderGeometry(0.0025, 0.003, 0.006, 10), new MeshStandardMaterial({ color: 0x6b4430, roughness: 0.6 }));
-  peg.position.y = 0.003;
+  // each silhouette stands on its own little walnut base: one spot per picture
+  const peg = new Mesh(new CylinderGeometry(0.019, 0.02, 0.004, 24), new MeshStandardMaterial({ color: 0x6b4430, roughness: 0.6 }));
+  peg.position.y = 0.002;
   (peg.material as MeshStandardMaterial).userData.own = true;
   const grp = new Group();
   // a darker backing gives the felt real thickness (~6 mm) and a shadow edge

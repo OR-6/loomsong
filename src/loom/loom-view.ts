@@ -614,11 +614,15 @@ export class LoomView {
   private layUndoTail(): void {
     if (!this.undoTail) return;
     const bx = bobbinX(this.side);
+    // slack: off the spool, down to the desk, under the rail, and onto the cloth's
+    // outer edge (the selvedge), well away from the threads you're lifting
+    const sx = -this.side;
     const pts = [
-      new Vector3(bx + this.side * 0.004, BOBBIN.y + 0.012, BOBBIN.z),
-      new Vector3(bx + this.side * 0.02, 0.04, BOBBIN.z - 0.004),
-      new Vector3(-this.side * 0.112, 0.036, LOOM.clothFrontZ - 0.002),
-      new Vector3(-this.side * 0.098, 0.009, LOOM.clothFrontZ - 0.004),
+      new Vector3(bx - sx * 0.004, BOBBIN.y + 0.004, BOBBIN.z + 0.006),
+      new Vector3(bx - sx * 0.012, 0.0016, BOBBIN.z + 0.014),
+      new Vector3(sx * 0.14, 0.0016, LOOM.clothFrontZ + 0.01),
+      new Vector3(sx * 0.123, 0.0028, LOOM.clothFrontZ + 0.002),
+      new Vector3(sx * 0.104, 0.0062, LOOM.clothFrontZ - 0.004),
     ];
     this.undoTail.geometry.dispose();
     this.undoTail.geometry = new TubeGeometry(new CatmullRomCurve3(pts), 24, 0.0012, 5);
