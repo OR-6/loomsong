@@ -8,6 +8,7 @@
 import {
   BoxGeometry,
   BufferGeometry,
+  MeshBasicMaterial,
   Color,
   Group,
   InstancedMesh,
@@ -69,11 +70,13 @@ export const PLUSH = {
   shelfZ: 0.03,
   /** The plush dances in the air right above the loom it was woven on (seen face-on from the seat). */
   stageX: 0,
-  stageZ: 0.1,
+  stageZ: 0.11,
   /** Hero size while it pops and dances (shelf size is shelfScale). */
   hero: 1.15,
   /** Hover height while it dances (it faces the seated player). */
-  danceY: 0.15,
+  danceY: 0.2,
+  /** Width of the cream halo behind the dancing plush (m). */
+  haloSize: 0.21,
 } as const;
 
 /** Seconds per row when a shelf plush sings its picture. */
@@ -351,6 +354,9 @@ export class Plushes {
   private to = new Vector3();
   private bounce = 1;
   private tilt = 1;
+  /** A soft cream halo behind the hero plush: its own clean stage over the busy loom and card. */
+  private halo: Mesh;
+  private haloA = 0;
   /** Per shelf slot: seconds left of its song (poked plushes sing and bounce). */
   private singLeft: number[] = new Array(PLUSH.slots).fill(0);
   private singT: number[] = new Array(PLUSH.slots).fill(0);
@@ -362,6 +368,12 @@ export class Plushes {
 
   constructor() {
     this.root.name = 'Plushes';
+    this.halo = new Mesh(new PlaneGeometry(1, 1), new MeshBasicMaterial({ map: haloTexture(), transparent: true, opacity: 0, depthWrite: false }));
+    this.halo.name = 'PlushHalo';
+    this.halo.scale.setScalar(PLUSH.haloSize);
+    this.halo.visible = false;
+    this.halo.renderOrder = 5;
+    this.root.add(this.halo);
     const m = loomModels();
     if (m?.shelf) this.shelf = cloneModel(m.shelf);
     else {
@@ -637,6 +649,17 @@ export class Plushes {
       }
     }
     const h = this.hero;
+    // the halo glows in while the plush pops and dances, and fades as it hops away
+    const staged = !!h && (this.phase === 'pop' || this.phase === 'hopOut' || this.phase === 'dance');
+    this.haloA += ((staged ? 1 : 0) - this.haloA) * Math.min(1, dt * (staged ? 6 : 9));
+    const hm = this.halo.material as MeshBasicMaterial;
+    hm.opacity = this.haloA * 0.92;
+    this.halo.visible = this.haloA > 0.02 && !!h;
+    if (h && this.halo.visible) {
+      this.halo.position.set(h.position.x, h.position.y + 0.012, h.position.z - 0.03);
+      this.halo.rotation.x = -0.3;
+      this.halo.scale.setScalar(PLUSH.haloSize * (0.6 + 0.4 * this.haloA));
+    }
     if (!h) return;
     this.t += dt;
     if (this.phase === 'pop') {
@@ -687,4 +710,29 @@ export class Plushes {
     h.position.lerpVectors(this.from, this.to, e);
     h.position.y += height * 4 * k * (1 - k);
   }
+}
+
+let haloTex: CanvasTexture | null = null;
+/** A soft cream disc fading to clear at the edge, with a faint stitched ring. */
+function haloTexture(): CanvasTexture {
+  if (haloTex) return haloTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const g = c.getContext('2d')!;
+  const grad = g.createRadialGradient(128, 128, 10, 128, 128, 126);
+  grad.addColorStop(0, 'rgba(255,246,222,1)');
+  grad.addColorStop(0.62, 'rgba(255,243,214,0.95)');
+  grad.addColorStop(0.8, 'rgba(255,240,205,0.55)');
+  grad.addColorStop(1, 'rgba(255,240,205,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 256, 256);
+  g.setLineDash([9, 7]);
+  g.lineWidth = 3;
+  g.strokeStyle = 'rgba(214,170,110,0.7)';
+  g.beginPath();
+  g.arc(128, 128, 92, 0, Math.PI * 2);
+  g.stroke();
+  haloTex = new CanvasTexture(c);
+  haloTex.colorSpace = SRGBColorSpace;
+  return haloTex;
 }

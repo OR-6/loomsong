@@ -862,7 +862,7 @@ export class LoomView {
       for (let i = 0; i < WARPS; i++) {
         _p.set(warpX(i), 0.0062, z);
         // slightly domed yarn cells with a little gap (the felt shows as the seam)
-        _m.compose(_p, _q.identity(), _s.set(WARP_PITCH * 0.965, 0.003, LOOM.rowPitch * 0.94));
+        _m.compose(_p, _q.identity(), _s.set(WARP_PITCH * 0.95, 0.003, LOOM.rowPitch * 0.86));
         this.cloth.setMatrixAt(idx, _m);
         // warp visible if lifted in that row, else weft visible
         _c.setHex(isLifted(row, i) ? this.liftColor : this.groundColor);
@@ -1117,7 +1117,7 @@ export class LoomView {
   private applyColors(): void {
     const p = this.palette;
     this.liftColor = this.pictureColor ?? p.weft;
-    this.groundColor = 0xf5e6c4; // warm cream yarn, not white tile
+    this.groundColor = 0xfff3dc; // light warm cream yarn: the picture colour reads against it, not white tile
     // warp colour comes per strand (instance colour × white), brighter when lifted
     (this.warps?.material as MeshStandardMaterial | undefined)?.color.setHex(0xffffff);
     const yarn = this.bobbin ? (materialOf(this.bobbin, 'Wound') as MeshStandardMaterial | null) : null;
