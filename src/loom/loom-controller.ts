@@ -37,6 +37,7 @@ export type Target =
   | { kind: 'skein'; i: number }
   | { kind: 'plush'; i: number }
   | { kind: 'windKey' }
+  | { kind: 'swap' }
   | { kind: 'nudge'; dir: 1 | -1 }
   | null;
 
@@ -58,9 +59,12 @@ export interface ControllerHooks {
   plush?(i: number): void;
   /** The shelf's wind-up key: the whole shelf plays its songs in turn. */
   windKey?(): void;
+  /** Sea: a swap spool by a perch was touched: Pip changes yarn. */
+  swap?(): void;
 }
 
 const KEY_TARGET = { kind: 'windKey' } as const;
+const SWAP_TARGET = { kind: 'swap' } as const;
 
 /** Lever settle speed in t/s, shuttle return speed in m/s. */
 const LEVER_SETTLE = 6;
@@ -95,6 +99,8 @@ export class LoomController {
   plushSpots: ({ x: number; y: number; z: number } | null)[] = [];
   /** The wind-up key on the shelf end (null: no shelf). */
   keySpot: { x: number; y: number; z: number } | null = null;
+  /** Sea's swap spools by each perch (null: this level has one weft). */
+  swapSpot: { x: number; y: number; z: number } | null = null;
   /** Nudge arrows present (default placement)? */
   nudgeEnabled = false;
   /** Co-op role gating: which controls this player may touch. */
@@ -181,6 +187,8 @@ export class LoomController {
         this.hooks.plush?.(t.i);
       } else if (t?.kind === 'windKey') {
         this.hooks.windKey?.();
+      } else if (t?.kind === 'swap') {
+        if (!this.shuttle.held) this.hooks.swap?.();
       } else if (t?.kind === 'nudge') {
         this.hooks.nudge?.(t.dir);
       } else if (t && !this.isHeld(t) && !(t.kind === 'shuttle' && this.autoThrow)) {
@@ -236,6 +244,8 @@ export class LoomController {
       this.hooks.plush?.(t.i);
     } else if (t.kind === 'windKey') {
       this.hooks.windKey?.();
+    } else if (t.kind === 'swap') {
+      if (!this.shuttle.held) this.hooks.swap?.();
     } else if (t.kind === 'nudge') {
       this.hooks.nudge?.(t.dir);
     } else if (!this.shuttle.held && !this.autoThrow) {
@@ -374,7 +384,7 @@ export class LoomController {
   }
 
   private sliderOf(t: Exclude<Target, null>): Slider {
-    if (t.kind === 'token' || t.kind === 'nudge' || t.kind === 'skein' || t.kind === 'plush' || t.kind === 'windKey') return this.bobbin; // never held
+    if (t.kind === 'token' || t.kind === 'nudge' || t.kind === 'skein' || t.kind === 'plush' || t.kind === 'windKey' || t.kind === 'swap') return this.bobbin; // never held
     if (t.kind === 'shuttle') return this.shuttle;
     if (t.kind === 'bobbin') return this.bobbin;
     return this.levers[t.k];
@@ -442,6 +452,14 @@ export class LoomController {
       if (dp < bestD) {
         bestD = dp;
         best = { kind: 'plush', i };
+      }
+    }
+    if (this.swapSpot) {
+      const c = this.swapSpot;
+      const ds = Math.hypot(p.x - c.x, p.y - c.y, p.z - c.z) - 0.011;
+      if (ds < bestD) {
+        bestD = ds;
+        best = SWAP_TARGET;
       }
     }
     if (this.keySpot) {

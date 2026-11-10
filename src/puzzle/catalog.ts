@@ -18,6 +18,7 @@ export const LEVELS: Level[] = PICTURES.map((p) => ({
   color: p.color,
   chapter: p.chapter,
   mystery: p.mystery,
+  weft: p.weft,
 }));
 
 const cache = new Map<number, Level>();

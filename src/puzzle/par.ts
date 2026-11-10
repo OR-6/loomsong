@@ -27,7 +27,7 @@ export function computePar(tieUp: readonly Mask8[], target: readonly Mask8[]): n
   for (const row of target) {
     const next = new Array<number>(S).fill(Infinity);
     for (let s = 0; s < S; s++) {
-      if (stateShed(tieUp, s) !== row) continue;
+      if (stateShed(tieUp, s) !== (row & 0xff)) continue; // the weft bit costs no lever move
       for (let p = 0; p < S; p++) {
         if (cost[p] === Infinity) continue;
         const c = cost[p] + popcount(p ^ s);
@@ -41,7 +41,7 @@ export function computePar(tieUp: readonly Mask8[], target: readonly Mask8[]): n
 
 /** Every row reachable as an OR of some lever subset? */
 export function rowReachable(tieUp: readonly Mask8[], row: Mask8): boolean {
-  for (let s = 0; s < 1 << tieUp.length; s++) if (stateShed(tieUp, s) === row) return true;
+  for (let s = 0; s < 1 << tieUp.length; s++) if (stateShed(tieUp, s) === (row & 0xff)) return true;
   return false;
 }
 

@@ -10,7 +10,8 @@ describe('share codes', () => {
       const code = encodeCloth(c);
       expect(code).toMatch(/^[A-Za-z0-9_-]+$/);
       expect(code.length).toBeLessThanOrEqual(30);
-      expect(decodeCloth(code)).toEqual(c);
+      // share links carry the warps only (a two-colour cloth is shared single-colour)
+      expect(decodeCloth(code)).toEqual({ ...c, rows: c.rows.map((r) => r & 255) });
     }
   });
   it('rejects malformed or unsafe codes', () => {

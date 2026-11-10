@@ -54,6 +54,7 @@ const BEAT_WINDOW = 0.12;
 const HINT_TEXT: Record<HintStep, string> = {
   lever: 'Slide it away',
   unlatch: 'Slide it back',
+  weft: "Swap Pip's yarn",
   shuttle: 'Slide Pip across',
   undo: 'Pull to undo',
   card: 'Match the next row',
@@ -134,7 +135,10 @@ export class GameSystem extends createSystem({
   private undoNotch = 0;
   private plushVecs = Array.from({ length: PLUSH_SLOTS }, () => new Vector3());
   private keyVec = new Vector3();
+  private swapVec = { x: 0, y: 0, z: 0 };
   private tagAt = { x: 0, y: 0, z: 0 };
+  /** Tutorial/idle breath on the swap spools (0–1). */
+  private swapGlow = 0;
   private noticeTimer = 0;
   private tokenPop = 1;
   private loomEntity!: Entity;
@@ -205,6 +209,10 @@ export class GameSystem extends createSystem({
       nudge: (dir) => this.nudgeDesk(dir),
       plush: (i) => this.singPlush(i),
       windKey: () => this.playShelf(),
+      swap: () => {
+        this.model.setWeft(this.model.weft ? 0 : 1);
+        audio.swapYarn();
+      },
     });
     this.controller.tokenEnabled = unlocked;
     this.view.token.visible = unlocked;
@@ -271,6 +279,7 @@ export class GameSystem extends createSystem({
         if (e.latched && this.view.revealLever(e.lever)) audio.reveal();
         this.view.card.setUsed(this.model.leverFlips);
       }
+      if (e.type === 'weft') this.view.setWeftNow(e.weft);
       if (e.type === 'row' || e.type === 'undo' || e.type === 'sync') this.view.setRows(this.model.rows);
       // Pip reacts to each row: a happy hop and wink, or a droop.
       if (e.type === 'row' && this.flow?.level) {
@@ -305,6 +314,8 @@ export class GameSystem extends createSystem({
         this.view.setTarget(level.target);
         this.view.card.paper = level.chapter === 'night' ? '#b9beea' : level.chapter === 'sea' ? '#cfeae4' : null;
         this.view.card.sparkles = level.chapter === 'night';
+        this.view.card.weft = level.weft ?? null;
+        this.view.setWeftColor(level.weft ?? null);
         this.view.card.setPicture(level.color ?? null, level.par);
         this.shelf = shelfItems(level, this.progress);
         this.view.plushes.setShelf(this.shelf, CHAPTERS.find((c) => c.id === level.chapter)?.name ?? '');
@@ -732,6 +743,9 @@ export class GameSystem extends createSystem({
     const pl = (t: unknown) => ((t as { kind?: string; i?: number } | null)?.kind === 'plush' ? (t as { i: number }).i : -1);
     this.view.plushes.hover(Math.max(pl(c.hover.left), pl(c.hover.right)));
     c.keySpot = this.coopLink || this.flow?.challenge ? null : this.view.plushes.keyCentre(this.keyVec);
+    c.swapSpot = this.flow?.level?.weft && !this.coopLink ? this.view.swapSpoolPos(this.swapVec) : null; // follows the lever side
+    const sw = (t: unknown) => (t as { kind?: string } | null)?.kind === 'swap';
+    this.view.setSwapHighlight(sw(c.hover.left) || sw(c.hover.right) ? 1 : 0, this.swapGlow);
     const key = (t: unknown) => (t as { kind?: string } | null)?.kind === 'windKey';
     this.view.plushes.hoverKey(key(c.hover.left) || key(c.hover.right));
   }
@@ -1004,6 +1018,7 @@ export class GameSystem extends createSystem({
       return;
     }
     this.view.undoHint = 0;
+    this.swapGlow = 0;
     if (step === 'none') return;
     const side = this.controller.bankSide;
     const pulse = 0.5 + 0.5 * Math.sin(this.time * 4); // a smooth breath, not an error blink
@@ -1014,6 +1029,11 @@ export class GameSystem extends createSystem({
       this.controller.leverPos(k, this.tagAt);
       m.position.set(this.tagAt.x, this.tagAt.y + 0.04, this.tagAt.z + 0.004);
       if (up === (step === 'unlatch')) this.view.setLeverHighlight(k, 0, up, pulse);
+    } else if (step === 'weft') {
+      // the swap spool on Pip's side breathes, with the tag above it
+      this.view.swapSpoolPos(this.tagAt);
+      m.position.set(this.tagAt.x, this.tagAt.y + 0.05, this.tagAt.z + 0.01);
+      this.swapGlow = pulse;
     } else if (step === 'undo') {
       // the red spool breathes, with the tag above it
       m.position.set(bobbinX(side), BOBBIN.y + 0.045, BOBBIN.z + 0.02); // just above the spool it means
@@ -1201,6 +1221,8 @@ function targetCode(t: unknown): number {
       return 30 + ((x as { i?: number }).i ?? 0);
     case 'windKey':
       return 40;
+    case 'swap':
+      return 41;
     default:
       return 13 + (x.dir ?? 0);
   }

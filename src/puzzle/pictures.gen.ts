@@ -48,7 +48,7 @@ export const CHAPTERS: Chapter[] = [
       "crab",
       "octopus",
       "jelly",
-      "anchor"
+      "boat"
     ]
   }
 ];
@@ -453,13 +453,14 @@ export const PICTURES: PictureLevel[] = [
     "name": "Fish",
     "chapter": "sea",
     "mystery": true,
-    "color": 0x2a9d8f,
+    "color": 0xf08a4b,
+    "weft": 0x7fc4e8,
     "picture": [
       "..###...",
-      ".#####.#",
-      "###.####",
-      ".#####.#",
-      "..###..."
+      "~#####~#",
+      "###~####",
+      "~#####~#",
+      "~~###~~~"
     ],
     "tieUp": [
       28,
@@ -467,10 +468,10 @@ export const PICTURES: PictureLevel[] = [
       190
     ],
     "target": [
-      28,
-      190,
-      247,
-      190,
+      284,
+      446,
+      503,
+      446,
       28
     ],
     "par": 9,
@@ -512,13 +513,14 @@ export const PICTURES: PictureLevel[] = [
     "chapter": "sea",
     "mystery": true,
     "color": 0xd4537e,
+    "weft": 0x7fc4e8,
     "picture": [
-      "..####..",
-      ".######.",
-      ".#.##.#.",
-      ".######.",
-      "#.#.#.#.",
-      "#.#.#.#."
+      "~~####~~",
+      "~######~",
+      "~#~##~#~",
+      "~######~",
+      "#~#~#~#~",
+      "#~#~#~#~"
     ],
     "tieUp": [
       85,
@@ -526,12 +528,12 @@ export const PICTURES: PictureLevel[] = [
       60
     ],
     "target": [
-      85,
-      85,
-      126,
-      90,
-      126,
-      60
+      341,
+      341,
+      382,
+      346,
+      382,
+      316
     ],
     "par": 7,
     "rootMidi": 67
@@ -568,32 +570,33 @@ export const PICTURES: PictureLevel[] = [
     "rootMidi": 64
   },
   {
-    "id": "anchor",
-    "name": "Anchor",
+    "id": "boat",
+    "name": "Boat",
     "chapter": "sea",
     "mystery": true,
-    "color": 0x4a8fd6,
+    "color": 0xe2563b,
+    "weft": 0x7fc4e8,
     "picture": [
+      "...#....",
       "...##...",
-      "..####..",
-      "...##...",
-      "...##...",
-      "#..##..#",
-      ".######."
+      "...###..",
+      "...#....",
+      "~######~",
+      "~######~"
     ],
     "tieUp": [
-      129,
-      66,
-      36,
-      24
+      102,
+      48,
+      8,
+      16
     ],
     "target": [
-      126,
-      153,
+      382,
+      382,
+      8,
+      56,
       24,
-      24,
-      60,
-      24
+      8
     ],
     "par": 9,
     "rootMidi": 69

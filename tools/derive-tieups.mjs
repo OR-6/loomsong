@@ -29,15 +29,17 @@ const CHAPTERS = [
     { id: 'cat', name: 'Cat', color: 0x8f63c9, rows: ['#......#', '##....##', '########', '#.#..#.#', '########', '.######.'] },
   ] },
   { id: 'sea', name: 'Sea', idea: 'mostly combinations', rule: 'parts', mystery: true, pics: [
-    { id: 'fish', name: 'Fish', color: 0x2a9d8f, rows: ['..###...', '.#####.#', '###.####', '.#####.#', '..###...'] },
+    { id: 'fish', name: 'Fish', color: 0xf08a4b, weft: 0x7fc4e8, rows: ['..###...', '~#####~#', '###~####', '~#####~#', '~~###~~~'] },
     { id: 'crab', name: 'Crab', color: 0xd85a30, rows: ['#......#', '#.#..#.#', '.######.', '########', '.######.', '#.#..#.#'] },
-    { id: 'octopus', name: 'Octopus', color: 0xd4537e, rows: ['..####..', '.######.', '.#.##.#.', '.######.', '#.#.#.#.', '#.#.#.#.'] },
+    { id: 'octopus', name: 'Octopus', color: 0xd4537e, weft: 0x7fc4e8, rows: ['~~####~~', '~######~', '~#~##~#~', '~######~', '#~#~#~#~', '#~#~#~#~'] },
     { id: 'jelly', name: 'Jellyfish', color: 0x9b7fd6, rows: ['..####..', '.######.', '########', '.#.##.#.', '.#.##.#.', '#..##..#'] },
-    { id: 'anchor', name: 'Anchor', color: 0x4a8fd6, rows: ['...##...', '..####..', '...##...', '...##...', '#..##..#', '.######.'] },
+    { id: 'boat', name: 'Boat', color: 0xe2563b, weft: 0x7fc4e8, rows: ['...#....', '...##...', '...###..', '...#....', '~######~', '~######~'] },
   ] },
 ];
 
 const bits = (s) => [...s].reduce((m, c, i) => (c === '#' ? m | (1 << i) : m), 0);
+/** A row drawn with '~' ground is woven with the second weft (bit 8). */
+const rowVal = (s) => bits(s) | (s.includes('~') ? 256 : 0);
 const canMake = (rows, masks) => rows.every((r) => { let u = 0; for (const m of masks) if ((m & ~r) === 0) u |= m; return u === r; });
 const pc = (n) => { let c = 0; while (n) { n &= n - 1; c++; } return c; };
 
@@ -128,16 +130,17 @@ const out = [];
 let i = 0;
 for (const ch of CHAPTERS) {
   for (const p of ch.pics) {
-    const target = p.rows.map(bits).reverse(); // weave bottom row first
-    const tie = ch.rule === 'parts' ? partsTieUp(target) ?? bestTieUp(target) : bestTieUp(target);
+    const target = p.rows.map(rowVal).reverse(); // weave bottom row first
+    const warps = target.map((r) => r & 255);
+    const tie = ch.rule === 'parts' ? partsTieUp(warps) ?? bestTieUp(warps) : bestTieUp(warps);
     if (!tie) { console.error('NOT WEAVABLE:', p.id); process.exitCode = 1; continue; }
     // Order levers so the first row's lever comes first (tutorial clarity).
     // Garden: the first row's lever first (tutorial). Parts: biggest piece first.
-    tie.sort((a, b) => (target[0] === b) - (target[0] === a) || pc(b) - pc(a));
-    const pr = par(tie, target);
-    const combos = target.filter((r) => !tie.includes(r)).length;
+    tie.sort((a, b) => (warps[0] === b) - (warps[0] === a) || pc(b) - pc(a));
+    const pr = par(tie, warps);
+    const combos = warps.filter((r) => !tie.includes(r)).length;
     console.log(`${ch.id.padEnd(7)} ${p.id.padEnd(10)} levers ${tie.length} rows ${target.length} combos ${combos} par ${pr}`);
-    out.push({ id: p.id, name: p.name, chapter: ch.id, mystery: !!ch.mystery, color: p.color, picture: p.rows, tieUp: tie, target, par: pr, rootMidi: ROOTS[i++ % ROOTS.length] });
+    out.push({ id: p.id, name: p.name, chapter: ch.id, mystery: !!ch.mystery, color: p.color, ...(p.weft ? { weft: p.weft } : {}), picture: p.rows, tieUp: tie, target, par: pr, rootMidi: ROOTS[i++ % ROOTS.length] });
   }
 }
 const chapters = CHAPTERS.map((c) => ({ id: c.id, name: c.name, idea: c.idea, levels: c.pics.map((p) => p.id) }));
@@ -149,7 +152,7 @@ import type { PictureLevel, Chapter } from './pictures.js';
 
 export const CHAPTERS: Chapter[] = ${JSON.stringify(chapters, null, 2)};
 
-export const PICTURES: PictureLevel[] = ${JSON.stringify(out, null, 2).replace(/"color": (\d+)/g, (_, n) => `"color": 0x${(+n).toString(16).padStart(6, '0')}`)};
+export const PICTURES: PictureLevel[] = ${JSON.stringify(out, null, 2).replace(/"(color|weft)": (\d+)/g, (_, k, n) => `"${k}": 0x${(+n).toString(16).padStart(6, '0')}`)};
 `;
 writeFileSync(new URL('../src/puzzle/pictures.gen.ts', import.meta.url), ts);
 console.log(`wrote ${out.length} levels`);

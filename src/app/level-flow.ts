@@ -6,7 +6,7 @@
 import type { LoomModel, LoomEvent } from '../loom/loom-model.js';
 import type { Level } from '../puzzle/levels.js';
 import { isWon, rowStatuses, stars, type RowStatus } from '../puzzle/session.js';
-import { isLifted, type Mask8 } from '../puzzle/tieup.js';
+import { isLifted, warpsOf, weftOf, type Mask8 } from '../puzzle/tieup.js';
 import { WARPS } from '../config.js';
 import type { Progress } from '../persistence/progress.js';
 
@@ -14,11 +14,11 @@ export type FlowPhase = 'play' | 'won' | 'playback' | 'between';
 
 /**
  * What to touch next. 'lever': lift lever k; 'unlatch': put lever k back;
- * 'shuttle': slide Pip; 'undo': pull the spool (last row is wrong);
+ * 'weft': swap Pip's yarn (Sea); 'shuttle': slide Pip; 'undo': pull the spool (last row is wrong);
  * 'card': read the card (the goal, or "match the next row" in idle hints);
  * 'knots': the tutorial explains the knot budget once, after the goal.
  */
-export type HintStep = 'lever' | 'unlatch' | 'shuttle' | 'undo' | 'card' | 'knots' | 'none';
+export type HintStep = 'lever' | 'unlatch' | 'weft' | 'shuttle' | 'undo' | 'card' | 'knots' | 'none';
 
 export interface FlowHooks {
   load(level: Level, index: number): void;
@@ -192,7 +192,7 @@ export class LevelFlow {
       return;
     }
     // any touch resets the idle clock and clears an idle hint
-    if (e.type === 'lever' || e.type === 'row' || e.type === 'undo') {
+    if (e.type === 'lever' || e.type === 'row' || e.type === 'undo' || e.type === 'weft') {
       this.idle = 0;
       if (this.idleShown) {
         this.idleShown = false;
@@ -206,6 +206,12 @@ export class LevelFlow {
       }
       this.emitStatus();
     }
+    // two-colour levels: say "swap Pip's yarn" the moment it's the next thing to do (it's never the puzzle)
+    if (!this.tutorial && this.level.weft && this.phase === 'play' && !this.mirror) {
+      const n = nextStep(this.level, this.model.rows, this.model.latched, this.model.weft);
+      if (n.step === 'weft') this.setHint('weft');
+      else if (this.hintStep === 'weft') this.setHint('none');
+    }
     if (!this.tutorial || this.phase !== 'play') return;
     if (e.type === 'row' && !this.goalShown && this.model.rows.length === 1 && this.model.rows[0] === this.level.target[0]) {
       // the first right row: say the goal once, then keep guiding
@@ -215,7 +221,7 @@ export class LevelFlow {
       return;
     }
     if ((this.hintStep === 'card' || this.hintStep === 'knots') && this.hintTimer > 0) return;
-    if (e.type === 'lever' || e.type === 'row' || e.type === 'undo') this.guide();
+    if (e.type === 'lever' || e.type === 'row' || e.type === 'undo' || e.type === 'weft') this.guide();
   }
 
   private win(): void {
@@ -246,15 +252,15 @@ export class LevelFlow {
 
   /** Tutorial: show the very next action for the current row. */
   private guide(): void {
-    const n = nextStep(this.level, this.model.rows, this.model.latched);
+    const n = nextStep(this.level, this.model.rows, this.model.latched, this.model.weft);
     this.setHint(n.step, n.lever);
   }
 
   /** After the tutorial, idle hints point at the kind of action, not the answer (except in Garden). */
   private idleHint(): void {
-    const n = nextStep(this.level, this.model.rows, this.model.latched);
+    const n = nextStep(this.level, this.model.rows, this.model.latched, this.model.weft);
     const easy = this.level.chapter === 'garden' || !this.level.chapter;
-    if (n.step === 'undo' || n.step === 'shuttle' || easy) this.setHint(n.step, n.lever);
+    if (n.step === 'undo' || n.step === 'shuttle' || n.step === 'weft' || easy) this.setHint(n.step, n.lever);
     else this.setHint('card'); // "match the next row": the puzzle stays the player's
   }
 
@@ -275,7 +281,7 @@ export function totalStars(p: Pick<Progress, 'best'>): number {
  * a lever the next row doesn't need, lift one it does (fewest moves from the
  * levers as they are), or throw Pip when the shed already matches.
  */
-export function nextStep(level: Level, rows: readonly Mask8[], latched: readonly boolean[]): { step: HintStep; lever: number } {
+export function nextStep(level: Level, rows: readonly Mask8[], latched: readonly boolean[], weft: 0 | 1 = 0): { step: HintStep; lever: number } {
   const r = rows.length;
   if (r > 0 && rows[r - 1] !== level.target[r - 1]) return { step: 'undo', lever: -1 };
   if (r >= level.target.length) return { step: 'none', lever: -1 };
@@ -285,7 +291,7 @@ export function nextStep(level: Level, rows: readonly Mask8[], latched: readonly
   for (let s = 0; s < 1 << L; s++) {
     let m = 0;
     for (let k = 0; k < L; k++) if ((s >> k) & 1) m |= level.tieUp[k];
-    if (m !== level.target[r]) continue;
+    if (m !== warpsOf(level.target[r])) continue;
     let flips = 0;
     let count = 0;
     for (let k = 0; k < L; k++) {
@@ -302,6 +308,7 @@ export function nextStep(level: Level, rows: readonly Mask8[], latched: readonly
   if (best < 0) return { step: 'card', lever: -1 };
   for (let k = 0; k < L; k++) if (!!latched[k] && !((best >> k) & 1)) return { step: 'unlatch', lever: k };
   for (let k = 0; k < L; k++) if (!latched[k] && (best >> k) & 1) return { step: 'lever', lever: k };
+  if (weftOf(level.target[r]) !== weft) return { step: 'weft', lever: -1 };
   return { step: 'shuttle', lever: -1 };
 }
 
@@ -314,7 +321,7 @@ export function firstLeverForRow0(level: Level): number {
     let m = 0;
     for (let k = 0; k < L; k++) if ((s >> k) & 1) m |= level.tieUp[k];
     const bits = s.toString(2).replace(/0/g, '').length;
-    if (m === level.target[0] && bits < bestBits) {
+    if (m === warpsOf(level.target[0]) && bits < bestBits) {
       bestBits = bits;
       best = s;
     }

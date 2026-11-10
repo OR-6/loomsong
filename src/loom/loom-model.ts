@@ -3,7 +3,7 @@
  * Rendering and input live elsewhere; this is what tests assert on.
  */
 import { LEVERS } from '../config.js';
-import { shedMask, type Mask8 } from '../puzzle/tieup.js';
+import { WEFT_B, shedMask, type Mask8 } from '../puzzle/tieup.js';
 
 export class LoomModel {
   latched: boolean[] = new Array(LEVERS).fill(false);
@@ -11,6 +11,8 @@ export class LoomModel {
   /** Which side the shuttle rests on: 0 = left (t=0), 1 = right (t=1). */
   shuttleSide: 0 | 1 = 0;
   leverFlips = 0;
+  /** Weft yarn in Pip's boat: 0 = cream, 1 = the level's second colour (Sea). */
+  weft: 0 | 1 = 0;
   readonly listeners = new Set<(e: LoomEvent) => void>();
 
   constructor(public tieUp: Mask8[]) {}
@@ -22,6 +24,7 @@ export class LoomModel {
     this.rows.length = 0;
     this.shuttleSide = 0;
     this.leverFlips = 0;
+    this.weft = 0;
   }
 
   get shed(): Mask8 {
@@ -35,9 +38,16 @@ export class LoomModel {
     this.emit({ type: 'lever', lever: k, latched: v, shed: this.shed });
   }
 
+  /** Swap Pip's yarn (not a lever move: costs no knot). */
+  setWeft(w: 0 | 1): void {
+    if (this.weft === w) return;
+    this.weft = w;
+    this.emit({ type: 'weft', weft: w });
+  }
+
   /** Called when the shuttle completes a full pass. */
   commitRow(): Mask8 {
-    const row = this.shed;
+    const row = this.shed | (this.weft ? WEFT_B : 0);
     this.rows.push(row);
     this.shuttleSide = this.shuttleSide === 0 ? 1 : 0;
     this.emit({ type: 'row', row, index: this.rows.length - 1 });
@@ -77,4 +87,5 @@ export type LoomEvent =
   | { type: 'lever'; lever: number; latched: boolean; shed: Mask8 }
   | { type: 'row'; row: Mask8; index: number }
   | { type: 'undo'; row: Mask8; index: number }
+  | { type: 'weft'; weft: 0 | 1 }
   | { type: 'sync' };

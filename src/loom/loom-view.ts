@@ -63,7 +63,7 @@ import {
   warpX,
   shuttleY,
 } from '../config.js';
-import { isLifted, type Mask8 } from '../puzzle/tieup.js';
+import { WEFT_B, isLifted, type Mask8 } from '../puzzle/tieup.js';
 
 export type { Palette };
 
@@ -80,6 +80,8 @@ const _white = new Color(0xffffff);
 const ROW_FX = 0.45;
 /** Opacity of the ghost picture on the rows still to weave. */
 const GHOST_OPACITY = 0.8;
+/** Sea's swap spools: on short walnut pegs just in front of each perch (Pip's yarn supply). */
+export const SWAP = { x: 0.168, y: 0.03, z: 0.03 } as const;
 const backOut = (x: number) => 1 + 2.2 * Math.pow(x - 1, 3) + 1.2 * Math.pow(x - 1, 2);
 /** Underside of the heddle bar in the Blender model (bar centre 0.071, 17 mm tall). */
 const HEDDLE_BAR_BOTTOM_Y = 0.0625;
@@ -112,6 +114,11 @@ export class LoomView {
   /** The boat shuttle under Pip (highlights with Pip) and the weft bobbin in it. */
   private boatMat: MeshStandardMaterial | null = null;
   private boatYarn: MeshStandardMaterial | null = null;
+  private weftColor: number | null = null;
+  private weftNow: 0 | 1 = 0;
+  /** Sea: a little yarn spool on a peg beside each perch; touch one to swap Pip's yarn. */
+  readonly weftSpools = new Group();
+  private swapYarnMat = new MeshStandardMaterial({ color: 0x7fc4e8, roughness: 0.85 });
   private mood: 'none' | 'happy' | 'sad' | 'cheer' = 'none';
   private moodT = 0;
   private idleIn = 3;
@@ -281,6 +288,27 @@ export class LoomView {
     this.root.add(this.catcher);
     // No mat: the player's real desk shows around the toy (it's mixed reality).
     this.root.add(this.plushes.root, this.basket.root, this.ghost.root, this.fx.root);
+    // Sea's swap spools (hidden unless the level has a second weft)
+    {
+      const flangeMat = new MeshStandardMaterial({ color: 0xf3e6cf, roughness: 0.7 });
+      const pegMat = new MeshStandardMaterial({ color: 0x6b3e26, roughness: 0.6 });
+      this.swapYarnMat.map = yarnTexture();
+      // one spool, in front of the perch on the lever side (the undo spool owns the other side)
+      const sp = new Group();
+      sp.name = 'SwapSpool';
+      const yarn = new Mesh(new CylinderGeometry(0.011, 0.011, 0.016, 24), this.swapYarnMat);
+      const f1 = new Mesh(new CylinderGeometry(0.0138, 0.0138, 0.003, 24), flangeMat);
+      f1.position.y = 0.0092;
+      const f2 = f1.clone();
+      f2.position.y = -0.0092;
+      const peg = new Mesh(new CylinderGeometry(0.0024, 0.003, SWAP.y, 10), pegMat);
+      peg.position.y = -SWAP.y / 2;
+      sp.add(yarn, f1, f2, peg);
+      sp.position.set(SWAP.x, SWAP.y, SWAP.z);
+      this.weftSpools.add(sp);
+      this.weftSpools.visible = false;
+      this.root.add(this.weftSpools);
+    }
 
     this.build(theme);
     this.setSide(1);
@@ -581,6 +609,7 @@ export class LoomView {
 
   setSide(side: 1 | -1): void {
     this.side = side;
+    this.weftSpools.children[0]?.position.set(side * SWAP.x, SWAP.y, SWAP.z);
     this.token.position.set(tokenX(side), TOKEN.y, TOKEN.z);
     this.nudges.position.set(nudgeX(side), NUDGE.y, 0);
     // Plaque leans on the front beam, shifted away from the token.
@@ -730,7 +759,7 @@ export class LoomView {
       _p.set(warpX(i) + shake, 0.0062, z0);
       _m.compose(_p, _q.identity(), _s.set(WARP_PITCH * 0.95 * pop, 0.003 * (1 + (1 - pop)), LOOM.rowPitch * 0.86 * pop));
       this.cloth.setMatrixAt(base + i, _m);
-      _c.setHex(isLifted(row, i) ? this.liftColor : this.groundColor);
+      _c.setHex(isLifted(row, i) ? this.liftColor : this.groundOf(row));
       if (!done) {
         if (this.rowFxGood) _c.lerp(_glow, 0.6 * Math.max(0, 1 - t / 0.25));
         else if (isLifted(row, i) !== isLifted(want, i) && (t < 0.12 || (t > 0.24 && t < 0.36))) _c.multiplyScalar(0.45); // the wrong cells blink
@@ -762,7 +791,7 @@ export class LoomView {
       _p.set(warpX(i), 0.0065, z);
       _m.compose(_p, _q.identity(), _s.set(1, 1, 1));
       this.preview.setMatrixAt(i, _m);
-      _c.setHex(isLifted(mask, i) ? this.liftColor : this.groundColor);
+      _c.setHex(isLifted(mask, i) ? this.liftColor : this.weftNowColor);
       this.preview.setColorAt(i, _c);
     }
     this.preview.instanceMatrix.needsUpdate = true;
@@ -963,7 +992,7 @@ export class LoomView {
     this.trailDist += Math.abs(x - xPrev);
     if (this.trailDist > 0.025 && Math.abs(x) < SHUTTLE.shedHalf + 0.02) {
       this.trailDist = 0;
-      this.fx.puff(x - Math.sign(x - xPrev) * 0.012, shuttleY(x) + 0.004, SHUTTLE.z, this.groundColor, 1);
+      this.fx.puff(x - Math.sign(x - xPrev) * 0.012, shuttleY(x) + 0.004, SHUTTLE.z, this.weftNowColor, 1);
     }
   }
 
@@ -1000,14 +1029,14 @@ export class LoomView {
       const r = this.rowsCache.length - 1;
       const gone = this.rowsCache[r];
       const z = this.rowZ(r, this.rowsCache.length);
-      for (let i = 0; i < WARPS; i++) this.fx.puff(warpX(i), 0.012, z, isLifted(gone, i) ? this.liftColor : this.groundColor, 2);
+      for (let i = 0; i < WARPS; i++) this.fx.puff(warpX(i), 0.012, z, isLifted(gone, i) ? this.liftColor : this.groundOf(gone), 2);
     }
     this.rowsCache = rows;
     if (added) {
       // the row is beaten in: a puff of fluff along it, in each cell's yarn colour
       const r = rows.length - 1;
       const z = this.rowZ(r, rows.length);
-      for (let i = 0; i < WARPS; i++) this.fx.puff(warpX(i), 0.01, z, isLifted(rows[r], i) ? this.liftColor : this.groundColor, 2);
+      for (let i = 0; i < WARPS; i++) this.fx.puff(warpX(i), 0.01, z, isLifted(rows[r], i) ? this.liftColor : this.groundOf(rows[r]), 2);
     }
     const n = Math.min(rows.length, LOOM.visibleRows);
     const start = rows.length - n;
@@ -1022,7 +1051,7 @@ export class LoomView {
         _m.compose(_p, _q.identity(), _s.set(WARP_PITCH * 0.95, 0.003, LOOM.rowPitch * 0.86));
         this.cloth.setMatrixAt(idx, _m);
         // warp visible if lifted in that row, else weft visible
-        _c.setHex(isLifted(row, i) ? this.liftColor : this.groundColor);
+        _c.setHex(isLifted(row, i) ? this.liftColor : this.groundOf(row));
         if (start + r === this.glowRow) _c.lerp(_glow, 0.55);
         this.cloth.setColorAt(idx, _c);
         idx++;
@@ -1051,14 +1080,16 @@ export class LoomView {
     if (this.rowsCache.length < LOOM.maxRows) {
       for (let r = done; r < this.target.length && r < LOOM.maxRows; r++) {
         const z = this.rowZ(r, done);
+        const water = this.target[r] & WEFT_B && this.weftColor !== null;
         for (let i = 0; i < WARPS; i++) {
-          // only the picture's own pixels, faint: no grey "canvas" cells
-          if (!isLifted(this.target[r], i)) continue;
+          // only the picture's own pixels (and Sea's water rows), faint: no grey "canvas" cells
+          const px = isLifted(this.target[r], i);
+          if (!px && !water) continue;
           _p.set(warpX(i), 0.0049, z);
           _m.compose(_p, _q.identity(), _s.set(0.9, 0.15, 0.88)); // flat faint tile on the felt
           this.ghostCloth.setMatrixAt(idx, _m);
           // the row to weave next is bright; later rows sink toward the navy felt
-          _c.setHex(this.liftColor);
+          _c.setHex(px ? this.liftColor : (this.weftColor as number));
           if (r === done) _c.lerp(_c2.setHex(0xfff4dc), 0.08); // the next row: the picture's own colour
           else _c.lerp(_c2.setHex(0x2b3a67), 0.68);
           this.ghostCloth.setColorAt(idx, _c);
@@ -1240,6 +1271,59 @@ export class LoomView {
     this.writeWarps();
   }
 
+  /** Sea: the level's second weft colour (null: a single cream weft). */
+  setWeftColor(color: number | null): void {
+    this.weftColor = color;
+    this.weftNow = 0;
+    this.weftSpools.visible = color !== null;
+    this.dyeSwapSpools();
+    this.applyColors();
+    this.setRows(this.rowsCache);
+    this.writeTarget();
+  }
+
+  /** Pip's boat now carries this weft: its yarn turns that colour with a little puff. */
+  setWeftNow(w: 0 | 1): void {
+    if (w === this.weftNow) return;
+    this.weftNow = w;
+    this.boatYarn?.color.setHex(this.weftNowColor);
+    this.dyeSwapSpools();
+    const p = this.shuttle.position;
+    this.fx.puff(p.x, p.y + 0.01, p.z, this.weftNowColor, 6);
+    this.pipGrabT = 0; // a happy little squash
+  }
+
+  /** The swap spools show the yarn you'd swap TO. */
+  private dyeSwapSpools(): void {
+    const other = this.weftNow ? this.groundColor : (this.weftColor ?? this.groundColor);
+    this.swapYarnMat.color.setHex(other);
+  }
+
+  /** Where the swap spool sits (loom space): in front of the perch on the lever side. */
+  swapSpoolPos(out: { x: number; y: number; z: number }): typeof out {
+    out.x = this.side * SWAP.x;
+    out.y = SWAP.y;
+    out.z = SWAP.z;
+    return out;
+  }
+
+  /** Swap spools: hovered/held glow, or a tutorial breath. */
+  setSwapHighlight(level: 0 | 1 | 2, glow = 0): void {
+    this.swapYarnMat.emissive.copy(this.swapYarnMat.color).multiplyScalar((level === 2 ? 0.45 : level === 1 ? 0.25 : 0) + glow * 0.3);
+    const s = level ? 1.12 : 1;
+    for (const c of this.weftSpools.children) c.scale.setScalar(s);
+  }
+
+  /** The weft Pip carries right now. */
+  get weftNowColor(): number {
+    return this.weftNow && this.weftColor !== null ? this.weftColor : this.groundColor;
+  }
+
+  /** A woven or target row's ground (unlifted) colour: cream, or the second weft. */
+  private groundOf(row: number): number {
+    return row & WEFT_B && this.weftColor !== null ? this.weftColor : this.groundColor;
+  }
+
   /** Mystery levers are undyed wool until tried; then they take their colour. */
   private dyeLever(k: number): void {
     const hidden = !!this.tieHidden[k];
@@ -1299,7 +1383,7 @@ export class LoomView {
     (this.warps?.material as MeshStandardMaterial | undefined)?.color.setHex(0xffffff);
     const yarn = this.bobbin ? (materialOf(this.bobbin, 'Wound') as MeshStandardMaterial | null) : null;
     yarn?.color.setHex(UNDO_RED);
-    this.boatYarn?.color.setHex(this.groundColor);
+    this.boatYarn?.color.setHex(this.weftNowColor);
   }
 
   /** One knot per (lever, lifted thread), riding the warp just in front of the heddle. */

@@ -4,7 +4,7 @@ import { LEVELS, dailyLevel, dayKey, levelAt } from '../src/puzzle/catalog';
 import { computePar, rowReachable } from '../src/puzzle/par';
 import { WARPS } from '../src/config';
 
-const bits = (s: string) => [...s].reduce((m, c, i) => (c === '#' ? m | (1 << i) : m), 0);
+const bits = (s: string) => [...s].reduce((m, c, i) => (c === '#' ? m | (1 << i) : m), 0) | (s.includes('~') ? 256 : 0);
 
 describe('picture levels', () => {
   it('every picture is weavable with its tie-up and its par is the true minimum', () => {
@@ -26,7 +26,7 @@ describe('picture levels', () => {
   it('difficulty rises: chapter 1 needs no combinations; the Sea chapter needs the most', () => {
     const combos = (id: string) => {
       const p = PICTURES.find((x) => x.id === id)!;
-      return p.target.filter((r) => !p.tieUp.includes(r)).length;
+      return p.target.filter((r) => !p.tieUp.includes(r & 255)).length;
     };
     const avg = (ch: string) => {
       const ls = CHAPTERS.find((c) => c.id === ch)!.levels;
@@ -45,5 +45,15 @@ describe('picture levels', () => {
     const week = ['10', '11', '12', '13', '14', '15', '16'].map((d) => dailyLevel(`2026-11-${d}`).id);
     expect(new Set(week).size).toBe(7);
     expect(dayKey(new Date(2026, 10, 9))).toBe('2026-11-09');
+  });
+  it("Sea's two-colour pictures: '~' rows carry the weft bit, a row never mixes cream and water", () => {
+    const sea = PICTURES.filter((p) => p.weft);
+    expect(sea.length).toBeGreaterThanOrEqual(2);
+    for (const p of sea) {
+      for (const row of p.picture) expect(row.includes('~') && row.includes('.'), `${p.id} ${row}`).toBe(false);
+      expect(p.target.some((r) => r & 256), p.id).toBe(true);
+    }
+    // a picture that mixes both yarns makes the swap a real step
+    expect(sea.some((p) => p.target.some((r) => r & 256) && p.target.some((r) => !(r & 256)))).toBe(true);
   });
 });

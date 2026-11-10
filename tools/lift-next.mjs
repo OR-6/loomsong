@@ -9,7 +9,7 @@ export default async function run({ page, frame }) {
     for (let s = 0; s < 1 << n; s++) {
       let m = 0;
       for (let k = 0; k < n; k++) if (s & (1 << k)) m |= lv.tieUp[k];
-      if (m === lv.target[r]) { for (let k = 0; k < n; k++) if (!!(s & (1 << k)) !== g.model.latched[k]) c.toggleLever(k); break; }
+      if (m === (lv.target[r] & 255)) { for (let k = 0; k < n; k++) if (!!(s & (1 << k)) !== g.model.latched[k]) c.toggleLever(k); break; }
     }
     await new Promise((r) => setTimeout(r, 400));
     return { latched: [...g.model.latched] };

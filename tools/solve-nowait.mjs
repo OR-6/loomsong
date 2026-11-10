@@ -10,9 +10,9 @@ export default async function run({ page, frame }) {
     const n = lv.tieUp.length;
     const pick = (row) => { for (let s = 0; s < 1 << n; s++) { let m = 0; for (let k = 0; k < n; k++) if (s & (1 << k)) m |= lv.tieUp[k]; if (m === row) return s; } return 0; };
     for (let r = g.model.rows.length; r < lv.target.length; r++) {
-      const s = pick(lv.target[r]);
+      const s = pick(lv.target[r] & 255);
       for (let k = 0; k < n; k++) if (!!(s & (1 << k)) !== g.model.latched[k]) c.toggleLever(k);
-      c.throwShuttle();
+      g.model.setWeft(lv.target[g.model.rows.length] & 256 ? 1 : 0); c.throwShuttle();
       if (r === lv.target.length - 1) return { level: lv.id, lastThrown: true };
       for (let w = 0; w < 40 && g.model.rows.length <= r; w++) await sleep(100);
       await sleep(200);

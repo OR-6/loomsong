@@ -12,11 +12,11 @@ export default async function run({ page, frame }) {
       for (let s = 0; s < 1 << n; s++) {
         let m = 0;
         for (let k = 0; k < n; k++) if (s & (1 << k)) m |= lv.tieUp[k];
-        if (m === lv.target[r] && (best < 0 || popcount(s) < popcount(best))) best = s;
+        if (m === (lv.target[r] & 255) && (best < 0 || popcount(s) < popcount(best))) best = s;
       }
       if (best < 0) return { error: 'row ' + r + ' unweavable' };
       for (let k = 0; k < n; k++) if (!!(best & (1 << k)) !== g.model.latched[k]) c.toggleLever(k);
-      c.throwShuttle();
+      g.model.setWeft(lv.target[g.model.rows.length] & 256 ? 1 : 0); c.throwShuttle();
       for (let w = 0; w < 40 && g.model.rows.length <= r; w++) await sleep(100);
       await sleep(250);
     }

@@ -11,15 +11,15 @@ export default async function run({ page, frame }) {
     for (let r = start; r < Math.min(lv.target.length, start + 2); r++) {
       // the matching lever set with the fewest flips from the current levers (a thrifty player)
       let best = -1, bestFlips = 99;
-      for (let s = 0; s < 1 << n; s++) { let m = 0; for (let k = 0; k < n; k++) if (s & (1 << k)) m |= lv.tieUp[k]; if (m !== lv.target[r]) continue; let f = 0; for (let k = 0; k < n; k++) if (!!(s & (1 << k)) !== g.model.latched[k]) f++; if (f < bestFlips) { bestFlips = f; best = s; } }
+      for (let s = 0; s < 1 << n; s++) { let m = 0; for (let k = 0; k < n; k++) if (s & (1 << k)) m |= lv.tieUp[k]; if (m !== (lv.target[r] & 255)) continue; let f = 0; for (let k = 0; k < n; k++) if (!!(s & (1 << k)) !== g.model.latched[k]) f++; if (f < bestFlips) { bestFlips = f; best = s; } }
       for (let k = 0; k < n; k++) if (!!(best & (1 << k)) !== g.model.latched[k]) c.toggleLever(k);
-      c.throwShuttle();
+      g.model.setWeft(lv.target[g.model.rows.length] & 256 ? 1 : 0); c.throwShuttle();
       for (let w = 0; w < 40 && g.model.rows.length <= r; w++) await sleep(100);
       await sleep(250);
     }
     // lift the next row's levers so the shed is open in the shot
     const r = g.model.rows.length;
-    for (let s = 0; s < 1 << n; s++) { let m = 0; for (let k = 0; k < n; k++) if (s & (1 << k)) m |= lv.tieUp[k]; if (m === lv.target[r]) { for (let k = 0; k < n; k++) if (!!(s & (1 << k)) !== g.model.latched[k]) c.toggleLever(k); break; } }
+    for (let s = 0; s < 1 << n; s++) { let m = 0; for (let k = 0; k < n; k++) if (s & (1 << k)) m |= lv.tieUp[k]; if (m === (lv.target[r] & 255)) { for (let k = 0; k < n; k++) if (!!(s & (1 << k)) !== g.model.latched[k]) c.toggleLever(k); break; } }
     await sleep(500);
     return { rows: g.model.rows.length };
   });

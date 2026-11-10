@@ -21,4 +21,6 @@ export interface Level {
   chapter?: string;
   /** Levers' threads hidden until first tried. */
   mystery?: boolean;
+  /** Second weft colour (Sea): rows with the weft bit are woven in it. */
+  weft?: number;
 }

@@ -249,6 +249,13 @@ class Synth {
     for (const [d, g] of [[24, 0.1], [28, 0.08], [31, 0.08]] as const) this.kalimba(r + d, g, 0.005);
   }
 
+  /** Pip changes yarn: a soft cloth rustle and a little rising pair. */
+  swapYarn(): void {
+    this.fx('cloth', 0.4);
+    this.kalimba(this.rootMidi + 19, 0.09, 0.03);
+    this.kalimba(this.rootMidi + 24, 0.08, 0.1);
+  }
+
   /** Winding the shelf's music-box key: four quick rising clicks. */
   windUp(): void {
     for (let i = 0; i < 4; i++) this.play(`fx/tick-${i % 3}.ogg`, 0.24, i * 0.11, 0.9 + i * 0.1, false);

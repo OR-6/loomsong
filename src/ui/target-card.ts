@@ -29,6 +29,8 @@ export class TargetCard {
   private par = 0;
   private used = 0;
 
+  /** Second weft colour for '~' rows (Sea), or null. */
+  weft: number | null = null;
   /** Night: little stars twinkle in the margins. */
   sparkles = false;
   /** Optional paper tint for the chapter (e.g. a cool dusk for Night). */
@@ -170,7 +172,8 @@ export class TargetCard {
         } else if (highContrast) {
           g.fillStyle = lifted ? '#000000' : '#ffffff';
         } else {
-          g.fillStyle = lifted ? lift : ground;
+          // Sea: rows woven in the second weft show their water colour
+          g.fillStyle = lifted ? lift : row & 256 && this.weft !== null ? hex(this.weft) : ground;
         }
         g.fillRect(px(x) + 1, px(y) + 1, px(cell) - 2, px(cell) - 2);
         if (!highContrast) {

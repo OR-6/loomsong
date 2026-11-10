@@ -148,4 +148,40 @@ describe('level flow', () => {
     const s = nextStep(lv, [], [true, true]);
     expect(s).toEqual({ step: 'unlatch', lever: 1 });
   });
+
+  it("Sea: a water row needs Pip's yarn swapped; the weft bit is woven in and costs no knot", () => {
+    const boat = LEVELS.find((l) => l.id === 'boat')!;
+    const water = boat.target[0];
+    expect(water & 256).toBe(256);
+    // with the right levers up, the next step is the yarn swap, then the throw
+    const levers = [false, false, false, false];
+    for (let s = 0; s < 1 << boat.tieUp.length; s++) {
+      let m = 0;
+      for (let k = 0; k < boat.tieUp.length; k++) if ((s >> k) & 1) m |= boat.tieUp[k];
+      if (m === (water & 255)) { for (let k = 0; k < boat.tieUp.length; k++) levers[k] = !!((s >> k) & 1); break; }
+    }
+    expect(nextStep(boat, [], levers, 0).step).toBe('weft');
+    expect(nextStep(boat, [], levers, 1).step).toBe('shuttle');
+    const model = new LoomModel([...boat.tieUp]);
+    levers.forEach((v, k) => model.setLatched(k, v));
+    const flips = model.leverFlips;
+    model.setWeft(1);
+    expect(model.leverFlips).toBe(flips);
+    expect(model.commitRow()).toBe(water);
+  });
+
+  it('two-colour levels hint the yarn swap as soon as the levers are right', () => {
+    const idx = LEVELS.findIndex((l) => l.id === 'boat');
+    const { model, flow, log } = setup({ level: idx, best: {}, tutorialDone: true, theme: 'toy' });
+    flow.start(idx);
+    const boat = flow.level;
+    for (let s = 0; s < 1 << boat.tieUp.length; s++) {
+      let m = 0;
+      for (let k = 0; k < boat.tieUp.length; k++) if ((s >> k) & 1) m |= boat.tieUp[k];
+      if (m === (boat.target[0] & 255)) { for (let k = 0; k < boat.tieUp.length; k++) if ((s >> k) & 1) model.setLatched(k, true); break; }
+    }
+    expect(log.at(-1)).toMatch(/^hint weft/);
+    model.setWeft(1);
+    expect(log.at(-1)).toMatch(/^hint none/);
+  });
 });

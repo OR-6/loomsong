@@ -13,7 +13,9 @@ export interface PictureLevel {
   mystery: boolean;
   /** Yarn colour of the picture's pixels (lifted warps). */
   color: number;
-  /** Rows top→bottom, '#' = pixel. */
+  /** Second weft colour for rows drawn with '~' (Sea water), if any. */
+  weft?: number;
+  /** Rows top→bottom, '#' = pixel, '.' = cream ground, '~' = second-weft ground. */
   picture: string[];
   tieUp: Mask8[];
   /** Weaving order: bottom row first. */
