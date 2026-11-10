@@ -6,7 +6,7 @@
  * Status is never colour-only: next row = arrow; woven match = tick;
  * mismatch = cross plus a hatched row.
  */
-import { CanvasTexture, Mesh, MeshBasicMaterial, PlaneGeometry, SRGBColorSpace } from '@iwsdk/core';
+import { BoxGeometry, CanvasTexture, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace } from '@iwsdk/core';
 import { CARD, WARPS } from '../config.js';
 import type { Theme } from './theme.js';
 import type { RowStatus } from '../puzzle/session.js';
@@ -52,6 +52,11 @@ export class TargetCard {
       new MeshBasicMaterial({ map: this.tex, transparent: true, depthWrite: true }),
     );
     this.mesh.name = 'TargetCard';
+    // Kraft cardboard backing: gives the paper card an edge and some thickness.
+    const back = new Mesh(new BoxGeometry(1.03, 1.03, 0.0025), new MeshStandardMaterial({ color: 0xc89c6c, roughness: 0.9 }));
+    back.position.z = -0.0016;
+    back.name = 'CardBacking';
+    this.mesh.add(back);
   }
 
   /**

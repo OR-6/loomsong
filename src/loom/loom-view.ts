@@ -290,6 +290,17 @@ export class LoomView {
         const knob = cloneModel(models.knob, tint);
         const cap = materialOf(knob, 'Cap') as MeshStandardMaterial;
         cap.color.setHex(palette.knobs[k]);
+        // yarn wrap on the stem, a shade deeper than the cap
+        const wrap = materialOf(knob, 'StemWrap') as MeshStandardMaterial | null;
+        if (wrap) {
+          wrap.color.setHex(palette.knobs[k]).multiplyScalar(0.82);
+          wrap.roughness = 0.95;
+          wrap.metalness = 0;
+          wrap.map = yarnTexture();
+        }
+        // matching dot at the latched end of this lever's slot
+        const dot = this.frameNode?.getObjectByName(`SlotDot${k}`) as Mesh | undefined;
+        (dot?.material as MeshStandardMaterial | undefined)?.color.setHex(palette.knobs[k]);
         cap.roughness = theme.knobRoughness;
         cap.metalness = theme.knobMetalness;
         this.leverMats.push(cap);
@@ -444,6 +455,9 @@ export class LoomView {
       _m.compose(_p, _q.identity(), _s.setScalar(on ? 1 : 0));
       this.tracks?.setMatrixAt(k, _m);
       this.levers[k].visible = on;
+      // Only active levers get a "push it here" dot; unused slots stay plain wood.
+      const dot = this.frameNode?.getObjectByName(`SlotDot${k}`);
+      if (dot) dot.visible = on;
     }
     if (this.tracks) this.tracks.instanceMatrix.needsUpdate = true;
     this.mirrorFrame();
@@ -458,8 +472,9 @@ export class LoomView {
     if (!f) return;
     for (const child of f.children) {
       const n = child.name;
-      const toBank = n.startsWith('LeverBlock') || n.startsWith('SlotFloor');
-      const toCard = n.startsWith('CardStand') || n.startsWith('CardSlot');
+      const toBank = n.startsWith('LeverBlock') || n.startsWith('SlotFloor') || n.startsWith('SlotDot') || n.startsWith('BlockPeg');
+      // The front-beam crank sits on the side away from the lever bank.
+      const toCard = n.startsWith('FrontBeamCrank') || n.startsWith('FrontBeamHandle');
       if (!toBank && !toCard) continue;
       const sgn = toBank ? this.side : -this.side;
       child.position.x = Math.abs(child.position.x) * sgn;

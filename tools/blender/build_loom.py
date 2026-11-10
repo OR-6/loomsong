@@ -13,7 +13,7 @@ from lib import *
 reset()
 L, LV, B, C = DIMS['LOOM'], DIMS['LEVER'], DIMS['BOBBIN'], DIMS['CARD']
 SRC = os.path.join(HERE, '..', '..', 'assets-src', 'ambientcg')
-wood_img = load_image(os.path.join(SRC, 'Wood095_1K-JPG', 'Wood095_1K-JPG_Color.jpg'), 512)
+wood_img = load_image(os.path.join(SRC, 'Wood095_1K-JPG', 'Wood095_beech512.png'), 512)  # desaturated, lighter: beech not pine
 knit_img = load_image(os.path.join(SRC, 'Fabric019_1K-JPG', 'Fabric019_rgb256.png'), 256)
 WOOD = mat_tex('Beech', wood_img, tint=0xfff4e6, rough=0.55, clearcoat=0.08)
 DARK = mat_paint('Walnut', 0x7a4e32, rough=0.45, clearcoat=0.2)
@@ -46,8 +46,9 @@ def roller(name, y, z, r, cap_r, body_mat, cap_mat, crank=False):
     for s in (-1, 1):  # round painted end caps
         ellipsoid(f'{name}Cap{"L" if s < 0 else "R"}', (0.006, cap_r, cap_r), (s * (half - 0.001), y, z), mat=cap_mat, parent=frame, segs=24)
     if crank:
-        lathe(name + 'Crank', [(0, 0), (0.0032, 0), (0.0032, 0.018), (0, 0.018)], (half + 0.004, y, z), axis='X', segs=12, mat=DARK, parent=frame)
-        ellipsoid(name + 'Handle', (0.0062, 0.0062, 0.0062), (half + 0.022, y, z), mat=MUSTARD, parent=frame, segs=18)
+        # On the left (away from the lever bank); mirrored in code for left-handed play.
+        lathe(name + 'Crank', [(0, 0), (0.0032, 0), (0.0032, 0.018), (0, 0.018)], (-(half + 0.022), y, z), axis='X', segs=12, mat=DARK, parent=frame)
+        ellipsoid(name + 'Handle', (0.0062, 0.0062, 0.0062), (-(half + 0.024), y, z), mat=MUSTARD, parent=frame, segs=18)
 
 roller('BackBeam', L['beamY'] + 0.006, L['backBeamZ'], 0.0115, 0.0145, WOOD, TEAL)
 roller('FrontBeam', L['beamY'] - 0.001, L['frontBeamZ'], 0.0095, 0.012, WOOD, TEAL, crank=True)
@@ -71,10 +72,10 @@ for s in (-1, 1):
 x_first, sp, n = LV['firstX'], LV['spacing'], DIMS['LEVERS']
 bx0, bx1 = x_first - 0.017, x_first + sp * (n - 1) + 0.017
 bz0, bz1 = LV['restZ'] - LV['travel'] - 0.018, LV['restZ'] + 0.018
-block = rounded_box('LeverBlock', (bx1 - bx0, 0.015, bz1 - bz0), ((bx0 + bx1) / 2, 0.0075, (bz0 + bz1) / 2),
-                    bevel=0.0065, segs=4, mat=WOOD, parent=frame)
+block = rounded_box('LeverBlock', (bx1 - bx0, 0.02, bz1 - bz0), ((bx0 + bx1) / 2, 0.01, (bz0 + bz1) / 2),
+                    bevel=0.008, segs=4, mat=WOOD, parent=frame)
 for k in range(n):
-    cut = rounded_box(f'Slot{k}', (0.0068, 0.03, LV['travel'] + 0.012), (x_first + k * sp, 0.0125, LV['restZ'] - LV['travel'] / 2),
+    cut = rounded_box(f'Slot{k}', (0.0078, 0.03, LV['travel'] + 0.012), (x_first + k * sp, 0.0175, LV['restZ'] - LV['travel'] / 2),
                       bevel=0.0025, segs=2)
     mod = block.modifiers.new('slot', 'BOOLEAN')
     mod.object = cut
@@ -82,8 +83,15 @@ for k in range(n):
     apply_mods(block)
     bpy.data.objects.remove(cut, do_unlink=True)
 for k in range(n):
-    rounded_box(f'SlotFloor{k}', (0.0064, 0.002, LV['travel'] + 0.011), (x_first + k * sp, 0.006, LV['restZ'] - LV['travel'] / 2),
+    rounded_box(f'SlotFloor{k}', (0.0074, 0.002, LV['travel'] + 0.011), (x_first + k * sp, 0.0035 + 0.0045, LV['restZ'] - LV['travel'] / 2),
                 bevel=0.0008, segs=1, mat=DARK, parent=frame)
+    # painted dot at the far (latched) end of each slot: "push it here"; recoloured per lever in code
+    ellipsoid(f'SlotDot{k}', (0.0042, 0.0012, 0.0042), (x_first + k * sp, 0.0198, LV['restZ'] - LV['travel'] - 0.0115),
+              mat=KNOB, parent=frame, segs=16)
+
+# Two painted dowels pin the lever block to the side rail.
+for z in (bz0 + 0.014, bz1 - 0.014):
+    ellipsoid('BlockPeg', (0.0042, 0.0026, 0.0042), (bx0 + 0.009, 0.0205, z), mat=TOMATO, parent=frame, segs=14)
 
 # ---- Easel: a music stand behind the heddle that holds the pattern card ----
 EZ, EY = C['z'], C['baseY']
@@ -93,6 +101,13 @@ for s in (-1, 1):
           (s * 0.05, RY, EZ), segs=16, mat=WOOD, parent=frame)
 rounded_box('EaselLedge', (0.15, 0.009, 0.022), (0, EY - 0.0035, EZ - 0.002), bevel=0.003, segs=3, mat=WOOD, parent=frame)
 rounded_box('EaselLip', (0.15, 0.009, 0.005), (0, EY + 0.002, EZ + 0.0075), bevel=0.0022, segs=3, mat=TOMATO, parent=frame)
+# Two little clothes pegs clip the card to the ledge.
+for s in (-1, 1):
+    for side, dz in (('F', 0.0028), ('B', -0.0028)):
+        rounded_box(f'Peg{"L" if s < 0 else "R"}{side}', (0.007, 0.026, 0.0034), (s * 0.048, EY + 0.008, EZ + 0.0062 + dz),
+                    bevel=0.0014, segs=2, mat=MUSTARD, parent=frame)
+    lathe(f'PegSpring{"L" if s < 0 else "R"}', [(0, -0.0045), (0.0019, -0.0045), (0.0019, 0.0045), (0, 0.0045)],
+          (s * 0.048, EY + 0.006, EZ + 0.0062), axis='Z', segs=10, mat=DARK, parent=frame)
 
 # ---- Lever knob prototype (cloned ×4 in code; cap recoloured) ----
 knob = empty('LeverKnob', at=(0, 0, 0))
@@ -101,6 +116,9 @@ lathe('Stem', [(0, 0.0), (0.0038, 0.0), (0.0034, LV['knobY'] - r * 0.6), (0, LV[
       (0, 0, 0), segs=14, mat=DARK, parent=knob)
 cap_prof = [(0, -r)] + [(r * math.sin(a), -r * math.cos(a)) for a in [i * math.pi / 16 for i in range(1, 16)]] + [(0, r)]
 cap = lathe('Cap', cap_prof, (0, LV['knobY'], 0), segs=32, mat=KNOB, parent=knob)
+# Yarn wound round the stem in the lever's colour (recoloured with the cap).
+lathe('StemWrap', [(0, 0.0), (0.0046, 0.0), (0.0052, 0.0015), (0.0052, 0.0055), (0.0046, 0.007), (0, 0.007)],
+      (0, 0.0055, 0), segs=20, mat=KNOB, parent=knob)
 cap.scale = (1.06, 1.06, 0.8)  # mushroom-ish: friendly, readable from above
 
 # ---- Bobbin (undo spool): beech flanges, wound knit yarn ----
