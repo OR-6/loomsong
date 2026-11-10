@@ -31,9 +31,9 @@ const CHAPTERS = [
   { id: 'sea', name: 'Sea', idea: 'mostly combinations', rule: 'parts', mystery: true, pics: [
     { id: 'fish', name: 'Fish', color: 0x2a9d8f, rows: ['..###...', '.#####.#', '###.####', '.#####.#', '..###...'] },
     { id: 'crab', name: 'Crab', color: 0xd85a30, rows: ['#......#', '#.#..#.#', '.######.', '########', '.######.', '#.#..#.#'] },
-    { id: 'flower', name: 'Flower', color: 0xd4537e, rows: ['..#..#..', '.######.', '..####..', '...##...', '.#.##.#.', '..#..#..'] },
-    { id: 'butterfly', name: 'Butterfly', color: 0xd4537e, rows: ['##....##', '###..###', '.######.', '..####..', '.######.', '##....##'] },
-    { id: 'rocket', name: 'Rocket', color: 0x7d72e0, rows: ['...##...', '..####..', '..#..#..', '..####..', '.######.', '##.##.##'] },
+    { id: 'octopus', name: 'Octopus', color: 0xd4537e, rows: ['..####..', '.######.', '.#.##.#.', '.######.', '#.#.#.#.', '#.#.#.#.'] },
+    { id: 'jelly', name: 'Jellyfish', color: 0x9b7fd6, rows: ['..####..', '.######.', '########', '.#.##.#.', '.#.##.#.', '#..##..#'] },
+    { id: 'anchor', name: 'Anchor', color: 0x4a8fd6, rows: ['...##...', '..####..', '...##...', '...##...', '#..##..#', '.######.'] },
   ] },
 ];
 

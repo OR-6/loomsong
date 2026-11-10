@@ -46,9 +46,9 @@ export const CHAPTERS: Chapter[] = [
     "levels": [
       "fish",
       "crab",
-      "flower",
-      "butterfly",
-      "rocket"
+      "octopus",
+      "jelly",
+      "anchor"
     ]
   }
 ];
@@ -507,78 +507,48 @@ export const PICTURES: PictureLevel[] = [
     "rootMidi": 65
   },
   {
-    "id": "flower",
-    "name": "Flower",
+    "id": "octopus",
+    "name": "Octopus",
     "chapter": "sea",
     "mystery": true,
     "color": 0xd4537e,
     "picture": [
-      "..#..#..",
-      ".######.",
       "..####..",
-      "...##...",
+      ".######.",
       ".#.##.#.",
-      "..#..#.."
+      ".######.",
+      "#.#.#.#.",
+      "#.#.#.#."
     ],
     "tieUp": [
-      36,
-      66,
-      24
-    ],
-    "target": [
-      36,
+      85,
       90,
-      24,
-      60,
-      126,
-      36
-    ],
-    "par": 9,
-    "rootMidi": 67
-  },
-  {
-    "id": "butterfly",
-    "name": "Butterfly",
-    "chapter": "sea",
-    "mystery": true,
-    "color": 0xd4537e,
-    "picture": [
-      "##....##",
-      "###..###",
-      ".######.",
-      "..####..",
-      ".######.",
-      "##....##"
-    ],
-    "tieUp": [
-      195,
-      102,
       60
     ],
     "target": [
-      195,
+      85,
+      85,
       126,
-      60,
+      90,
       126,
-      231,
-      195
+      60
     ],
-    "par": 9,
-    "rootMidi": 64
+    "par": 7,
+    "rootMidi": 67
   },
   {
-    "id": "rocket",
-    "name": "Rocket",
+    "id": "jelly",
+    "name": "Jellyfish",
     "chapter": "sea",
     "mystery": true,
-    "color": 0x7d72e0,
+    "color": 0x9b7fd6,
     "picture": [
-      "...##...",
-      "..####..",
-      "..#..#..",
       "..####..",
       ".######.",
-      "##.##.##"
+      "########",
+      ".#.##.#.",
+      ".#.##.#.",
+      "#..##..#"
     ],
     "tieUp": [
       129,
@@ -587,10 +557,41 @@ export const PICTURES: PictureLevel[] = [
       24
     ],
     "target": [
-      219,
+      153,
+      90,
+      90,
+      255,
       126,
-      60,
+      60
+    ],
+    "par": 8,
+    "rootMidi": 64
+  },
+  {
+    "id": "anchor",
+    "name": "Anchor",
+    "chapter": "sea",
+    "mystery": true,
+    "color": 0x4a8fd6,
+    "picture": [
+      "...##...",
+      "..####..",
+      "...##...",
+      "...##...",
+      "#..##..#",
+      ".######."
+    ],
+    "tieUp": [
+      129,
+      66,
       36,
+      24
+    ],
+    "target": [
+      126,
+      153,
+      24,
+      24,
       60,
       24
     ],
