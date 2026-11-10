@@ -357,7 +357,7 @@ export class LoomView {
     // faint target picture on the rows still to weave
     this.ghostCloth = new InstancedMesh(
       cellGeo,
-      new MeshStandardMaterial({ transparent: true, opacity: 0.38, roughness: 1, depthWrite: false, map: weaveTexture() }),
+      new MeshStandardMaterial({ transparent: true, opacity: 0.55, roughness: 1, depthWrite: false, map: weaveTexture() }),
       WARPS * LOOM.maxRows,
     );
     this.ghostCloth.name = 'TargetGhost';
@@ -1084,7 +1084,7 @@ export class LoomView {
   private applyColors(): void {
     const p = this.palette;
     this.liftColor = this.pictureColor ?? p.weft;
-    this.groundColor = 0xe9dcc0; // warm cream yarn, not white tile
+    this.groundColor = 0xf1e3c4; // warm cream yarn, not white tile
     // warp colour comes per strand (instance colour × white), brighter when lifted
     (this.warps?.material as MeshStandardMaterial | undefined)?.color.setHex(0xffffff);
     const yarn = this.bobbin ? (materialOf(this.bobbin, 'Wound') as MeshStandardMaterial | null) : null;

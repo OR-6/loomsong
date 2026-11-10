@@ -78,12 +78,22 @@ export class GhostHand {
     const body = new MeshStandardMaterial({
       color: 0xcfe6ff,
       emissive: 0x9cc8ff,
-      emissiveIntensity: 0.3,
+      emissiveIntensity: 0.2,
       roughness: 0.6,
       transparent: true,
-      opacity: 0.5,
+      opacity: 0.25,
       depthWrite: false,
     });
+    // a soft blue rim (fresnel) so the fingers' outlines read, not a milky blob
+    body.onBeforeCompile = (sh) => {
+      sh.fragmentShader = sh.fragmentShader.replace(
+        '#include <dithering_fragment>',
+        `float rim = pow(1.0 - clamp(abs(dot(normalize(normal), normalize(vViewPosition))), 0.0, 1.0), 2.0);
+        gl_FragColor.rgb += vec3(0.5, 0.72, 1.0) * rim * 0.9;
+        gl_FragColor.a = max(gl_FragColor.a, rim * 0.65);
+        #include <dithering_fragment>`,
+      );
+    };
     m.traverse((o) => {
       const mesh = o as SkinnedMesh;
       if (!mesh.isSkinnedMesh) return;
@@ -115,7 +125,7 @@ export class GhostHand {
     this.side = side;
     this.t = 0;
     // a right hand for a right-hand lever bank; mirrored for the left
-    this.inner.scale.x = side;
+    this.inner.scale.set(side * 0.75, 0.75, 0.75);
   }
 
   /** `busy`: the player's hand is hovering or holding something. */

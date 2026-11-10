@@ -59,20 +59,22 @@ export const PLUSH = {
   cell: 0.014,
   /** Depth of the plush, in cells. */
   depth: 1.6,
-  shelfScale: 0.41,
+  shelfScale: 0.46,
   slots: 5,
   slotGap: 0.047,
   /** Plush base height on the shelf: the bench top (36 mm). */
   shelfTopY: 0.036,
   /** Shelf centre, on the side away from the lever bank (x is multiplied by -side). */
   shelfX: 0.335,
-  shelfZ: -0.02,
+  shelfZ: 0.03,
   /** Where the plush dances: on the mat in front of the shelf. */
   /** The plush dances front and centre, in front of the level plate. */
   stageX: 0,
   stageZ: 0.22,
   /** Hero size while it pops and dances (shelf size is shelfScale). */
   hero: 1.3,
+  /** Hover height while it dances (it faces the seated player). */
+  danceY: 0.09,
 } as const;
 
 let puff: BufferGeometry | null = null;
@@ -220,7 +222,7 @@ function addFace(g: Group, rows: readonly Mask8[], color: number): void {
     const x = (a + span * f - (WARPS - 1) / 2) * cell;
     xs.push(x);
     const eye = new Mesh(eyeGeo, eyeMat);
-    eye.scale.set(0.0028, 0.0034, 0.0016);
+    eye.scale.set(0.0048, 0.0058, 0.0024);
     eye.position.set(x, y, z);
     const shine = new Mesh(eyeGeo, shineMat);
     shine.scale.set(0.3, 0.3, 0.3);
@@ -233,12 +235,12 @@ function addFace(g: Group, rows: readonly Mask8[], color: number): void {
   const gap = Math.abs(xs[1] - xs[0]);
   for (let i = 0; i < 2; i++) {
     const c = new Mesh(eyeGeo, blushMat);
-    c.scale.set(0.0026, 0.0016, 0.0008);
+    c.scale.set(0.0036, 0.0022, 0.001);
     c.position.set(xs[i] + (i === 0 ? -1 : 1) * Math.min(cell * 0.35, gap * 0.25), y - cell * 0.62, z - 0.0002);
     g.add(c);
   }
   // a little stitched smile between the eyes
-  smileGeo ??= new TorusGeometry(Math.max(0.0022, gap * 0.16), 0.00055, 5, 14, Math.PI);
+  smileGeo ??= new TorusGeometry(Math.max(0.0034, gap * 0.22), 0.001, 6, 16, Math.PI);
   smileGeo.userData.sharedGeometry = true;
   const smile = new Mesh(smileGeo, eyeMat);
   smile.rotation.z = Math.PI;
@@ -594,7 +596,7 @@ export class Plushes {
         this.phase = 'hopOut';
         this.t = 0;
         this.from.copy(h.position);
-        this.to.set(-this.side * PLUSH.stageX, 0.0015, PLUSH.stageZ);
+        this.to.set(-this.side * PLUSH.stageX, PLUSH.danceY, PLUSH.stageZ);
         this.onHop?.();
       }
     } else if (this.phase === 'hopOut') {
@@ -610,7 +612,8 @@ export class Plushes {
     } else if (this.phase === 'dance') {
       this.bounce = Math.min(1, this.bounce + dt / 0.32);
       const b = Math.sin(this.bounce * Math.PI);
-      h.position.y = 0.0015 + 0.022 * b;
+      h.position.y = PLUSH.danceY + 0.02 * b; // hovering, bouncing to the song
+      h.rotation.x += (-0.55 - h.rotation.x) * Math.min(1, dt * 8); // leaning back to face you
       const land = this.bounce > 0.85 ? (this.bounce - 0.85) / 0.15 : 0;
       h.scale.set(PLUSH.hero * (1 + 0.08 * land), PLUSH.hero * (1 - 0.12 * land + 0.05 * b), PLUSH.hero);
       h.rotation.z += (this.tilt * 0.14 - h.rotation.z) * Math.min(1, dt * 10);
@@ -618,6 +621,7 @@ export class Plushes {
       const k = Math.min(1, this.t / 0.7);
       this.arc(h, k, 0.07);
       h.rotation.z *= 0.8;
+      h.rotation.x *= 0.85;
       const target = this.phase === 'fade' ? 0.001 : PLUSH.shelfScale;
       h.scale.setScalar(PLUSH.hero + (target - PLUSH.hero) * ease(k));
       if (k >= 1) {
