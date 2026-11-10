@@ -28,7 +28,7 @@ export interface FlowHooks {
 }
 
 export const TIMING = {
-  winPause: 0.9,
+  winPause: 1.1,
   rowTime: 0.42,
   noteGap: 0.05,
   afterPlayback: 1.6,

@@ -36,11 +36,13 @@ interface Mood {
 }
 /** Per chapter: Garden bright and lively, Home warm, Night slow and low, Sea drifting. */
 const MOODS: Record<string, Mood> = {
-  garden: { bpm: 76, density: 0.5, octave: 12, level: 1, padGain: 0.05, padBright: 900 },
-  home: { bpm: 70, density: 0.45, octave: 12, level: 0.95, padGain: 0.055, padBright: 800 },
-  night: { bpm: 58, density: 0.32, octave: 7, level: 0.85, padGain: 0.065, padBright: 520 },
-  sea: { bpm: 64, density: 0.38, octave: 12, level: 0.9, padGain: 0.06, padBright: 650 },
+  garden: { bpm: 76, density: 0.5, octave: 24, level: 1, padGain: 0.05, padBright: 900 },
+  home: { bpm: 70, density: 0.45, octave: 24, level: 0.95, padGain: 0.055, padBright: 800 },
+  night: { bpm: 58, density: 0.32, octave: 19, level: 0.85, padGain: 0.065, padBright: 520 },
+  sea: { bpm: 64, density: 0.38, octave: 24, level: 0.9, padGain: 0.06, padBright: 650 },
 };
+/** Melody steps on the pentatonic (mostly by step, sometimes a skip). */
+const STEPS = [-2, -1, -1, 0, 1, 1, 2];
 const midiHz = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 
 export function scaleFreq(warp: number, rootMidi = 62, scale = PENTA): number {
@@ -231,6 +233,36 @@ class Synth {
     this.kalimba(this.rootMidi + 24, 0.2, 0.08);
   }
 
+  /** Undo spool ratchet: a tick that rises with each notch of the pull. */
+  ratchet(notch: number): void {
+    this.play(`fx/tick-${notch % 3}.ogg`, 0.22, 0, 1 + notch * 0.08, false);
+  }
+
+  /** Something is picked up: a soft, slightly low tick. */
+  grab(): void {
+    const n = Math.floor(Math.random() * 3);
+    this.play(`fx/tick-${n}.ogg`, 0.2, 0, 0.85, false);
+  }
+
+  /** Pip is picked up: a little chirp, higher and quieter than a happy one. */
+  pipGrab(): void {
+    const n = this.bufs.has('fx/pip-happy-1.ogg') && Math.random() < 0.5 ? 1 : 0;
+    if (!this.play(`fx/pip-happy-${n}.ogg`, 0.2, 0, 1.15 + Math.random() * 0.1, true)) this.kalimba(this.rootMidi + 28, 0.08);
+  }
+
+  /** A row's verdict, under Pip's chirp: a bright sparkle when right, a soft low bonk when wrong. */
+  verdict(good: boolean): void {
+    const r = this.rootMidi;
+    if (good) {
+      this.kalimba(r + 24, 0.1, 0.05);
+      this.kalimba(r + 31, 0.08, 0.11);
+    } else {
+      this.play(`fx/wood-medium-${Math.floor(Math.random() * 5)}.ogg`, 0.32, 0.03, 0.78, false);
+      this.kalimba(r + 1, 0.09, 0.08); // a sour semitone
+      this.kalimba(r, 0.08, 0.22);
+    }
+  }
+
   /** Plush hop / soft landing. */
   hop(): void {
     this.fx('soft', 0.5);
@@ -259,7 +291,9 @@ class Synth {
     if (!ctx) return;
     this.duck(ctx, when);
     // Recorded kalimba; faster strums are a touch louder.
-    if (this.kalimba(this.midiOf(warp), gain * (0.95 + 0.45 * Math.min(1, speed / 0.6)), when)) return;
+    // ±8% level and ±10 cents so repeated notes never sound copy-pasted
+    const vary = 0.92 + Math.random() * 0.16;
+    if (this.kalimba(this.midiOf(warp) + (Math.random() - 0.5) * 0.2, gain * vary * (0.95 + 0.45 * Math.min(1, speed / 0.6)), when)) return;
     const t = ctx.currentTime + when;
     const f = this.freqs[warp] ?? 440;
     const env = ctx.createGain();
@@ -295,10 +329,7 @@ class Synth {
     const ctx = this.ready();
     if (!ctx) return;
     const t = ctx.currentTime;
-    if (this.fx(latched ? 'plank' : 'wood-light', latched ? 0.45 : 0.32)) {
-      if (latched) this.kalimba(this.rootMidi + 12, 0.08, 0.01);
-      return;
-    }
+    if (this.fx(latched ? 'plank' : 'wood-light', latched ? 0.45 : 0.32)) return; // the lever's own threads strum (game)
     this.noiseBurst(ctx, t, 0.025, 2600, 0.18);
     if (latched) {
       const o = ctx.createOscillator();
@@ -356,7 +387,7 @@ class Synth {
 
   /** Level complete. */
   arpeggio(): void {
-    for (let i = 0; i < WARPS; i++) this.pluck(i, 0.5, i * 0.07, 0.22);
+    // (no thread run here: the picture's own song follows; the moment stays uncluttered)
     // Glockenspiel run on top, shifted into the level's key (±6 semitones).
     let shift = (((this.rootMidi - GLOCK_PC) % 12) + 12) % 12;
     if (shift > 6) shift -= 12;
@@ -424,16 +455,47 @@ class Synth {
       }
       // melody: a gentle random walk on the pentatonic, sparse, an octave up
       if (Math.random() < m.density) {
-        const step = [-2, -1, -1, 0, 1, 1, 2][Math.floor(Math.random() * 7)];
-        this.melodyDeg = Math.max(0, Math.min(9, this.melodyDeg + step));
+        const step = STEPS[Math.floor(Math.random() * STEPS.length)];
+        this.melodyDeg = Math.max(0, Math.min(6, this.melodyDeg + step));
+        // a music-box bell an octave above the top thread: never mistaken for a pluck
         const midi = this.rootMidi + m.octave + Math.floor(this.melodyDeg / 5) * 12 + PENTA[this.melodyDeg % 5];
-        this.kalimbaTo(this.musicBus, midi, (inBar === 0 ? 0.075 : 0.055) * m.level, when);
+        this.bell(midi, (inBar === 0 ? 0.05 : 0.036) * m.level, when);
         // now and then a soft echo a half-beat later
-        if (Math.random() < 0.25) this.kalimbaTo(this.musicBus, midi + 12, 0.025 * m.level, when + spb / 2);
+        if (Math.random() < 0.2) this.bell(midi + 12, 0.014 * m.level, when + spb / 2);
       }
       this.nextBeat += spb * (inBar === 3 && Math.random() < 0.3 ? 1.08 : 1); // a little rubato
       this.beat++;
     }
+  }
+
+  /** A soft music-box bell (sine + a quiet inharmonic partial, fast decay) on the music bus. */
+  private bell(midi: number, gain: number, when: number): void {
+    const ctx = this.ctx;
+    const bus = this.musicBus;
+    if (!ctx || !bus) return;
+    const t = ctx.currentTime + when;
+    const f = midiHz(midi);
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0.0001, t);
+    env.gain.exponentialRampToValueAtTime(gain, t + 0.006);
+    env.gain.exponentialRampToValueAtTime(0.0001, t + 1.6);
+    const o1 = ctx.createOscillator();
+    o1.type = 'sine';
+    o1.frequency.value = f;
+    const o2 = ctx.createOscillator();
+    o2.type = 'sine';
+    o2.frequency.value = f * 4.2; // the tine's bright overtone
+    const g2 = ctx.createGain();
+    g2.gain.setValueAtTime(0.18, t);
+    g2.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    o1.connect(env);
+    o2.connect(g2).connect(env);
+    env.connect(bus);
+    o1.start(t);
+    o2.start(t);
+    o1.stop(t + 1.7);
+    o2.stop(t + 0.3);
+    this.musicNotes++;
   }
 
   /** A kalimba note routed to a given bus (the music), pitched from the nearest sample. */

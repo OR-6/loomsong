@@ -193,7 +193,19 @@ export class TargetCard {
       if (r === nextRow && stars === 0) drawArrow(g, px(pad + markW / 2), cy, px(0.0075));
     }
     this.tex.needsUpdate = true;
-    this.mesh.scale.set(wM, hM, 1);
+    this.sizeW = wM;
+    this.sizeH = hM;
+    this.mesh.scale.set(wM * this.pop, hM * this.pop, 1);
+  }
+
+  /** Card size in metres (its mesh is a unit plane scaled to this). */
+  sizeW = 0.2;
+  sizeH = 0.2;
+  /** Arrival spring multiplier (1 at rest). */
+  pop = 1;
+  setPop(p: number): void {
+    this.pop = p;
+    this.mesh.scale.set(this.sizeW * p, this.sizeH * p, 1);
   }
 }
 

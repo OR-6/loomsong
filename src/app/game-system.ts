@@ -118,6 +118,9 @@ export class GameSystem extends createSystem({
   private singUntil = 0;
   /** Seconds until the 'New style unlocked' tag shows (0: none pending). */
   private unlockNoticeIn = 0;
+  /** Lever clicks during a programmatic drop make no sound. */
+  private quietLevers = false;
+  private undoNotch = 0;
   private plushVecs = Array.from({ length: PLUSH_SLOTS }, () => new Vector3());
   private noticeTimer = 0;
   private tokenPop = 1;
@@ -161,8 +164,27 @@ export class GameSystem extends createSystem({
         this.view.pluckWarp(i);
         this.debug.plucks++;
       },
-      leverClick: (_k, latched) => audio.click(latched),
-      grab: () => audio.resume(),
+      leverClick: (k, latched) => {
+        if (this.quietLevers) return;
+        audio.click(latched);
+        // the lever strums its own threads (up when lifting, down and softer when dropping): you learn it by ear
+        const mask = this.flow?.level.tieUp[k] ?? 0;
+        let j = 0;
+        for (let n = 0; n < WARPS; n++) {
+          const i = latched ? n : WARPS - 1 - n;
+          if (!isLifted(mask, i)) continue;
+          audio.pluck(i, 0.15, 0.02 + j * 0.028, latched ? 0.09 : 0.055);
+          if (latched) this.view.pluckWarp(i);
+          j++;
+        }
+      },
+      grab: (t) => {
+        audio.resume();
+        if (t.kind === 'shuttle') {
+          this.view.grabPip();
+          audio.pipGrab();
+        } else audio.grab();
+      },
       pass: () => audio.thud(),
       undo: () => audio.unpick(),
       token: () => this.setTheme(otherTheme(this.progress.theme)),
@@ -237,12 +259,19 @@ export class GameSystem extends createSystem({
       if (e.type === 'row' && this.flow?.level) {
         const good = e.row === this.flow.level.target[e.index];
         this.view.setPipMood(good ? 'happy' : 'sad');
+        this.view.rowVerdict(good);
         audio.chirp(good ? 'happy' : 'sad');
+        audio.verdict(good);
       }
     });
 
     this.flow = new LevelFlow(this.model, levelAt, this.progress, {
       load: (level) => {
+        // a new picture arrives: the card springs in, the ghost fades up, Pip hops, a soft bloom
+        if (this.placement?.phase === 'placed') {
+          this.view.arrive();
+          audio.bloom();
+        }
         this.controller.syncFromModel();
         this.controller.enabled = true;
         this.view.setActiveLevers(level.tieUp.length);
@@ -280,7 +309,9 @@ export class GameSystem extends createSystem({
         this.controller.releaseAll();
         // the levers drop back to rest with a clack as the picture comes alive (not a move: flips restored)
         const flips = this.model.leverFlips;
+        this.quietLevers = true; // a silent drop: the win has its own sounds
         for (let k = 0; k < LEVERS; k++) this.controller.applyLatched(k, false);
+        this.quietLevers = false;
         this.model.leverFlips = flips;
         audio.arpeggio();
         // the win song plays alone: music rests until the plush is on the shelf
@@ -899,17 +930,17 @@ export class GameSystem extends createSystem({
     }
     if (step === 'none') return;
     const side = this.controller.bankSide;
-    const pulse = Math.sin(this.time * 6) > 0 ? 1 : 0;
+    const pulse = 0.5 + 0.5 * Math.sin(this.time * 4); // a smooth breath, not an error blink
     if (step === 'lever') {
       const k = this.hintLever;
       m.position.set(leverX(k, side) - side * 0.085, 0.07, LEVER.restZ - LEVER.travel / 2);
-      if (!this.model.latched[k]) this.view.setLeverHighlight(k, pulse as 0 | 1, false);
+      if (!this.model.latched[k]) this.view.setLeverHighlight(k, 0, false, pulse);
     } else if (step === 'shuttle') {
       // Tag hangs just outside the frame beside Pip's perch, never over the threads.
       const end = this.controller.shuttle.t < 0.5 ? -1 : 1;
       m.position.set(end * SHUTTLE.maxX, 0.215, SHUTTLE.z); // well above Pip, clear of the hand's fingertips
       if (this.controller.hover.left === null && this.controller.hover.right === null) {
-        this.view.setShuttleHighlight(pulse as 0 | 1);
+        this.view.setShuttleHighlight(0, pulse);
       }
     } else {
       m.position.set(-side * CARD.x, CARD.baseY + this.view.card.heightM + 0.03, CARD.z);
@@ -977,6 +1008,10 @@ export class GameSystem extends createSystem({
     );
     const bob = (t: unknown) => (t as { kind?: string } | null)?.kind === 'bobbin';
     this.view.setBobbinT(c.bobbin.t);
+    // the undo spool ratchets as you pull it (a rising tick per fifth of the pull)
+    const notch = Math.floor(c.bobbin.t * 5 + 1e-6);
+    if (notch > this.undoNotch && notch < 5) audio.ratchet(notch);
+    this.undoNotch = notch;
     this.view.setBobbinHighlight(
       bob(c.holding.left) || bob(c.holding.right) ? 2 : bob(c.hover.left) || bob(c.hover.right) ? 1 : 0,
     );

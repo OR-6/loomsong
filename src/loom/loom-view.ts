@@ -72,6 +72,12 @@ const _c = new Color();
 const _c2 = new Color();
 const UP = new Vector3(0, 1, 0);
 const _glow = new Color(0xffe2a8);
+const _white = new Color(0xffffff);
+/** Seconds the newest row animates (beat-in, flash or shake). */
+const ROW_FX = 0.45;
+/** Opacity of the ghost picture on the rows still to weave. */
+const GHOST_OPACITY = 0.62;
+const backOut = (x: number) => 1 + 2.2 * Math.pow(x - 1, 3) + 1.2 * Math.pow(x - 1, 2);
 /** Underside of the heddle bar in the Blender model (bar centre 0.071, 17 mm tall). */
 const HEDDLE_BAR_BOTTOM_Y = 0.0625;
 /** Lowered warp threads: warm undyed yarn, not white (white reads as plastic). */
@@ -141,6 +147,23 @@ export class LoomView {
   private knobVW = new Float32Array(LEVERS);
   private knobVH = new Float32Array(LEVERS);
   private knobLevel = new Uint8Array(LEVERS);
+  /** Newest-row animation clock (-1: idle) and verdict. */
+  private rowFxT = -1;
+  /** Pip pick-up squash clock (-1: idle), flight lean, and trail distance. */
+  private pipGrabT = -1;
+  /** Shuttle glide after a jump (-1: none). */
+  private glideT = -1;
+  private glideFrom = 0;
+  /** New-picture arrival clock (-1: idle). */
+  private arriveT = -1;
+  private pipLean = 0;
+  private trailDist = 0;
+  private rowFxGood = true;
+  /** Undo spool nudge after a wrong row (1 → 0), its wiggle angle and glow. */
+  private undoNudge = 0;
+  private undoWiggle = 0;
+  private undoGlow = 0;
+  private bobbinGlowShown = -1;
   private knobCaps: (Object3D | null)[] = [];
   private shuttleMat!: MeshStandardMaterial;
   bobbin!: Object3D;
@@ -361,7 +384,7 @@ export class LoomView {
     // faint target picture on the rows still to weave
     this.ghostCloth = new InstancedMesh(
       cellGeo,
-      new MeshBasicMaterial({ transparent: true, opacity: 0.62, depthWrite: false }), // unlit: reads clearly from the seat
+      new MeshBasicMaterial({ transparent: true, opacity: GHOST_OPACITY, depthWrite: false }), // unlit: reads clearly from the seat
       WARPS * LOOM.maxRows,
     );
     this.ghostCloth.name = 'TargetGhost';
@@ -644,7 +667,7 @@ export class LoomView {
 
   setBobbinT(t: number): void {
     this.bobbin.position.set(bobbinX(this.side), BOBBIN.y, BOBBIN.z + BOBBIN.pull * t);
-    this.bobbin.rotation.x = t * Math.PI * 3; // unspools as you pull
+    this.bobbin.rotation.x = t * Math.PI * 3 + this.undoWiggle; // unspools as you pull (wiggles after a wrong row)
   }
 
   setTokenHighlight(level: 0 | 1 | 2): void {
@@ -653,11 +676,57 @@ export class LoomView {
   }
 
   setBobbinHighlight(level: 0 | 1 | 2): void {
-    const k = level === 2 ? 0.45 : level === 1 ? 0.22 : 0;
+    const k = (level === 2 ? 0.45 : level === 1 ? 0.22 : 0) + this.undoGlow * 0.35;
+    if (k === this.bobbinGlowShown) return;
+    this.bobbinGlowShown = k;
     this.bobbin.traverse((n) => {
       const m = (n as Mesh).material as MeshStandardMaterial | undefined;
       if (m?.emissive) m.emissive.copy(m.color).multiplyScalar(k);
     });
+  }
+
+  /** The newest row's verdict: a correct row flashes warm; a wrong one shakes, blinks its wrong cells, and the undo spool wiggles. */
+  rowVerdict(good: boolean): void {
+    this.rowFxT = 0;
+    this.rowFxGood = good;
+    if (!good) this.undoNudge = 1;
+  }
+
+  /** Animate the newest row (beat-in, flash or shake) by rewriting only its 8 cells. */
+  private animateRow(dt: number): void {
+    if (this.rowFxT < 0) return;
+    this.rowFxT += dt;
+    const t = this.rowFxT;
+    const rows = this.rowsCache;
+    const r = rows.length - 1;
+    const done = t >= ROW_FX;
+    if (r < 0 || this.cloth.count < WARPS) {
+      this.rowFxT = -1;
+      return;
+    }
+    const base = this.cloth.count - WARPS; // the newest row is written last
+    const z0 = this.rowZ(r, rows.length);
+    const row = rows[r];
+    const want = this.target[r] ?? row;
+    const shake = this.rowFxGood || done ? 0 : 0.0015 * Math.sin(t * 40) * Math.max(0, 1 - t / 0.35);
+    for (let i = 0; i < WARPS; i++) {
+      // beat in: each cell pops from 60% with a little overshoot, staggered along the row
+      const ti = Math.max(0, Math.min(1, (t - i * 0.015) / 0.18));
+      const pop = done ? 1 : 0.6 + 0.4 * backOut(ti);
+      _p.set(warpX(i) + shake, 0.0062, z0);
+      _m.compose(_p, _q.identity(), _s.set(WARP_PITCH * 0.95 * pop, 0.003 * (1 + (1 - pop)), LOOM.rowPitch * 0.86 * pop));
+      this.cloth.setMatrixAt(base + i, _m);
+      _c.setHex(isLifted(row, i) ? this.liftColor : this.groundColor);
+      if (!done) {
+        if (this.rowFxGood) _c.lerp(_glow, 0.6 * Math.max(0, 1 - t / 0.25));
+        else if (isLifted(row, i) !== isLifted(want, i) && (t < 0.12 || (t > 0.24 && t < 0.36))) _c.multiplyScalar(0.45); // the wrong cells blink
+      }
+      if (r === this.glowRow) _c.lerp(_glow, 0.55);
+      this.cloth.setColorAt(base + i, _c);
+    }
+    this.cloth.instanceMatrix.needsUpdate = true;
+    if (this.cloth.instanceColor) this.cloth.instanceColor.needsUpdate = true;
+    if (done) this.rowFxT = -1;
   }
 
   /** Redraw the card, then stand it at the back corner opposite the bank. */
@@ -787,24 +856,79 @@ export class LoomView {
         }
       }
     }
+    // picked up: a quick squash and stretch with the wings flared
+    let sx = 1;
+    if (this.pipGrabT >= 0) {
+      this.pipGrabT += dt;
+      const g = this.pipGrabT;
+      const k = g < 0.08 ? g / 0.08 : Math.max(0, 1 - (g - 0.08) / 0.22);
+      squash *= 1 - 0.15 * k;
+      sx = 1 + 0.1 * k;
+      if (g < 0.3) this.pipWings.forEach((w, i) => (w.rotation.x = (i === 0 ? 1 : -1) * 0.9 * k));
+      if (g > 0.3) this.pipGrabT = -1;
+    }
+    // flying: lean into the motion
+    this.pipLean += (-0.18 * Math.min(1, speed * 2) - this.pipLean) * Math.min(1, dt * 10);
     p.position.y = y;
-    p.rotation.set(0, spin + look, pitch);
-    p.scale.set(0.95, 0.95 * squash, 0.95);
+    p.rotation.set(0, spin + look, pitch + this.pipLean);
+    p.scale.set(0.95 * sx, 0.95 * squash, 0.95 * sx);
   }
 
   /** Visual twin for one plucked warp: it twangs. */
   pluckWarp(i: number): void {
     this.twang[i] = 1;
+    this.warpVel[i] += 3; // a visible bounce at arm's length, not just a shimmer
   }
 
-  setLeverHighlight(k: number, level: 0 | 1 | 2, latched: boolean): void {
+  /** A new picture arrives: the card springs in and the ghost picture fades up. */
+  arrive(): void {
+    this.arriveT = 0;
+    this.setPipMood('happy');
+  }
+
+  private animateArrival(dt: number): void {
+    if (this.arriveT < 0) return;
+    this.arriveT += dt;
+    const t = this.arriveT;
+    // card: 0.9 → 1.05 → 1 (a damped spring)
+    const k = Math.min(1, t / 0.55);
+    const sc = 1 + (-0.1 * Math.cos(k * Math.PI * 2.5)) * Math.pow(1 - k, 2);
+    this.card.setPop(sc);
+    const gm = this.ghostCloth?.material as MeshBasicMaterial | undefined;
+    if (gm) gm.opacity = GHOST_OPACITY * Math.min(1, Math.max(0, (t - 0.15) / 0.5));
+    if (t >= 0.7) {
+      this.card.setPop(1);
+      if (gm) gm.opacity = GHOST_OPACITY;
+      this.arriveT = -1;
+    }
+  }
+
+  /** Pip is picked up: a quick squash, wings flared. */
+  grabPip(): void {
+    this.pipGrabT = 0;
+  }
+
+  /** `glow` (0–1) adds a smooth breathing light on top (tutorial), never a hard blink. */
+  setLeverHighlight(k: number, level: 0 | 1 | 2, latched: boolean, glow = 0): void {
     this.knobLevel[k] = level;
     const mat = this.leverMats[k];
-    const e = level === 2 ? 0.45 : level === 1 ? 0.22 : latched ? 0.1 : 0;
+    const e = (level === 2 ? 0.45 : level === 1 ? 0.22 : latched ? 0.1 : 0) + glow * 0.3;
     mat.emissive.copy(mat.color).multiplyScalar(e);
   }
 
   setShuttleT(t: number, dt = 0): void {
+    // A jump (undo, a new level) is shown as a quick glide home, never a teleport.
+    if (dt > 0 && this.glideT < 0 && Math.abs(t - this.shuttleT) > 0.3) {
+      this.glideFrom = this.shuttleT;
+      this.glideT = 0;
+    }
+    if (this.glideT >= 0) {
+      this.glideT += dt;
+      const k = Math.min(1, this.glideT / 0.32);
+      const e = 1 - Math.pow(1 - k, 3);
+      if (k >= 1) this.glideT = -1;
+      else t = this.glideFrom + (t - this.glideFrom) * e;
+    }
     if (dt > 0) {
       const v = (t - this.shuttleT) / dt;
       // Arriving at an end with speed: squash on impact.
@@ -812,14 +936,21 @@ export class LoomView {
       if (atEnd && Math.abs(this.shuttleVel) > 0.4) this.squash = 1;
       this.shuttleVel = v;
     }
+    const xPrev = this.shuttle.position.x;
     this.shuttleT = t;
     const x = SHUTTLE.minX + (SHUTTLE.maxX - SHUTTLE.minX) * t;
     this.shuttle.position.set(x, shuttleY(x), SHUTTLE.z);
+    // a little trail of weft fluff behind Pip as it flies through the shed
+    this.trailDist += Math.abs(x - xPrev);
+    if (this.trailDist > 0.025 && Math.abs(x) < SHUTTLE.shedHalf + 0.02) {
+      this.trailDist = 0;
+      this.fx.puff(x - Math.sign(x - xPrev) * 0.012, shuttleY(x) + 0.004, SHUTTLE.z, this.groundColor, 1);
+    }
   }
 
-  setShuttleHighlight(level: 0 | 1 | 2): void {
-    this.shuttleMat.emissive.copy(this.shuttleMat.color).multiplyScalar(level === 2 ? 0.6 : level === 1 ? 0.3 : 0);
-    this.boatMat?.emissive.copy(this.boatMat.color).multiplyScalar(level === 2 ? 0.5 : level === 1 ? 0.28 : 0);
+  setShuttleHighlight(level: 0 | 1 | 2, glow = 0): void {
+    this.shuttleMat.emissive.copy(this.shuttleMat.color).multiplyScalar((level === 2 ? 0.6 : level === 1 ? 0.3 : 0) + glow * 0.32);
+    this.boatMat?.emissive.copy(this.boatMat.color).multiplyScalar((level === 2 ? 0.5 : level === 1 ? 0.28 : 0) + glow * 0.3);
   }
 
   /** Set the target shed; `immediate` skips the lift animation. */
@@ -845,6 +976,13 @@ export class LoomView {
   /** Rows, oldest first. */
   setRows(rows: readonly Mask8[]): void {
     const added = rows.length === this.rowsCache.length + 1;
+    if (rows.length === this.rowsCache.length - 1 && this.rowsCache.length > 0) {
+      // unpicked: the row comes apart in a puff of its own yarn
+      const r = this.rowsCache.length - 1;
+      const gone = this.rowsCache[r];
+      const z = this.rowZ(r, this.rowsCache.length);
+      for (let i = 0; i < WARPS; i++) this.fx.puff(warpX(i), 0.012, z, isLifted(gone, i) ? this.liftColor : this.groundColor, 2);
+    }
     this.rowsCache = rows;
     if (added) {
       // the row is beaten in: a puff of fluff along it, in each cell's yarn colour
@@ -945,6 +1083,17 @@ export class LoomView {
       this.shuttle.scale.set(1, 1, 1);
     }
     this.animatePip(dt);
+    this.animateRow(dt);
+    this.animateArrival(dt);
+    if (this.undoNudge > 0) {
+      this.undoNudge = Math.max(0, this.undoNudge - dt / 0.9);
+      const k = 1 - this.undoNudge;
+      this.undoWiggle = 0.3 * Math.sin(k * Math.PI * 6) * this.undoNudge;
+      this.undoGlow = Math.sin(k * Math.PI);
+    } else if (this.undoWiggle !== 0 || this.undoGlow !== 0) {
+      this.undoWiggle = 0;
+      this.undoGlow = 0;
+    }
     // Knob juice: swell on hover, squash on grab, springy bounce on release.
     for (let k = 0; k < LEVERS; k++) {
       const lv = this.knobLevel[k];
@@ -1001,7 +1150,7 @@ export class LoomView {
     const fellY = 0.006;
     for (let i = 0; i < WARPS; i++) {
       const a = this.twang[i];
-      const x = warpX(i) + (a > 0 ? Math.sin(this.clock * 85 + i) * 0.0014 * a * a : 0);
+      const x = warpX(i) + (a > 0 ? Math.sin(this.clock * 85 + i) * 0.0045 * a * a : 0);
       const hy = LOOM.loweredY + (LOOM.liftedY - LOOM.loweredY) * this.warpLift[i];
       // Lowered threads are cream yarn; lifted ones take the picture colour.
       // Touching a lever lights its threads in the lever's colour (motion + colour,
@@ -1010,6 +1159,7 @@ export class LoomView {
       // A lifted thread takes the colour of the lever lifting it: lever ↔ threads
       // are linked by colour all the time, with no icons on the loom.
       _c.setHex(THREAD_CREAM).lerp(_c2.setHex(this.liftingLeverColor(i)), lift);
+      if (a > 0) _c.lerp(_white, 0.4 * a * a); // a plucked thread flashes
       const hk = this.hoverLever;
       if (hk >= 0 && hk < this.tieUp.length && !this.tieHidden[hk] && isLifted(this.tieUp[hk], i)) {
         _c.lerp(_c2.setHex(this.palette.knobs[hk]), 0.75).lerp(_glow, 0.15);
