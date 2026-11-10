@@ -22,6 +22,7 @@ knit_img = load_image(os.path.join(SRC, 'Fabric019_1K-JPG', 'Fabric019_rgb256.pn
 WOOD = mat_tex('Beech', wood_img, tint=0xf2cc98, rough=0.48, clearcoat=0.15)
 WALNUT = mat_tex('WalnutWood', wood_img, tint=0x9a6038, rough=0.5, clearcoat=0.12)
 SLOT = mat_paint('SlotDark', 0x2e1c12, rough=0.7, clearcoat=0.0)
+SAGE = mat_paint('PaintSage', 0x9cbf86, rough=0.45, clearcoat=0.3)
 DARK = mat_paint('Walnut', 0x7a4e32, rough=0.45, clearcoat=0.2)
 TOMATO = mat_paint('PaintTomato', 0xe2563b, rough=0.38, clearcoat=0.45)
 MUSTARD = mat_paint('PaintMustard', 0xf2b632, rough=0.38, clearcoat=0.45)
@@ -50,7 +51,7 @@ for s, n in ((-1, 'RailL'), (1, 'RailR')):
     rounded_box(n, (0.026, 0.028, ZL), (s * HW, RY, ZM), bevel=0.009, segs=4, mat=WOOD, parent=frame)
     for zf, fn in ((Z0 + 0.016, 'Back'), (Z1 - 0.016, 'Front')):
         lathe(f'Foot{n[-1]}{fn}', [(0.0, 0.0), (0.0135, 0.0), (0.0155, 0.003), (0.0145, 0.0065), (0.011, 0.0085), (0.0, 0.009)],
-              (s * HW, 0.0, zf), segs=28, mat=TOMATO, parent=frame)
+              (s * HW, 0.0, zf), segs=28, mat=WALNUT, parent=frame)
 
 def roller(name, y, z, r, cap_r, body_mat, cap_mat, crank=False):
     half = HW + 0.016
@@ -79,9 +80,9 @@ rounded_box('ShuttleRace', (HW * 2 - 0.024, 0.006, 0.018), (0, 0.016, SZ), bevel
 # race (clear of the posts), with a tomato pad on top. Identical both sides.
 for sx in (-1, 1):
     nm = 'L' if sx < 0 else 'R'
-    lathe(f'Perch{nm}', [(0, 0), (0.0225, 0), (0.0235, 0.003), (0.0225, 0.006), (0, 0.006)], (sx * 0.16, 0.031, SZ), segs=32, mat=WALNUT, parent=frame)
-    lathe(f'PerchPad{nm}', [(0, 0), (0.019, 0), (0.0195, 0.002), (0.018, 0.003), (0, 0.003)], (sx * 0.16, 0.037, SZ), segs=32, mat=TOMATO, parent=frame)
-    lathe(f'PerchLeg{nm}', [(0, 0), (0.006, 0), (0.0055, 0.031), (0, 0.031)], (sx * 0.16, 0, SZ), segs=16, mat=WALNUT, parent=frame)
+    lathe(f'Perch{nm}', [(0, 0), (0.0225, 0), (0.0235, 0.003), (0.0225, 0.006), (0, 0.006)], (sx * 0.152, 0.031, SZ), segs=32, mat=WALNUT, parent=frame)
+    lathe(f'PerchPad{nm}', [(0, 0), (0.019, 0), (0.0195, 0.002), (0.018, 0.003), (0, 0.003)], (sx * 0.152, 0.037, SZ), segs=32, mat=SAGE, parent=frame)
+    lathe(f'PerchLeg{nm}', [(0, 0), (0.006, 0), (0.0055, 0.031), (0, 0.031)], (sx * 0.152, 0, SZ), segs=16, mat=WALNUT, parent=frame)
 for sx in (-1, 1):  # end stops: the boat parks against them
     rounded_box('RaceStop', (0.006, 0.011, 0.018), (sx * (HW - 0.016), 0.022, SZ), bevel=0.0025, segs=3, mat=WALNUT, parent=frame)
 
@@ -149,7 +150,7 @@ for s in (-1, 1):
     lathe(f'EaselPost{"L" if s < 0 else "R"}', [(0, 0), (0.005, 0), (0.005, EY - RY), (0, EY - RY)],
           (s * 0.078, RY, EZ), segs=16, mat=WALNUT, parent=frame)
 rounded_box('EaselLedge', (0.212, 0.009, 0.022), (0, EY - 0.0035, EZ - 0.002), bevel=0.003, segs=3, mat=WALNUT, parent=frame)
-rounded_box('EaselLip', (0.212, 0.009, 0.005), (0, EY + 0.002, EZ + 0.0075), bevel=0.0022, segs=3, mat=TOMATO, parent=frame)
+rounded_box('EaselLip', (0.212, 0.009, 0.005), (0, EY + 0.002, EZ + 0.0075), bevel=0.0022, segs=3, mat=WALNUT, parent=frame)
 # Two little clothes pegs clip the card to the ledge.
 for s in (-1, 1):
     for side, dz in (('F', 0.0028), ('B', -0.0028)):

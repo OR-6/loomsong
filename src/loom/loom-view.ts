@@ -34,7 +34,7 @@ import { THEMES, type Palette, type Theme } from '../ui/theme.js';
 import { PLAQUE, Plaque } from '../ui/plaque.js';
 import { grainTexture, weaveTexture, yarnTexture } from './textures.js';
 import { cloneModel, loomModels, materialOf } from './models.js';
-import { Plushes } from './plush.js';
+import { Plushes, puffGeometry } from './plush.js';
 import { Basket } from './basket.js';
 import { GhostHand } from './ghost-hand.js';
 import { Fx } from './fx.js';
@@ -350,12 +350,12 @@ export class LoomView {
     const cellGeo = new BoxGeometry(WARP_PITCH * 0.995, 0.003, LOOM.rowPitch * 0.99);
     const clothMat = new MeshStandardMaterial({ roughness: 0.95, map: weaveTexture() });
     // Woven cells: flat, square yarn cells in one continuous band on the felt.
-    this.cloth = new InstancedMesh(new BoxGeometry(1, 1, 1), clothMat, WARPS * LOOM.visibleRows);
+    this.cloth = new InstancedMesh(puffGeometry(), clothMat, WARPS * LOOM.visibleRows);
     this.cloth.name = 'Cloth';
     // faint target picture on the rows still to weave
     this.ghostCloth = new InstancedMesh(
       cellGeo,
-      new MeshStandardMaterial({ transparent: true, opacity: 0.3, roughness: 1, depthWrite: false, map: weaveTexture() }),
+      new MeshStandardMaterial({ transparent: true, opacity: 0.38, roughness: 1, depthWrite: false, map: weaveTexture() }),
       WARPS * LOOM.maxRows,
     );
     this.ghostCloth.name = 'TargetGhost';
@@ -819,7 +819,8 @@ export class LoomView {
       if (z > LOOM.clothFrontZ) continue; // slid off the front (only with many wrong rows)
       for (let i = 0; i < WARPS; i++) {
         _p.set(warpX(i), 0.0062, z);
-        _m.compose(_p, _q.identity(), _s.set(WARP_PITCH * 0.985, 0.0042, LOOM.rowPitch * 0.97));
+        // slightly domed yarn cells with a little gap (the felt shows as the seam)
+        _m.compose(_p, _q.identity(), _s.set(WARP_PITCH * 0.95, 0.0055, LOOM.rowPitch * 0.92));
         this.cloth.setMatrixAt(idx, _m);
         // warp visible if lifted in that row, else weft visible
         _c.setHex(isLifted(row, i) ? this.liftColor : this.groundColor);
@@ -964,7 +965,9 @@ export class LoomView {
       // Touching a lever lights its threads in the lever's colour (motion + colour,
       // no icons): that's how you see which threads a lever lifts.
       const lift = Math.max(0, Math.min(1, this.warpLift[i]));
-      _c.setHex(THREAD_CREAM).lerp(_c2.setHex(this.liftColor), lift);
+      // A lifted thread takes the colour of the lever lifting it: lever ↔ threads
+      // are linked by colour all the time, with no icons on the loom.
+      _c.setHex(THREAD_CREAM).lerp(_c2.setHex(this.liftingLeverColor(i)), lift);
       const hk = this.hoverLever;
       if (hk >= 0 && hk < this.tieUp.length && !this.tieHidden[hk] && isLifted(this.tieUp[hk], i)) {
         _c.lerp(_c2.setHex(this.palette.knobs[hk]), 0.75).lerp(_glow, 0.15);
@@ -1052,7 +1055,7 @@ export class LoomView {
   private applyColors(): void {
     const p = this.palette;
     this.liftColor = this.pictureColor ?? p.weft;
-    this.groundColor = p.warp;
+    this.groundColor = 0xe9dcc0; // warm cream yarn, not white tile
     // warp colour comes per strand (instance colour × white), brighter when lifted
     (this.warps?.material as MeshStandardMaterial | undefined)?.color.setHex(0xffffff);
     const yarn = this.bobbin ? (materialOf(this.bobbin, 'Wound') as MeshStandardMaterial | null) : null;
@@ -1090,6 +1093,20 @@ export class LoomView {
       m.instanceMatrix.needsUpdate = true;
       if (m.instanceColor) m.instanceColor.needsUpdate = true;
     }
+  }
+
+  /** Colour of the latched (or rising) lever that lifts thread i most. */
+  private liftingLeverColor(i: number): number {
+    let best = -1;
+    let bestT = 0.05;
+    for (let k = 0; k < this.tieUp.length && k < this.activeLevers; k++) {
+      if (isLifted(this.tieUp[k], i) && this.leverX[k] > bestT) {
+        bestT = this.leverX[k];
+        best = k;
+      }
+    }
+    if (best < 0) return this.liftColor;
+    return this.tieHidden[best] ? 0xd9cdb8 : this.palette.knobs[best];
   }
 
   /** Instance `idx` as a unit-Z strand stretched from (x0,y0,z0) to (x1,y1,z1). */

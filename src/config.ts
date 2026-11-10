@@ -28,7 +28,7 @@ export const LOOM = {
   rowPitch: 0.012,
   visibleRows: 12,
   /** Cloth starts here (front, by the front beam) and builds back toward the heddle. */
-  clothFrontZ: 0.074,
+  clothFrontZ: 0.068,
   /** Rows that fit before the cloth reaches the shuttle line. */
   maxRows: 8,
 } as const;
@@ -39,8 +39,8 @@ export const SHUTTLE = {
   /** Pip's height in the shed: the boat (20 mm below Pip) slides between the threads. */
   y: 0.044,
   /** Travel endpoints in loom-local x: Pip's perches on top of the side rails. */
-  minX: -0.16,
-  maxX: 0.16,
+  minX: -0.152,
+  maxX: 0.152,
   /** Perch height on the rail top, and where the hop down into the shed starts. */
   perchY: 0.065,
   shedHalf: 0.1,
@@ -52,7 +52,7 @@ export const SHUTTLE = {
 /** Lever bank beside the loom (mirrored for left-handed play). */
 export const LEVER = {
   /** x of the first lever, measured outward from the loom centre. */
-  firstX: 0.16,
+  firstX: 0.195,
   spacing: 0.04,
   /** Rest (unlatched) z — nearest the user. Latched = rest - travel. */
   restZ: 0.075,

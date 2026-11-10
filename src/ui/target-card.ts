@@ -79,7 +79,7 @@ export class TargetCard {
     const th = this.theme;
     const cell = CARD.cell;
     const pad = 0.008;
-    const markW = 0.017; // left arrow / right tick column (big enough to read from the seat)
+    const markW = 0.021; // left arrow / right tick column (big enough to read from the seat)
     // Only glyphs on the card (stars after a win); words live on the plaque,
     // where they can meet the 1.5 cm cap-height rule.
     const titleH = stars > 0 || this.par > 0 ? 0.026 : 0;
@@ -157,9 +157,9 @@ export class TargetCard {
         }
       }
       const cy = px(y + cell / 2);
-      if (st === 'match') drawTick(g, px(gridX + WARPS * cell + markW / 2), cy, px(0.0058));
+      if (st === 'match') drawTick(g, px(gridX + WARPS * cell + markW / 2), cy, px(0.0075));
       if (st === 'miss') {
-        drawCross(g, px(gridX + WARPS * cell + markW / 2), cy, px(0.0054));
+        drawCross(g, px(gridX + WARPS * cell + markW / 2), cy, px(0.007));
         // hatch the row so a miss reads without colour
         g.save();
         g.strokeStyle = 'rgba(30,20,10,0.85)';
@@ -172,7 +172,7 @@ export class TargetCard {
         g.stroke();
         g.restore();
       }
-      if (r === nextRow && stars === 0) drawArrow(g, px(pad + markW / 2), cy, px(0.0058));
+      if (r === nextRow && stars === 0) drawArrow(g, px(pad + markW / 2), cy, px(0.0075));
     }
     this.tex.needsUpdate = true;
     this.mesh.scale.set(wM, hM, 1);

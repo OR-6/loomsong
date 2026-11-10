@@ -266,13 +266,13 @@ function cutout(rows: readonly Mask8[]): Group {
         g.fill();
       }
   };
-  g.fillStyle = '#9c9488';
-  blob(3); // the darker edge
-  g.fillStyle = '#bdb6aa';
+  g.fillStyle = '#efe4cc';
+  blob(3); // a cream stitched edge
+  g.fillStyle = '#8d9099';
   blob(0);
   // running stitch just inside the edge
   g.globalCompositeOperation = 'source-atop';
-  g.strokeStyle = 'rgba(120,112,100,0.6)';
+  g.strokeStyle = 'rgba(239,228,204,0.55)';
   g.setLineDash([5, 4]);
   g.lineWidth = 2;
   for (let r = 0; r < n; r++)
@@ -296,6 +296,7 @@ function cutout(rows: readonly Mask8[]): Group {
   (peg.material as MeshStandardMaterial).userData.own = true;
   const grp = new Group();
   grp.add(mesh, peg);
+  mesh.rotation.x = -0.45; // leaning back toward the seated player
   return grp;
 }
 
