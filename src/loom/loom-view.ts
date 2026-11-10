@@ -82,7 +82,7 @@ export const TOKEN_SIZE = 1.6;
 const UNDO_RED = 0xe4573d;
 
 /** Undyed wool: the colour of a mystery lever before it's been tried. */
-const UNDYED = 0xcbb89a; // oatmeal: clearly not the cream stems
+const UNDYED = 0xcdbb98; // oatmeal: clearly not the cream stems
 /** Strands per warp bundle, and their spread (they pinch to 30 % at the eyelet). */
 const STRANDS = 1;
 const STRAND_GAP = 0.0052;
@@ -1071,7 +1071,7 @@ export class LoomView {
     if (cap) {
       let ring = cap.getObjectByName('MysterySeam') as Mesh | undefined;
       if (!ring && hidden) {
-        ring = new Mesh(new TorusGeometry(LEVER.knobRadius * 1.0, 0.0026, 8, 32), new MeshStandardMaterial({ color: 0x4a3a2a, roughness: 0.9 }));
+        ring = new Mesh(new TorusGeometry(LEVER.knobRadius * 1.0, 0.0026, 8, 32), new MeshStandardMaterial({ color: 0x3a3550, roughness: 0.9 }));
         ring.name = 'MysterySeam';
         ring.rotation.x = Math.PI / 2;
         // the cap's vertices are baked at knob height: sit the seam on the dome's equator
@@ -1257,7 +1257,7 @@ export { UP };
  * the ring is rotated +90° about x, so the dome's up is the ring's -z). */
 function mysteryMark(): Mesh {
   const R = LEVER.knobRadius * 1.012;
-  const th = 0.62; // a tighter patch: the '?' covers ~60% of the dome from above
+  const th = 0.9; // a wide patch: the '?' spans most of the dome seen from the seat
   const geo = new SphereGeometry(R, 28, 8, 0, Math.PI * 2, 0, th);
   const w = R * Math.sin(th);
   const pos = geo.attributes.position;
@@ -1272,10 +1272,10 @@ function mysteryMark(): Mesh {
   g.lineWidth = 10;
   g.strokeStyle = '#f3e6cc';
   g.strokeText('?', 64, 72);
-  g.fillStyle = '#3a2618';
+  g.fillStyle = '#3a3550';
   g.fillText('?', 64, 72);
   g.lineWidth = 5; // a bolder stitched glyph that reads from the seat
-  g.strokeStyle = '#3a2618';
+  g.strokeStyle = '#3a3550';
   g.strokeText('?', 64, 72);
   const tex = new CanvasTexture(c);
   tex.colorSpace = SRGBColorSpace;

@@ -77,6 +77,8 @@ export const PLUSH = {
   danceY: 0.165,
   /** Width of the cream halo behind the dancing plush (m). */
   haloSize: 0.2,
+  /** Radius of the felt stage disc under the dancing plush (m). */
+  stageR: 0.062,
 } as const;
 
 /** Seconds per row when a shelf plush sings its picture. */
@@ -356,6 +358,8 @@ export class Plushes {
   private tilt = 1;
   /** A soft cream halo behind the hero plush: its own clean stage over the busy loom and card. */
   private halo: Mesh;
+  /** A floating cream felt disc with a stitched ring: the stage the plush dances on. */
+  private stage: Group;
   private haloA = 0;
   /** Per shelf slot: seconds left of its song (poked plushes sing and bounce). */
   private singLeft: number[] = new Array(PLUSH.slots).fill(0);
@@ -374,6 +378,18 @@ export class Plushes {
     this.halo.visible = false;
     this.halo.renderOrder = 5;
     this.root.add(this.halo);
+    this.stage = new Group();
+    this.stage.name = 'PlushStage';
+    const felt = new Mesh(new CylinderGeometry(PLUSH.stageR, PLUSH.stageR * 0.96, 0.006, 40), new MeshStandardMaterial({ color: 0xfff3d6, roughness: 0.95 }));
+    felt.castShadow = true;
+    const stitch = new Mesh(new TorusGeometry(PLUSH.stageR * 0.84, 0.0011, 6, 64), new MeshStandardMaterial({ color: 0xd6aa6e, roughness: 0.9 }));
+    stitch.rotation.x = Math.PI / 2;
+    stitch.position.y = 0.0032;
+    const rim = new Mesh(new TorusGeometry(PLUSH.stageR, 0.0024, 8, 64), new MeshStandardMaterial({ color: 0xe8b04a, roughness: 0.7 }));
+    rim.rotation.x = Math.PI / 2;
+    this.stage.add(felt, stitch, rim);
+    this.stage.visible = false;
+    this.root.add(this.stage);
     const m = loomModels();
     if (m?.shelf) this.shelf = cloneModel(m.shelf);
     else {
@@ -507,6 +523,7 @@ export class Plushes {
       if (!it || !want) continue;
       // a smooth felt cut-out of the picture with a stitched edge, standing on a peg
       const g = cutout(it.rows);
+      g.scale.setScalar(0.9); // a little narrower than a slot: neighbours never touch
       this.slotPos(i, g.position);
       this.root.add(g);
       this.ghosts[i] = g;
@@ -653,8 +670,15 @@ export class Plushes {
     const staged = !!h && (this.phase === 'pop' || this.phase === 'hopOut' || this.phase === 'dance');
     this.haloA += ((staged ? 1 : 0) - this.haloA) * Math.min(1, dt * (staged ? 6 : 9));
     const hm = this.halo.material as MeshBasicMaterial;
-    hm.opacity = this.haloA * 0.88;
+    hm.opacity = this.haloA * 0.45;
     this.halo.visible = this.haloA > 0.02 && !!h;
+    this.stage.visible = this.halo.visible && (this.phase === 'hopOut' || this.phase === 'dance' || this.phase === 'hopShelf');
+    if (h && this.stage.visible) {
+      // the stage sits under the plush's feet and tilts with its lean toward the player
+      this.stage.position.set(h.position.x, h.position.y - 0.004, h.position.z);
+      this.stage.rotation.x = h.rotation.x;
+      this.stage.scale.setScalar(Math.max(0.001, this.haloA));
+    }
     if (h && this.halo.visible) {
       this.halo.position.set(h.position.x, h.position.y + 0.012, h.position.z - 0.03);
       this.halo.rotation.x = -0.3;
@@ -665,7 +689,7 @@ export class Plushes {
     if (this.phase === 'pop') {
       const k = Math.min(1, this.t / 0.35);
       h.scale.setScalar(Math.max(0.001, back(k) * PLUSH.hero));
-      h.position.y = 0.004 + 0.07 * ease(k); // pops up out of the cloth
+      h.position.y = 0.004 + 0.045 * ease(k); // pops up out of the cloth (low: the card stays clear)
       if (k >= 1) {
         this.phase = 'hopOut';
         this.t = 0;

@@ -101,7 +101,7 @@ export class TargetCard {
     const g = this.ctx;
     const lift = hex(this.color ?? th.palette.weft);
     // empty cells take a little of the chapter paper tint (Night's cells read dusk, not white)
-    const ground = this.paper ? mixHex(hex(th.palette.warp), this.paper, 0.5) : hex(th.palette.warp);
+    const ground = this.paper ? mixHex('#efe6d2', this.paper, 0.5) : '#efe6d2';
     const grace = '#c9b79c';
     const px = (m: number) => m * PX_PER_M;
     g.clearRect(0, 0, c.width, c.height);
@@ -126,11 +126,19 @@ export class TargetCard {
     else if (this.par > 0) {
       // Yarn knots: par (solid) + 2 grace (lighter); spent knots go hollow.
       const total = this.par + 2;
-      const gap = Math.min(0.021, (WARPS * cell) / total);
-      const x0 = c.width / 2 - ((total - 1) * px(gap)) / 2;
+      // long budgets wrap onto two rows instead of shrinking into specks
+      const lines = total > 8 ? 2 : 1;
+      const perRow = Math.ceil(total / lines);
+      const gap = Math.min(0.021, (WARPS * cell) / perRow);
+      const r = lines === 2 ? Math.min(0.0064, gap * 0.42) : Math.min(0.0085, gap * 0.42);
       for (let i = 0; i < total; i++) {
+        const line = Math.floor(i / perRow);
+        const j = i - line * perRow;
+        const inRow = line === lines - 1 ? total - line * perRow : perRow;
+        const x0 = c.width / 2 - ((inRow - 1) * px(gap)) / 2;
+        const y = px(pad + titleH / 2 + (lines === 2 ? (line - 0.5) * 0.0134 : 0));
         const spent = i >= total - this.used;
-        drawKnot(g, x0 + i * px(gap), px(pad + titleH / 2), px(Math.min(0.0085, gap * 0.42)), i < this.par ? lift : grace, spent, highContrast);
+        drawKnot(g, x0 + j * px(gap), y, px(r), i < this.par ? lift : grace, spent, highContrast);
       }
     }
     void title;
@@ -154,6 +162,12 @@ export class TargetCard {
           g.fillStyle = lifted ? lift : ground;
         }
         g.fillRect(px(x) + 1, px(y) + 1, px(cell) - 2, px(cell) - 2);
+        if (!highContrast) {
+          // a faint grid: count columns against the threads
+          g.strokeStyle = '#d8cbb0';
+          g.lineWidth = 1.5;
+          g.strokeRect(px(x) + 1, px(y) + 1, px(cell) - 2, px(cell) - 2);
+        }
         if (highContrast) {
           g.strokeStyle = '#000';
           g.lineWidth = 2;
