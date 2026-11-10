@@ -34,7 +34,7 @@ import { THEMES, type Palette, type Theme } from '../ui/theme.js';
 import { PLAQUE, Plaque } from '../ui/plaque.js';
 import { grainTexture, weaveTexture, yarnTexture } from './textures.js';
 import { cloneModel, loomModels, materialOf } from './models.js';
-import { Plushes } from './plush.js';
+import { Plushes, puffGeometry } from './plush.js';
 import { Basket } from './basket.js';
 import { GhostHand } from './ghost-hand.js';
 import { Fx } from './fx.js';
@@ -347,12 +347,13 @@ export class LoomView {
     // Cloth cells.
     const cellGeo = new BoxGeometry(WARP_PITCH * 0.995, 0.003, LOOM.rowPitch * 0.99);
     const clothMat = new MeshStandardMaterial({ roughness: 0.95, map: weaveTexture() });
-    this.cloth = new InstancedMesh(cellGeo, clothMat, WARPS * LOOM.visibleRows);
+    // Woven cells are puffy yarn pillows standing proud of the felt: the cloth is the hero.
+    this.cloth = new InstancedMesh(puffGeometry(), clothMat, WARPS * LOOM.visibleRows);
     this.cloth.name = 'Cloth';
     // faint target picture on the rows still to weave
     this.ghostCloth = new InstancedMesh(
       cellGeo,
-      new MeshStandardMaterial({ transparent: true, opacity: 0.5, roughness: 1, depthWrite: false, map: weaveTexture(), emissive: 0x1a1a1a }),
+      new MeshStandardMaterial({ transparent: true, opacity: 0.22, roughness: 1, depthWrite: false, map: weaveTexture() }),
       WARPS * LOOM.maxRows,
     );
     this.ghostCloth.name = 'TargetGhost';
@@ -381,6 +382,8 @@ export class LoomView {
         const knob = cloneModel(models.knob, tint);
         const cap = materialOf(knob, 'Cap0') as MeshStandardMaterial;
         this.knobCaps[k] = knob.getObjectByName('Cap0') ?? null;
+        const c0 = this.knobCaps[k];
+        if (c0) c0.userData.baseScale = c0.scale.toArray();
         cap.color.setHex(palette.knobs[k]);
         // yarn wrap on the stem, a shade deeper than the cap
         const wrap = materialOf(knob, 'StemWrap') as MeshStandardMaterial | null;
@@ -809,8 +812,8 @@ export class LoomView {
       const z = this.rowZ(start + r, rows.length);
       if (z > LOOM.clothFrontZ) continue; // slid off the front (only with many wrong rows)
       for (let i = 0; i < WARPS; i++) {
-        _p.set(warpX(i), 0.006, z);
-        _m.compose(_p, _q.identity(), _s.set(1, 1, 1));
+        _p.set(warpX(i), 0.0075, z);
+        _m.compose(_p, _q.identity(), _s.set(WARP_PITCH * 1.02, 0.0068, LOOM.rowPitch * 1.02));
         this.cloth.setMatrixAt(idx, _m);
         // warp visible if lifted in that row, else weft visible
         _c.setHex(isLifted(row, i) ? this.liftColor : this.groundColor);
@@ -909,7 +912,10 @@ export class LoomView {
         pop = 1 + Math.sin((1 - p) * Math.PI * 3) * p * 0.35;
       }
       const cap = this.knobCaps[k];
-      if (cap) cap.scale.set(this.knobW[k] * pop, this.knobH[k] * pop * 0.9, this.knobW[k] * pop);
+      if (cap) {
+        const b = cap.userData.baseScale as [number, number, number] | undefined;
+        cap.scale.set((b?.[0] ?? 1) * this.knobW[k] * pop, (b?.[1] ?? 1) * this.knobH[k] * pop, (b?.[2] ?? 1) * this.knobW[k] * pop);
+      }
       else this.levers[k]?.scale.setScalar(pop);
     }
     this.plushes.update(dt);

@@ -6,7 +6,7 @@
     "frontBeamZ": 0.088,
     "beamY": 0.022,
     "frameHalfWidth": 0.115,
-    "liftedY": 0.064,
+    "liftedY": 0.056,
     "loweredY": 0.024,
     "shedY": 0.017,
     "rowPitch": 0.012,
@@ -15,17 +15,17 @@
     "maxRows": 8
   },
   "LEVER": {
-    "firstX": 0.17,
+    "firstX": 0.16,
     "spacing": 0.032,
     "restZ": 0.075,
     "travel": 0.05,
     "knobY": 0.046,
-    "knobRadius": 0.0145,
+    "knobRadius": 0.0118,
     "magnet": 0.3
   },
   "LEVERS": 4,
   "SHUTTLE": {
-    "z": -0.031,
+    "z": -0.024,
     "y": 0.044,
     "minX": -0.123,
     "maxX": 0.123,
@@ -47,7 +47,7 @@
     "baseY": 0.104,
     "width": 0.075,
     "cell": 0.0147,
-    "tiltDeg": 14
+    "tiltDeg": 24
   },
   "TOKEN": {
     "x": 0.1,

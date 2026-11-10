@@ -15,16 +15,20 @@ from lib import *
 reset()
 L, LV, B, C = DIMS['LOOM'], DIMS['LEVER'], DIMS['BOBBIN'], DIMS['CARD']
 SRC = os.path.join(HERE, '..', '..', 'assets-src', 'ambientcg')
-wood_img = load_image(os.path.join(SRC, 'Wood095_1K-JPG', 'Wood095_beech512.png'), 512)  # desaturated, lighter: beech not pine
+wood_img = load_image(os.path.join(SRC, 'Wood095_1K-JPG', 'Wood095_soft512.png'), 512)  # soft, low-contrast grain
 knit_img = load_image(os.path.join(SRC, 'Fabric019_1K-JPG', 'Fabric019_rgb256.png'), 256)
-WOOD = mat_tex('Beech', wood_img, tint=0xffe8c8, rough=0.42, clearcoat=0.4)  # warm lacquered wood
+# Two wood values: honey for the loom frame (the hero), walnut for the
+# furniture around it (lever box, shelf, easel) so the loom stands out.
+WOOD = mat_tex('Beech', wood_img, tint=0xf2cc98, rough=0.48, clearcoat=0.15)
+WALNUT = mat_tex('WalnutWood', wood_img, tint=0x9a6038, rough=0.5, clearcoat=0.12)
+SLOT = mat_paint('SlotDark', 0x2e1c12, rough=0.7, clearcoat=0.0)
 DARK = mat_paint('Walnut', 0x7a4e32, rough=0.45, clearcoat=0.2)
 TOMATO = mat_paint('PaintTomato', 0xe2563b, rough=0.38, clearcoat=0.45)
 MUSTARD = mat_paint('PaintMustard', 0xf2b632, rough=0.38, clearcoat=0.45)
 TEAL = mat_paint('PaintTeal', 0x2a9d8f, rough=0.38, clearcoat=0.45)
 KNOB = mat_paint('KnobPaint', 0xe2563b, rough=0.35, clearcoat=0.5)
 YARN = mat_tex('Yarn', knit_img, tint=0xffffff, rough=0.95)
-CLOTH = mat_tex('ClothRoll', knit_img, tint=0xfff3e0, rough=0.95)
+CLOTH = mat_tex('ClothRoll', knit_img, tint=0xe8dcc4, rough=0.95)
 YARN_L = mat_tex('SpoolYarnTomato', knit_img, tint=0xe2563b, rough=0.95)
 YARN_R = mat_tex('SpoolYarnTeal', knit_img, tint=0x2a9d8f, rough=0.95)
 
@@ -70,7 +74,9 @@ lathe('ClothWrap', [(0.0, -0.098), (0.0078, -0.098), (0.0086, -0.094), (0.0086, 
 rounded_box('Bed', (HW * 2 - 0.024, 0.004, ZL - 0.05), (0, 0.002, ZM + 0.004), bevel=0.0018, segs=2, mat=NAVY, parent=frame)
 # Pip's lane: a slim wooden shuttle race across the loom; the lowered threads lie on it.
 SZ = DIMS['SHUTTLE']['z']
-rounded_box('ShuttleRace', (HW * 2 - 0.022, 0.006, 0.016), (0, 0.016, SZ), bevel=0.0026, segs=3, mat=WOOD, parent=frame)
+rounded_box('ShuttleRace', (HW * 2 - 0.024, 0.006, 0.018), (0, 0.016, SZ), bevel=0.0026, segs=3, mat=WALNUT, parent=frame)
+for sx in (-1, 1):  # end stops: the boat parks against them
+    rounded_box('RaceStop', (0.006, 0.011, 0.018), (sx * (HW - 0.016), 0.022, SZ), bevel=0.0025, segs=3, mat=WALNUT, parent=frame)
 
 # ---- Uprights + heddle bar, crowned with big painted ball finials ----
 PH = 0.086  # the heddle bar clears the fully lifted threads
@@ -103,7 +109,7 @@ bz0, bz1 = LV['restZ'] - LV['travel'] - 0.02, LV['restZ'] + 0.02
 BW, BD, BX, BZ = bx1 - bx0, bz1 - bz0, (bx0 + bx1) / 2, (bz0 + bz1) / 2
 TOP = 0.029
 # one wooden block (same lacquered wood as the loom), dark slot grooves
-plate = rounded_box('LeverBase', (BW, TOP, BD), (BX, TOP / 2, BZ), bevel=0.008, segs=4, mat=WOOD, parent=frame)
+plate = rounded_box('LeverBase', (BW, TOP, BD), (BX, TOP / 2, BZ), bevel=0.008, segs=4, mat=WALNUT, parent=frame)
 for k in range(n):
     cut = rounded_box(f'Slot{k}', (0.0082, 0.03, LV['travel'] + 0.013), (x_first + k * sp, TOP, LV['restZ'] - LV['travel'] / 2),
                       bevel=0.0025, segs=2)
@@ -114,22 +120,23 @@ for k in range(n):
     bpy.data.objects.remove(cut, do_unlink=True)
 for k in range(n):
     rounded_box(f'SlotFloor{k}', (0.0078, 0.002, LV['travel'] + 0.012), (x_first + k * sp, TOP - 0.0062, LV['restZ'] - LV['travel'] / 2),
-                bevel=0.0008, segs=1, mat=DARK, parent=frame)
+                bevel=0.0008, segs=1, mat=SLOT, parent=frame)
 
 # The undo bobbin slides along a wooden rod mounted on the left rail.
 BX0 = -B['x']
 rod = lathe('BobbinRod', [(0, 0), (0.0022, 0), (0.0022, B['pull'] + 0.03), (0, B['pull'] + 0.03)],
             (BX0, B['y'], B['z'] - 0.014), axis='Z', segs=12, mat=DARK, parent=frame)
 for zc in (B['z'] - 0.016, B['z'] + B['pull'] + 0.016):
-    rounded_box('BobbinRodMount', (abs(BX0) - (HW + 0.013) + 0.006, 0.008, 0.008), (-(abs(BX0) + HW + 0.013) / 2, B['y'], zc), bevel=0.003, segs=2, mat=WOOD, parent=frame)
+    lathe('BobbinRodMount', [(0, 0), (0.0032, 0), (0.0032, abs(BX0) - HW - 0.008), (0, abs(BX0) - HW - 0.008)],
+          (BX0, B['y'], zc), axis='X', segs=12, mat=DARK, parent=frame)
 
 # ---- Easel: a music stand behind the heddle that holds the pattern card ----
 EZ, EY = C['z'], C['baseY']
 rounded_box('EaselStretcher', (HW * 2, 0.018, 0.016), (0, RY, EZ), bevel=0.006, segs=3, mat=WOOD, parent=frame)
 for s in (-1, 1):
     lathe(f'EaselPost{"L" if s < 0 else "R"}', [(0, 0), (0.005, 0), (0.005, EY - RY), (0, EY - RY)],
-          (s * 0.062, RY, EZ), segs=16, mat=WOOD, parent=frame)
-rounded_box('EaselLedge', (0.172, 0.009, 0.022), (0, EY - 0.0035, EZ - 0.002), bevel=0.003, segs=3, mat=WOOD, parent=frame)
+          (s * 0.062, RY, EZ), segs=16, mat=WALNUT, parent=frame)
+rounded_box('EaselLedge', (0.172, 0.009, 0.022), (0, EY - 0.0035, EZ - 0.002), bevel=0.003, segs=3, mat=WALNUT, parent=frame)
 rounded_box('EaselLip', (0.172, 0.009, 0.005), (0, EY + 0.002, EZ + 0.0075), bevel=0.0022, segs=3, mat=TOMATO, parent=frame)
 # Two little clothes pegs clip the card to the ledge.
 for s in (-1, 1):
@@ -142,7 +149,7 @@ for s in (-1, 1):
 # ---- Plush shelf: a yellow bench with tomato feet, origin on the desk ----
 shelf = empty('Shelf', at=(0, 0, 0))
 SW, SD, SY = 0.245, 0.056, 0.03
-rounded_box('ShelfTop', (SW, 0.012, SD), (0, SY, 0), bevel=0.0055, segs=4, mat=WOOD, parent=shelf)
+rounded_box('ShelfTop', (SW, 0.012, SD), (0, SY, 0), bevel=0.0055, segs=4, mat=WALNUT, parent=shelf)
 for s_ in (-1, 1):
     lathe(f'ShelfLeg{"L" if s_ < 0 else "R"}', [(0, 0), (0.0105, 0), (0.0095, SY - 0.006), (0, SY - 0.006)],
           (s_ * (SW / 2 - 0.024), 0, 0), segs=24, mat=TOMATO, parent=shelf)
@@ -164,7 +171,7 @@ KY = LV['knobY']
 lathe('Stem', [(0, 0.0), (0.0048, 0.0), (0.0045, KY - r * 0.7), (0, KY - r * 0.7)], (0, 0, 0), segs=18, mat=CREAM, parent=knob)
 head = [(0, -r)] + [(r * math.sin(a), -r * math.cos(a)) for a in [i * math.pi / 18 for i in range(1, 18)]] + [(0, r)]
 cap = lathe('Cap0', head, (0, KY, 0), segs=36, mat=KNOB, parent=knob)
-cap.scale = (1.0, 1.0, 0.9)
+cap.scale = (1.15, 1.15, 0.72)  # a mushroom cap: wide and friendly, easy to pinch
 
 # ---- Bobbin (undo spool): cream flanges, wound yarn ----
 bob = empty('Bobbin', at=(0, 0, 0))

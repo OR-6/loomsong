@@ -79,10 +79,10 @@ export class TargetCard {
     const th = this.theme;
     const cell = CARD.cell;
     const pad = 0.008;
-    const markW = 0.012; // left arrow / right tick column
+    const markW = 0.017; // left arrow / right tick column (big enough to read from the seat)
     // Only glyphs on the card (stars after a win); words live on the plaque,
     // where they can meet the 1.5 cm cap-height rule.
-    const titleH = stars > 0 || this.par > 0 ? 0.014 : 0;
+    const titleH = stars > 0 || this.par > 0 ? 0.019 : 0;
     const rows = status.length;
     const wM = pad * 2 + markW * 2 + cell * WARPS;
     const hM = pad * 2 + titleH + cell * rows;
@@ -116,17 +116,17 @@ export class TargetCard {
     g.textBaseline = 'middle';
     if (stars > 0) {
       for (let i = 0; i < 3; i++) {
-        drawStar(g, c.width / 2 + (i - 1) * px(0.014), px(pad + titleH / 2), px(0.0055), i < stars);
+        drawStar(g, c.width / 2 + (i - 1) * px(0.019), px(pad + titleH / 2), px(0.0075), i < stars);
       }
     }
     else if (this.par > 0) {
       // Yarn knots: par (solid) + 2 grace (lighter); spent knots go hollow.
       const total = this.par + 2;
-      const gap = Math.min(0.009, (WARPS * cell) / total);
+      const gap = Math.min(0.0125, (WARPS * cell) / total);
       const x0 = c.width / 2 - ((total - 1) * px(gap)) / 2;
       for (let i = 0; i < total; i++) {
         const spent = i >= total - this.used;
-        drawKnot(g, x0 + i * px(gap), px(pad + titleH / 2), px(0.0032), i < this.par ? lift : grace, spent, highContrast);
+        drawKnot(g, x0 + i * px(gap), px(pad + titleH / 2), px(0.0048), i < this.par ? lift : grace, spent, highContrast);
       }
     }
     void title;
@@ -157,9 +157,9 @@ export class TargetCard {
         }
       }
       const cy = px(y + cell / 2);
-      if (st === 'match') drawTick(g, px(gridX + WARPS * cell + markW / 2), cy, px(0.0035));
+      if (st === 'match') drawTick(g, px(gridX + WARPS * cell + markW / 2), cy, px(0.0058));
       if (st === 'miss') {
-        drawCross(g, px(gridX + WARPS * cell + markW / 2), cy, px(0.0032));
+        drawCross(g, px(gridX + WARPS * cell + markW / 2), cy, px(0.0054));
         // hatch the row so a miss reads without colour
         g.save();
         g.strokeStyle = 'rgba(30,20,10,0.85)';
@@ -172,7 +172,7 @@ export class TargetCard {
         g.stroke();
         g.restore();
       }
-      if (r === nextRow && stars === 0) drawArrow(g, px(pad + markW / 2), cy, px(0.0035));
+      if (r === nextRow && stars === 0) drawArrow(g, px(pad + markW / 2), cy, px(0.0058));
     }
     this.tex.needsUpdate = true;
     this.mesh.scale.set(wM, hM, 1);

@@ -60,8 +60,8 @@ export const PLUSH = {
   shelfScale: 0.41,
   slots: 5,
   slotGap: 0.047,
-  /** Plush base height on the shelf: bench top (36 mm) + felt cushion. */
-  shelfTopY: 0.0405,
+  /** Plush base height on the shelf: the bench top (36 mm). */
+  shelfTopY: 0.036,
   /** Shelf centre, on the side away from the lever bank (x is multiplied by -side). */
   shelfX: 0.275,
   shelfZ: -0.02,
@@ -72,7 +72,7 @@ export const PLUSH = {
 
 let puff: BufferGeometry | null = null;
 /** A unit cube pulled toward a sphere: a soft quilted pillow. */
-function puffGeometry(): BufferGeometry {
+export function puffGeometry(): BufferGeometry {
   if (puff) return puff;
   const g = new BoxGeometry(1, 1, 1, 4, 4, 4);
   const p = g.attributes.position;
@@ -380,6 +380,9 @@ export class Plushes {
   private sway = 0;
 
   private cushions: Mesh[] = [];
+  /** Grey silhouettes of the chapter's pictures not woven yet. */
+  private ghosts: (Group | null)[] = new Array(PLUSH.slots).fill(null);
+  private ghostIds: (string | null)[] = new Array(PLUSH.slots).fill(null);
   private tag = new Label(0.13, 0.024);
 
   setSide(side: 1 | -1): void {
@@ -396,6 +399,8 @@ export class Plushes {
     for (let i = 0; i < PLUSH.slots; i++) {
       const p = this.slotItems[i];
       if (p) this.slotPos(i, p.position);
+      const g = this.ghosts[i];
+      if (g) this.slotPos(i, g.position);
     }
   }
 
@@ -408,7 +413,34 @@ export class Plushes {
     this.settle();
     const done = items.filter((it) => it.done).length;
     this.tag.set(chapter ? `${chapter} ${done}/${items.length}` : '');
-    for (let i = 0; i < this.cushions.length; i++) this.cushions[i].visible = i < items.length;
+    // no felt "plates": empty slots show a soft grey silhouette of the plush to come
+    for (let i = 0; i < this.cushions.length; i++) this.cushions[i].visible = false;
+    for (let i = 0; i < PLUSH.slots; i++) {
+      const it = items[i];
+      const want = it && !it.done ? it.id : null;
+      if (want === this.ghostIds[i]) continue;
+      const old = this.ghosts[i];
+      if (old) disposePlush(old);
+      this.ghosts[i] = null;
+      this.ghostIds[i] = want;
+      if (!it || !want) continue;
+      const g = buildPlush(it.rows, 0x9aa3ad);
+      g.traverse((o) => {
+        const m = o as InstancedMesh;
+        if (m.isInstancedMesh) {
+          const mat = m.material as MeshPhysicalMaterial;
+          mat.transparent = true;
+          mat.opacity = 0.45;
+          mat.sheen = 0;
+          mat.depthWrite = false;
+          m.castShadow = false;
+        } else if ((o as Mesh).isMesh) o.visible = false; // no face: it's not woven yet
+      });
+      g.scale.setScalar(PLUSH.shelfScale);
+      this.slotPos(i, g.position);
+      this.root.add(g);
+      this.ghosts[i] = g;
+    }
     for (let i = 0; i < this.pennants.length; i++) {
       const it = items[i];
       this.pennants[i].visible = !!it;
@@ -484,6 +516,12 @@ export class Plushes {
     this.slotPos(this.heroSlot, h.position);
     this.slotItems[this.heroSlot] = h;
     this.slotIds[this.heroSlot] = this.heroId;
+    const ghost = this.ghosts[this.heroSlot];
+    if (ghost) {
+      disposePlush(ghost);
+      this.ghosts[this.heroSlot] = null;
+      this.ghostIds[this.heroSlot] = null;
+    }
     // its pennant on the bunting takes the picture's colour
     const pen = this.pennants[this.heroSlot];
     if (pen) (pen.material as MeshStandardMaterial).color.set(this.heroColor);

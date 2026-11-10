@@ -20,7 +20,7 @@ export const LOOM = {
   frontBeamZ: 0.088,
   beamY: 0.022,
   frameHalfWidth: 0.115,
-  liftedY: 0.064,
+  liftedY: 0.056,
   /** Lowered threads at the heddle: a straight, taut line from the back beam to the cloth. */
   loweredY: 0.024,
   shedY: 0.017,
@@ -35,7 +35,7 @@ export const LOOM = {
 
 /** Shuttle slides along X on the shed line. */
 export const SHUTTLE = {
-  z: -0.031,
+  z: -0.024,
   /** Pip's height in the shed: the boat (20 mm below Pip) slides between the threads. */
   y: 0.044,
   /** Travel endpoints in loom-local x: Pip's perches on top of the side rails. */
@@ -52,14 +52,14 @@ export const SHUTTLE = {
 /** Lever bank beside the loom (mirrored for left-handed play). */
 export const LEVER = {
   /** x of the first lever, measured outward from the loom centre. */
-  firstX: 0.17,
+  firstX: 0.16,
   spacing: 0.032,
   /** Rest (unlatched) z — nearest the user. Latched = rest - travel. */
   restZ: 0.075,
   travel: 0.05,
   knobY: 0.046,
   /** ≥ 22 mm diameter touch target (Meta hands guidance). */
-  knobRadius: 0.0145,
+  knobRadius: 0.0118,
   /** Final fraction of travel that magnetically pulls to an end. */
   magnet: 0.3,
 } as const;
@@ -105,7 +105,7 @@ export const CARD = {
   width: 0.075,
   /** Cell pitch on the card (≥ 7 mm). */
   cell: 0.0147,
-  tiltDeg: 14,
+  tiltDeg: 24,
 } as const;
 
 /** Pinch / grab tuning (scaled by calibration multiplier). */
