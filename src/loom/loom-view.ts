@@ -75,6 +75,8 @@ const _glow = new Color(0xffe2a8);
 const HEDDLE_BAR_BOTTOM_Y = 0.0625;
 /** Lowered warp threads: warm undyed yarn, not white (white reads as plastic). */
 const THREAD_CREAM = 0xeed7b0;
+/** The style token is drawn 1.6x (it read as a stray bead at 2 cm). */
+export const TOKEN_SIZE = 1.6;
 /** The undo spool's yarn: red, so it reads as a control, not debris. */
 const UNDO_RED = 0xe4573d;
 
@@ -200,6 +202,7 @@ export class LoomView {
     this.card = new TargetCard(theme);
     this.root.add(this.card.mesh);
     this.token = makeToken();
+    this.token.scale.setScalar(TOKEN_SIZE); // big enough to read as a control, not a stray bead
     this.root.add(this.token);
     this.root.add(this.plaque.mesh);
     this.root.add(this.nudges);
@@ -357,7 +360,7 @@ export class LoomView {
     // faint target picture on the rows still to weave
     this.ghostCloth = new InstancedMesh(
       cellGeo,
-      new MeshStandardMaterial({ transparent: true, opacity: 0.7, roughness: 1, depthWrite: false, map: weaveTexture() }),
+      new MeshBasicMaterial({ transparent: true, opacity: 0.5, depthWrite: false }), // unlit: reads clearly from the seat
       WARPS * LOOM.maxRows,
     );
     this.ghostCloth.name = 'TargetGhost';
@@ -635,7 +638,7 @@ export class LoomView {
 
   setTokenHighlight(level: 0 | 1 | 2): void {
     const s = level === 2 ? 1.25 : level === 1 ? 1.12 : 1;
-    this.token.scale.setScalar(s);
+    this.token.scale.setScalar(s * TOKEN_SIZE);
   }
 
   setBobbinHighlight(level: 0 | 1 | 2): void {
@@ -1052,6 +1055,18 @@ export class LoomView {
   /** Mystery levers are undyed wool until tried; then they take their colour. */
   private dyeLever(k: number): void {
     const hidden = !!this.tieHidden[k];
+    // an undyed (mystery) lever wears a darker stitched seam ring round its cap
+    const cap = this.knobCaps[k];
+    if (cap) {
+      let ring = cap.getObjectByName('MysterySeam') as Mesh | undefined;
+      if (!ring && hidden) {
+        ring = new Mesh(new TorusGeometry(LEVER.knobRadius * 1.0, LEVER.knobRadius * 0.12, 6, 28), new MeshStandardMaterial({ color: 0x8a7a63, roughness: 0.9 }));
+        ring.name = 'MysterySeam';
+        ring.rotation.x = Math.PI / 2;
+        cap.add(ring);
+      }
+      if (ring) ring.visible = hidden;
+    }
     const hex = hidden ? UNDYED : this.palette.knobs[k];
     this.leverMats[k]?.color.setHex(hex);
     this.wrapMats[k]?.color.setHex(hex).multiplyScalar(0.82);

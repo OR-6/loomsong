@@ -22,7 +22,7 @@ import { applyCalibration, hands, calibration, type Side } from '../input/hands.
 import { Calibrator } from '../input/calibration.js';
 import { LoomController, type HandInput } from '../loom/loom-controller.js';
 import { LoomModel } from '../loom/loom-model.js';
-import { LoomView } from '../loom/loom-view.js';
+import { TOKEN_SIZE, LoomView } from '../loom/loom-view.js';
 import { Placement, loomPose } from './placement.js';
 import { Label } from '../ui/label.js';
 import { audio } from '../audio/synth.js';
@@ -239,7 +239,7 @@ export class GameSystem extends createSystem({
         // until each lever has been tried once.
         this.view.setPicture(level.color ?? null, level.tieUp, level.tieUp.map(() => !!level.mystery));
         this.view.setTarget(level.target);
-        this.view.card.paper = level.chapter === 'night' ? '#e3e8f7' : level.chapter === 'sea' ? '#e2f1ee' : null;
+        this.view.card.paper = level.chapter === 'night' ? '#d6e0f2' : level.chapter === 'sea' ? '#d8eee9' : null;
         this.view.card.setPicture(level.color ?? null, level.par);
         this.view.plushes.setShelf(shelfItems(level, this.progress), CHAPTERS.find((c) => c.id === level.chapter)?.name ?? '');
         this.syncBasket(level);
@@ -849,7 +849,7 @@ export class GameSystem extends createSystem({
     } else if (step === 'shuttle') {
       // Tag hangs just outside the frame beside Pip's perch, never over the threads.
       const end = this.controller.shuttle.t < 0.5 ? -1 : 1;
-      m.position.set(end * 0.215, 0.095, SHUTTLE.z + 0.01); // just outside Pip's perch, clear of the hand and the card
+      m.position.set(end * SHUTTLE.maxX, 0.165, SHUTTLE.z); // 10 cm above Pip, clear of the hand
       if (this.controller.hover.left === null && this.controller.hover.right === null) {
         this.view.setShuttleHighlight(pulse as 0 | 1);
       }
@@ -927,7 +927,7 @@ export class GameSystem extends createSystem({
       // springy pop-in (overshoot), then settle
       this.tokenPop = Math.min(1, this.tokenPop + dt * 2.5);
       const t = this.tokenPop;
-      this.view.token.scale.setScalar(1 + Math.sin(t * Math.PI * 2.5) * (1 - t) * 0.6);
+      this.view.token.scale.setScalar(TOKEN_SIZE * (1 + Math.sin(t * Math.PI * 2.5) * (1 - t) * 0.6));
     }
     this.view.setPreview(this.model.shed, this.flow.phase === 'play');
     this.syncHint(dt);

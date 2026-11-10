@@ -81,7 +81,7 @@ export class GhostHand {
       emissiveIntensity: 0.25,
       roughness: 0.6,
       transparent: true,
-      opacity: 0.55,
+      opacity: 0.42,
       depthWrite: false,
     });
     // a soft blue rim (fresnel) so the fingers' outlines read, not a milky blob
@@ -152,8 +152,10 @@ export class GhostHand {
       this.from.set(x, LEVER.knobY, LEVER.restZ);
       this.to.set(x, LEVER.knobY, LEVER.restZ - LEVER.travel);
     } else {
-      const a = g.fromEnd === 0 ? SHUTTLE.minX : SHUTTLE.maxX;
-      const b = g.fromEnd === 0 ? SHUTTLE.maxX : SHUTTLE.minX;
+      // pinch the boat's back edge (outside end), so Pip stays visible
+      const back = g.fromEnd === 0 ? -0.032 : 0.032;
+      const a = (g.fromEnd === 0 ? SHUTTLE.minX : SHUTTLE.maxX) + back;
+      const b = (g.fromEnd === 0 ? SHUTTLE.maxX : SHUTTLE.minX) + back;
       this.from.set(a, shuttleY(a) + 0.002, SHUTTLE.z);
       this.to.set(b, shuttleY(b) + 0.002, SHUTTLE.z);
     }

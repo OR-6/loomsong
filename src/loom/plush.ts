@@ -69,10 +69,10 @@ export const PLUSH = {
   shelfZ: 0.03,
   /** Where the plush dances: on the mat in front of the shelf. */
   /** The plush dances on the open desk at the front, on the lever side (clear of plate and loom). */
-  stageX: -0.2,
-  stageZ: 0.2,
+  stageX: -0.12,
+  stageZ: 0.22,
   /** Hero size while it pops and dances (shelf size is shelfScale). */
-  hero: 1.3,
+  hero: 1.0,
   /** Hover height while it dances (it faces the seated player). */
   danceY: 0.07,
 } as const;
@@ -113,14 +113,8 @@ export function buildPlush(rows: readonly Mask8[], color: number): Group {
   g.name = 'Plush';
   let n = 0;
   for (const r of rows) for (let i = 0; i < WARPS; i++) if (isLifted(r, i)) n++;
-  const mat = new MeshPhysicalMaterial({
-    color: new Color(color),
-    roughness: 0.88,
-    sheen: 1,
-    sheenRoughness: 0.55,
-    sheenColor: new Color(0xffffff),
-    map: knitTexture(), // the same crisp knitted stitch as the cloth on the loom
-  });
+  // matte felt (no sheen/gloss: it read as glassy), the loom's knitted stitch
+  const mat = new MeshStandardMaterial({ color: new Color(color), roughness: 0.95, metalness: 0, map: knitTexture() });
   const body = new InstancedMesh(puffGeometry(), mat, Math.max(1, n));
   body.name = 'PlushBody';
   body.frustumCulled = false;
@@ -304,7 +298,7 @@ export function disposePlush(g: Object3D): void {
   g.traverse((o) => {
     const m = o as InstancedMesh;
     if (m.isInstancedMesh) {
-      (m.material as MeshPhysicalMaterial).dispose();
+      (m.material as MeshStandardMaterial).dispose();
       m.dispose();
     } else if ((m as unknown as Mesh).isMesh && (m.material as MeshStandardMaterial).userData?.own) {
       const mat = m.material as MeshStandardMaterial;
@@ -613,7 +607,7 @@ export class Plushes {
       this.bounce = Math.min(1, this.bounce + dt / 0.32);
       const b = Math.sin(this.bounce * Math.PI);
       h.position.y = PLUSH.danceY + 0.02 * b; // hovering, bouncing to the song
-      h.rotation.x += (-0.55 - h.rotation.x) * Math.min(1, dt * 8); // leaning back to face you
+      h.rotation.x += (-0.2 - h.rotation.x) * Math.min(1, dt * 8); // upright, a slight lean to face you
       const land = this.bounce > 0.85 ? (this.bounce - 0.85) / 0.15 : 0;
       h.scale.set(PLUSH.hero * (1 + 0.08 * land), PLUSH.hero * (1 - 0.12 * land + 0.05 * b), PLUSH.hero);
       h.rotation.z += (this.tilt * 0.14 - h.rotation.z) * Math.min(1, dt * 10);
