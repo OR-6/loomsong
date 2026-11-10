@@ -589,11 +589,22 @@ export class LoomView {
     shadow.visible = this.shadowOn;
     add(shadow);
     for (let k = 0; k < LEVERS; k++) this.placeKnob(k);
-    // Everything on the loom casts; the wood also receives (self-shadow = depth).
+    // Parts bigger than a fingertip cast; only the bigger surfaces receive (self-shadow = depth).
+    // Tiny parts (pegs, seams, stitches) would only add shadow-pass draw calls nobody sees.
+    this.body.updateMatrixWorld(true);
     this.body.traverse((o) => {
-      if (!(o as Mesh).isMesh || o.name === 'ContactShadow') return;
-      o.castShadow = true;
-      o.receiveShadow = !(o as InstancedMesh).isInstancedMesh;
+      const mesh = o as Mesh;
+      if (!mesh.isMesh || o.name === 'ContactShadow') return;
+      if ((o as InstancedMesh).isInstancedMesh) {
+        o.castShadow = true;
+        o.receiveShadow = false;
+        return;
+      }
+      const g = mesh.geometry;
+      if (!g.boundingSphere) g.computeBoundingSphere();
+      const r = (g.boundingSphere?.radius ?? 0) * o.getWorldScale(_s).x;
+      o.castShadow = r > 0.012;
+      o.receiveShadow = r > 0.03;
     });
     this.card.mesh.castShadow = true;
   }
