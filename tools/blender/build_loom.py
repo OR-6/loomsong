@@ -131,6 +131,22 @@ for s_ in (-1, 1):
           (s_ * (SW / 2 - 0.022), 0, 0), segs=24, mat=WOOD, parent=shelf)
     ellipsoid(f'ShelfFoot{"L" if s_ < 0 else "R"}', (0.0115, 0.004, 0.0115), (s_ * (SW / 2 - 0.022), 0.0025, 0), mat=TOMATO, parent=shelf, segs=20)
 
+# ---- Yarn basket (chapter picker): a low oval wicker bowl, origin on the desk ----
+WICKER = mat_paint('Wicker', 0xc9965a, rough=0.85, clearcoat=0.05)
+basket = empty('Basket', at=(0, 0, 0))
+prof = [(0.0, 0.002), (0.028, 0.002)]
+# ribbed outer wall: alternating radii read as woven wicker rows
+for j in range(9):
+    h = 0.003 + j * 0.0028
+    rr = 0.031 + j * 0.0011 + (0.0009 if j % 2 else -0.0004)
+    prof.append((rr, h))
+prof += [(0.0418, 0.0285), (0.0405, 0.031), (0.0385, 0.0285), (0.034, 0.008), (0.0, 0.006)]
+bowl = lathe('BasketBowl', prof, (0, 0, 0), segs=40, mat=WICKER, parent=basket)
+bowl.scale = (1.45, 1, 1)  # oval (game x is blender x)
+rim = lathe('BasketRim', [(0.0385, 0.0275), (0.0425, 0.0275), (0.0435, 0.0305), (0.0405, 0.0325), (0.0385, 0.0305)],
+            (0, 0, 0), segs=40, mat=DARK, parent=basket)
+rim.scale = (1.45, 1, 1)
+
 # ---- Lever knob prototype (cloned ×4 in code; cap recoloured) ----
 knob = empty('LeverKnob', at=(0, 0, 0))
 r = LV['knobRadius']
@@ -151,13 +167,13 @@ lathe('Spool', [(0, -0.012), (br * 1.25, -0.012), (br * 1.32, -0.010), (br * 0.5
 lathe('Wound', [(0, -0.0078), (br * 1.05, -0.0078), (br * 1.14, -0.004), (br * 1.14, 0.004), (br * 1.05, 0.0078), (0, 0.0078)],
       (0, 0, 0), axis='X', segs=28, mat=YARN, parent=bob)
 
-for o in [*root.children_recursive, *knob.children_recursive, *bob.children_recursive, *shelf.children_recursive]:
+for o in [*root.children_recursive, *knob.children_recursive, *bob.children_recursive, *shelf.children_recursive, *basket.children_recursive]:
     if o.type == 'MESH' and len(o.data.uv_layers) == 0:
         uv_project(o, 0.09)
 
 out = os.path.join(HERE, '..', '..', 'public', 'models', 'loom.glb')
 bpy.ops.object.select_all(action='DESELECT')
-for o in [root, *root.children_recursive, knob, *knob.children_recursive, bob, *bob.children_recursive, shelf, *shelf.children_recursive]:
+for o in [root, *root.children_recursive, knob, *knob.children_recursive, bob, *bob.children_recursive, shelf, *shelf.children_recursive, basket, *basket.children_recursive]:
     o.select_set(True)
 os.makedirs(os.path.dirname(out), exist_ok=True)
 bpy.ops.export_scene.gltf(filepath=os.path.abspath(out), export_format='GLB', use_selection=True, export_yup=True,

@@ -33,6 +33,7 @@ import { PLAQUE, Plaque } from '../ui/plaque.js';
 import { grainTexture, weaveTexture, yarnTexture } from './textures.js';
 import { cloneModel, loomModels, materialOf } from './models.js';
 import { Plushes } from './plush.js';
+import { Basket } from './basket.js';
 import { makeMat, MAT } from './mat.js';
 import {
   BOBBIN,
@@ -65,6 +66,8 @@ const UP = new Vector3(0, 1, 0);
 const _glow = new Color(0xffe2a8);
 /** Underside of the heddle bar in the Blender model (bar centre 0.071, 17 mm tall). */
 const HEDDLE_BAR_BOTTOM_Y = 0.0625;
+/** Undyed wool: the colour of a mystery lever before it's been tried. */
+const UNDYED = 0xe6dccb;
 /** Strands per warp bundle, and their spread (they pinch to 30 % at the eyelet). */
 const STRANDS = 3;
 const STRAND_GAP = 0.0052;
@@ -100,6 +103,10 @@ export class LoomView {
   private cloth!: InstancedMesh;
   private tracks: InstancedMesh | null = null;
   private leverMats: MeshStandardMaterial[] = [];
+  /** Yarn wraps on the knob stems (model only), recoloured with the caps. */
+  private wrapMats: (MeshStandardMaterial | null)[] = [];
+  /** Reveal bounce per lever (1 → 0) when a mystery lever is first tried. */
+  private revealPop = new Float32Array(LEVERS);
   private shuttleMat!: MeshStandardMaterial;
   bobbin!: Object3D;
   readonly card: TargetCard;
@@ -142,6 +149,7 @@ export class LoomView {
   /** Felt mat under everything; the chapter shelf and plush show. */
   readonly mat = makeMat();
   readonly plushes = new Plushes();
+  readonly basket = new Basket();
 
   /** Placement reveal 0→1: the mat unrolls toward the player. */
   setReveal(t: number): void {
@@ -197,7 +205,7 @@ export class LoomView {
     this.catcher.receiveShadow = true;
     this.catcher.renderOrder = -1;
     this.root.add(this.catcher);
-    this.root.add(this.mat, this.plushes.root);
+    this.root.add(this.mat, this.plushes.root, this.basket.root);
 
     this.build(theme);
     this.setSide(1);
@@ -212,7 +220,9 @@ export class LoomView {
     this.body.clear();
     this.levers = [];
     this.leverMats = [];
+    this.wrapMats = [];
     this.build(theme);
+    for (let k = 0; k < LEVERS; k++) this.dyeLever(k);
     this.card.setTheme(theme);
     this.plaque.setTheme(theme);
     this.layoutLevers();
@@ -303,6 +313,7 @@ export class LoomView {
         cap.color.setHex(palette.knobs[k]);
         // yarn wrap on the stem, a shade deeper than the cap
         const wrap = materialOf(knob, 'StemWrap') as MeshStandardMaterial | null;
+        this.wrapMats.push(wrap);
         if (wrap) {
           wrap.color.setHex(palette.knobs[k]).multiplyScalar(0.82);
           wrap.roughness = 0.95;
@@ -451,6 +462,7 @@ export class LoomView {
     this.setBobbinT(0);
     this.placeCard();
     this.plushes.setSide(side);
+    this.basket.setSide(side);
     this.mat.position.x = -side * MAT.offsetX;
   }
 
@@ -685,7 +697,14 @@ export class LoomView {
       this.shuttle.scale.set(1, 1, 1);
     }
     this.animatePip(dt);
+    for (let k = 0; k < LEVERS; k++) {
+      if (this.revealPop[k] <= 0) continue;
+      this.revealPop[k] = Math.max(0, this.revealPop[k] - dt * 2.2);
+      const p = this.revealPop[k];
+      this.levers[k]?.scale.setScalar(1 + Math.sin((1 - p) * Math.PI * 3) * p * 0.35);
+    }
     this.plushes.update(dt);
+    this.basket.update(dt);
     // Twang decay.
     for (let i = 0; i < WARPS; i++) {
       if (this.twang[i] > 0) {
@@ -753,15 +772,29 @@ export class LoomView {
     this.tieUp = tieUp;
     this.tieHidden = tieUp.map((_, k) => !!hidden[k]);
     this.applyColors();
+    for (let k = 0; k < LEVERS; k++) this.dyeLever(k);
     this.setRows(this.rowsCache);
     this.writeWarps();
   }
 
+  /** Mystery levers are undyed wool until tried; then they take their colour. */
+  private dyeLever(k: number): void {
+    const hidden = !!this.tieHidden[k];
+    const hex = hidden ? UNDYED : this.palette.knobs[k];
+    this.leverMats[k]?.color.setHex(hex);
+    this.wrapMats[k]?.color.setHex(hex).multiplyScalar(0.82);
+    const dot = this.frameNode?.getObjectByName(`SlotDot${k}`) as Mesh | undefined;
+    (dot?.material as MeshStandardMaterial | undefined)?.color.setHex(hex);
+  }
+
   /** Reveal a mystery lever's ties once it has been tried. */
-  revealLever(k: number): void {
-    if (!this.tieHidden[k]) return;
+  revealLever(k: number): boolean {
+    if (!this.tieHidden[k]) return false;
     this.tieHidden[k] = false;
+    this.dyeLever(k);
+    this.revealPop[k] = 1;
     this.writeTies();
+    return true;
   }
 
   /** Lever whose threads should peek up (-1 for none). */

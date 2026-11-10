@@ -61,3 +61,18 @@ export function dailyLevel(key = dayKey()): Level {
     mystery: false,
   };
 }
+
+/** Basket state of each chapter: the one being played, open, or still locked. */
+export type ChapterState = 'locked' | 'open' | 'current';
+
+/** A chapter unlocks once all but one picture of the chapter before it is woven. */
+export function chapterStates(progress: { best: Record<string, number> }, current: string | undefined): ChapterState[] {
+  return CHAPTERS.map((c, i) => {
+    if (c.id === current) return 'current';
+    if (i === 0) return 'open';
+    const prev = CHAPTERS[i - 1];
+    const done = prev.levels.filter((id) => (progress.best[id] ?? 0) > 0).length;
+    return done >= prev.levels.length - 1 ? 'open' : 'locked';
+  });
+}
+

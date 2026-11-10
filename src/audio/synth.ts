@@ -155,6 +155,12 @@ class Synth {
     this.fx('tick', 0.15);
   }
 
+  /** A mystery lever shows its colour: a bright two-note chime. */
+  reveal(): void {
+    if (!this.kalimba(this.rootMidi + 19, 0.22)) this.pluck(7, 0.6, 0, 0.14);
+    this.kalimba(this.rootMidi + 24, 0.2, 0.08);
+  }
+
   /** Plush hop / soft landing. */
   hop(): void {
     this.fx('soft', 0.5);

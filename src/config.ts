@@ -163,6 +163,25 @@ export function shuttleY(x: number): number {
   return SHUTTLE.y + (SHUTTLE.perchY - SHUTTLE.y) * s;
 }
 
+/** Yarn basket (chapter picker) on the mat, on the side away from the lever bank. */
+export const BASKET = {
+  x: 0.24,
+  z: 0.15,
+  /** Yarn ball centre height and radius (resting in the bowl, peeking over the rim). */
+  y: 0.026,
+  ballR: 0.0135,
+  balls: 4,
+} as const;
+
+/** Chapter yarn ball i in loom-local space. */
+export function skeinPos(i: number, side: 1 | -1, out: { x: number; y: number; z: number }) {
+  // chapters read left to right whichever side the basket is on
+  out.x = -side * BASKET.x + (i - (BASKET.balls - 1) / 2) * 0.027;
+  out.y = BASKET.y + (i % 2 ? 0.002 : 0);
+  out.z = BASKET.z + (i % 2 ? -0.007 : 0.006);
+  return out;
+}
+
 export function warpX(i: number): number {
   return (i - (WARPS - 1) / 2) * WARP_PITCH;
 }

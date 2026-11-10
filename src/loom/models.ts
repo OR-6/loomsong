@@ -11,6 +11,7 @@ export interface LoomModels {
   bobbin: Object3D;
   pip: Object3D | null;
   shelf: Object3D | null;
+  basket: Object3D | null;
 }
 
 let cached: LoomModels | null | undefined;
@@ -23,7 +24,7 @@ export function loomModels(): LoomModels | null {
     const frame = loom?.scene.getObjectByName('Frame');
     const knob = loom?.scene.getObjectByName('LeverKnob');
     const bobbin = loom?.scene.getObjectByName('Bobbin');
-    cached = frame && knob && bobbin ? { frame, knob, bobbin, pip: pip?.scene.getObjectByName('Pip') ?? null, shelf: loom?.scene.getObjectByName('Shelf') ?? null } : null;
+    cached = frame && knob && bobbin ? { frame, knob, bobbin, pip: pip?.scene.getObjectByName('Pip') ?? null, shelf: loom?.scene.getObjectByName('Shelf') ?? null, basket: loom?.scene.getObjectByName('Basket') ?? null } : null;
   } catch {
     cached = null;
   }

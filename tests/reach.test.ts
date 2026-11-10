@@ -4,7 +4,7 @@
  * the deepest plausible desk, across lever and shuttle travel.
  */
 import { describe, expect, it } from 'vitest';
-import { BOBBIN, LEVER, LEVERS, MAX_REACH_M, NUDGE, PLACE, SHUTTLE, TOKEN, bobbinX, leverX, nudgeX, tokenX, shuttleY } from '../src/config';
+import { BOBBIN, LEVER, LEVERS, MAX_REACH_M, NUDGE, PLACE, SHUTTLE, TOKEN, bobbinX, leverX, nudgeX, tokenX, shuttleY, BASKET, skeinPos } from '../src/config';
 import { loomPose } from '../src/app/placement';
 
 function world(p: ReturnType<typeof loomPose>, x: number, y: number, z: number) {
@@ -32,6 +32,10 @@ describe('check:reach', () => {
         pts.push(['style token', tokenX(side), TOKEN.y, TOKEN.z]);
         pts.push(['nudge up', nudgeX(side), NUDGE.y, NUDGE.upZ]);
         pts.push(['nudge down', nudgeX(side), NUDGE.y, NUDGE.downZ]);
+        for (let i = 0; i < BASKET.balls; i++) {
+          const c = skeinPos(i, side, { x: 0, y: 0, z: 0 });
+          pts.push([`chapter ball ${i}`, c.x, c.y, c.z]);
+        }
         let worst = 0;
         let worstName = '';
         for (const pose of poses) for (const [name, x, y, z] of pts) {

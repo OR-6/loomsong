@@ -27,7 +27,7 @@ import { Placement, loomPose } from './placement.js';
 import { Label } from '../ui/label.js';
 import { audio } from '../audio/synth.js';
 import { LevelFlow, type HintStep } from './level-flow.js';
-import { CHAPTERS, LEVELS, levelAt } from '../puzzle/catalog.js';
+import { CHAPTERS, LEVELS, chapterStates, levelAt } from '../puzzle/catalog.js';
 import type { Level } from '../puzzle/levels.js';
 import type { ShelfItem } from '../loom/plush.js';
 import { loadProgress, saveProgress, workshopUnlocked, type Progress } from '../persistence/progress.js';
@@ -157,6 +157,7 @@ export class GameSystem extends createSystem({
       pass: () => audio.thud(),
       undo: () => audio.unpick(),
       token: () => this.setTheme(otherTheme(this.progress.theme)),
+      skein: (i) => this.pickChapter(i),
       nudge: (dir) => this.nudgeDesk(dir),
     });
     this.controller.tokenEnabled = unlocked;
@@ -215,7 +216,8 @@ export class GameSystem extends createSystem({
     this.model.on((e) => {
       if (e.type === 'lever') {
         this.view.setShed(e.shed);
-        if (e.latched) this.view.revealLever(e.lever);
+        // First try of a mystery lever: it takes its colour, with a little chime.
+        if (e.latched && this.view.revealLever(e.lever)) audio.reveal();
         this.view.card.setUsed(this.model.leverFlips);
       }
       if (e.type === 'row' || e.type === 'undo' || e.type === 'sync') this.view.setRows(this.model.rows);
@@ -231,6 +233,7 @@ export class GameSystem extends createSystem({
         this.view.setPicture(level.color ?? null, level.tieUp, level.tieUp.map(() => !!level.mystery));
         this.view.card.setPicture(level.color ?? null, level.par);
         this.view.plushes.setShelf(shelfItems(level, this.progress), CHAPTERS.find((c) => c.id === level.chapter)?.name ?? '');
+        this.syncBasket(level);
         this.view.setShed(0, true);
         this.view.setRows(this.model.rows);
         this.view.setGlowRow(-1);
@@ -545,6 +548,36 @@ export class GameSystem extends createSystem({
     audio.click(dir > 0);
   }
 
+  /** Basket balls: one per chapter, coloured when unlocked, lifted for the current one. */
+  private syncBasket(level: Level): void {
+    const states = chapterStates(this.progress, level.chapter);
+    this.view.basket.set(
+      CHAPTERS.map((c) => c.name),
+      CHAPTERS.map((c) => CHAPTER_COLORS[c.id] ?? 0xe2563b),
+      states,
+    );
+    this.controller.skeins = this.coopLink ? 0 : CHAPTERS.length;
+  }
+
+  /** A chapter's yarn ball was pressed: jump to its first unfinished picture. */
+  private pickChapter(i: number): void {
+    const ch = CHAPTERS[i];
+    if (!ch || this.flow.phase !== 'play' || this.coopLink) return;
+    const states = chapterStates(this.progress, this.flow.level.chapter);
+    if (states[i] === 'locked') {
+      audio.tick();
+      this.showNotice(`Finish ${CHAPTERS[i - 1]?.name ?? 'the last'} first`, 3, 'centre');
+      return;
+    }
+    if (states[i] === 'current') return;
+    const id = ch.levels.find((l) => !((this.progress.best[l] ?? 0) > 0)) ?? ch.levels[0];
+    const idx = LEVELS.findIndex((l) => l.id === id);
+    if (idx < 0) return;
+    audio.restyle();
+    this.flow.start(idx);
+    this.showNotice(ch.name, 2.5, 'centre');
+  }
+
   private showNotice(text: string, seconds: number, at: 'token' | 'nudge' | 'centre' = 'token'): void {
     this.notice = text;
     this.noticeAt = at;
@@ -839,6 +872,8 @@ export class GameSystem extends createSystem({
       if (hov || held) hoverK = k;
     }
     this.view.setHoverLever(hoverK);
+    const sk = (t: unknown) => ((t as { kind?: string; i?: number } | null)?.kind === 'skein' ? (t as { i: number }).i : -1);
+    this.view.basket.hover(Math.max(sk(c.hover.left), sk(c.hover.right)));
     // A soft tick whenever a hand starts hovering something new.
     const hl = targetCode(c.hover.left);
     const hr = targetCode(c.hover.right);
@@ -916,6 +951,9 @@ export function insidePolygon(
   return inside || minD <= margin;
 }
 
+/** Chapter yarn colours (the basket balls). */
+const CHAPTER_COLORS: Record<string, number> = { garden: 0x4f9a3a, home: 0xe2563b, night: 0x6b6fb3, sea: 0x2a9d8f };
+
 /** The current chapter's pictures, for the shelf (finished ones become plushes). */
 function shelfItems(level: Level, progress: Progress): ShelfItem[] {
   const ch = CHAPTERS.find((c) => c.id === level.chapter);
@@ -945,6 +983,8 @@ function targetCode(t: unknown): number {
       return 11;
     case 'token':
       return 12;
+    case 'skein':
+      return 20 + (x.k ?? (x as { i?: number }).i ?? 0);
     default:
       return 13 + (x.dir ?? 0);
   }
