@@ -124,6 +124,7 @@ export class GameSystem extends createSystem({
   private quietLevers = false;
   private undoNotch = 0;
   private plushVecs = Array.from({ length: PLUSH_SLOTS }, () => new Vector3());
+  private keyVec = new Vector3();
   private noticeTimer = 0;
   private tokenPop = 1;
   private loomEntity!: Entity;
@@ -193,6 +194,7 @@ export class GameSystem extends createSystem({
       skein: (i) => this.pickChapter(i),
       nudge: (dir) => this.nudgeDesk(dir),
       plush: (i) => this.singPlush(i),
+      windKey: () => this.playShelf(),
     });
     this.controller.tokenEnabled = unlocked;
     this.view.token.visible = unlocked;
@@ -642,26 +644,49 @@ export class GameSystem extends createSystem({
     ghost.update(dt, busy);
   }
 
-  /** A shelf plush was poked: it sings its picture, a row per hop (rows alternate direction, like the weaving). */
-  private singPlush(i: number): void {
-    const it = this.shelf[i];
-    if (!it?.done || this.time < this.singUntil) return;
-    audio.resume();
-    let n = 0;
-    for (let r = 0; r < it.rows.length; r++) {
+  /** Schedule a picture's song `delay` s from now (a row per hop, rows alternating like the weaving); returns its length. */
+  private schedulePictureSong(rows: readonly number[], delay: number): number {
+    for (let r = 0; r < rows.length; r++) {
       const ltr = r % 2 === 0;
       let k = 0;
       for (let j = 0; j < WARPS; j++) {
         const w = ltr ? j : WARPS - 1 - j;
-        if (isLifted(it.rows[r], w)) audio.pluck(w, 0.35, r * ROW_BEAT + k++ * 0.045, 0.24);
+        if (isLifted(rows[r], w)) audio.pluck(w, 0.35, delay + r * ROW_BEAT + k++ * 0.045, 0.24);
       }
-      n = r + 1;
     }
-    const secs = n * ROW_BEAT + 0.15;
+    return rows.length * ROW_BEAT + 0.15;
+  }
+
+  /** A shelf plush was poked: it sings its picture. */
+  private singPlush(i: number): void {
+    const it = this.shelf[i];
+    if (!it?.done || this.time < this.singUntil) return;
+    audio.resume();
+    const secs = this.schedulePictureSong(it.rows, 0);
     this.singUntil = this.time + secs;
     audio.holdMusic(secs + 0.3);
     this.view.plushes.sing(i, secs);
     this.view.setPipMood('happy');
+  }
+
+  /** The wind-up key: every finished plush on the shelf sings in turn, left to right (the shelf is a music box). */
+  private playShelf(): void {
+    if (this.time < this.singUntil) return;
+    audio.resume();
+    audio.windUp();
+    let t = 0.55; // after the winding clicks
+    for (let i = 0; i < this.shelf.length; i++) {
+      const it = this.shelf[i];
+      if (!it?.done) continue;
+      const secs = this.schedulePictureSong(it.rows, t);
+      this.view.plushes.sing(i, secs, t);
+      t += secs + 0.2;
+    }
+    const total = t;
+    this.view.plushes.turnKey(total);
+    this.singUntil = this.time + total;
+    audio.holdMusic(total + 0.3);
+    this.view.setPipMood(total > 0.6 ? 'happy' : 'sad');
   }
 
   /** Where the shelf plushes are, for touch (no allocation: one vector per slot). */
@@ -673,6 +698,9 @@ export class GameSystem extends createSystem({
     }
     const pl = (t: unknown) => ((t as { kind?: string; i?: number } | null)?.kind === 'plush' ? (t as { i: number }).i : -1);
     this.view.plushes.hover(Math.max(pl(c.hover.left), pl(c.hover.right)));
+    c.keySpot = this.coopLink || this.flow?.challenge ? null : this.view.plushes.keyCentre(this.keyVec);
+    const key = (t: unknown) => (t as { kind?: string } | null)?.kind === 'windKey';
+    this.view.plushes.hoverKey(key(c.hover.left) || key(c.hover.right));
   }
 
   /** Basket balls: one per chapter, coloured when unlocked, lifted for the current one. */
@@ -1132,6 +1160,8 @@ function targetCode(t: unknown): number {
       return 20 + (x.k ?? (x as { i?: number }).i ?? 0);
     case 'plush':
       return 30 + ((x as { i?: number }).i ?? 0);
+    case 'windKey':
+      return 40;
     default:
       return 13 + (x.dir ?? 0);
   }

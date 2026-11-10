@@ -364,6 +364,12 @@ export class Plushes {
   /** Per shelf slot: seconds left of its song (poked plushes sing and bounce). */
   private singLeft: number[] = new Array(PLUSH.slots).fill(0);
   private singT: number[] = new Array(PLUSH.slots).fill(0);
+  /** Seconds each slot waits before its song starts (a medley staggers them). */
+  private singWait: number[] = new Array(PLUSH.slots).fill(0);
+  /** The brass wind-up key on the shelf's outer end: poke it and the whole shelf plays. */
+  readonly windKey = new Group();
+  private keyTurnLeft = 0;
+  private keyHover = 0;
   /** Hovered shelf slot (-1: none): it leans in a little, inviting a poke. */
   private hoverSlot = -1;
   /** Called when the plush lands on the shelf (sound). */
@@ -390,6 +396,27 @@ export class Plushes {
     this.stage.add(felt, stitch, rim);
     this.stage.visible = false;
     this.root.add(this.stage);
+    // a butterfly wind-up key: brass shaft out of the shelf end, two loops for fingers
+    {
+      const brass = new MeshStandardMaterial({ color: 0xd9a441, metalness: 0.55, roughness: 0.35 });
+      const shaft = new Mesh(new CylinderGeometry(0.0026, 0.0026, 0.016, 12), brass);
+      shaft.rotation.z = Math.PI / 2;
+      shaft.position.x = 0.008;
+      const hub = new Mesh(new SphereGeometry(0.005, 12, 8), brass);
+      hub.position.x = 0.017;
+      const bow = new Group();
+      bow.name = 'WindKeyBow';
+      for (const sy of [-1, 1]) {
+        const loop = new Mesh(new TorusGeometry(0.011, 0.0032, 10, 28), brass);
+        loop.rotation.y = Math.PI / 2; // loops in the shelf-end plane
+        loop.position.set(0, sy * 0.0135, 0);
+        bow.add(loop);
+      }
+      bow.position.x = 0.019;
+      this.windKey.name = 'WindKey';
+      this.windKey.add(shaft, hub, bow);
+      this.root.add(this.windKey);
+    }
     const m = loomModels();
     if (m?.shelf) this.shelf = cloneModel(m.shelf);
     else {
@@ -484,6 +511,9 @@ export class Plushes {
 
   setSide(side: 1 | -1): void {
     this.side = side;
+    // key on the shelf's outer end, pointing away from the loom
+    this.windKey.position.set(-side * (PLUSH.shelfX + 0.1225), 0.03, PLUSH.shelfZ);
+    this.windKey.scale.set(-side, 1, 1);
     this.shelf.position.set(-side * PLUSH.shelfX, 0, PLUSH.shelfZ);
     this.bunting.position.set(-side * PLUSH.shelfX, 0, PLUSH.shelfZ);
     for (let i = 0; i < this.cushions.length; i++) {
@@ -571,10 +601,29 @@ export class Plushes {
   }
 
   /** A poked plush sings: it bounces and sways on the shelf for `seconds`. */
-  sing(i: number, seconds: number): void {
+  sing(i: number, seconds: number, delay = 0): void {
     if (!this.slotItems[i]) return;
     this.singLeft[i] = seconds;
     this.singT[i] = 0;
+    this.singWait[i] = delay;
+  }
+
+  /** The key turns for `seconds` (the medley is playing). */
+  turnKey(seconds: number): void {
+    this.keyTurnLeft = seconds;
+  }
+
+  /** Where to touch the key (loom space). */
+  keyCentre(out: Vector3): Vector3 {
+    return out.set(-this.side * (PLUSH.shelfX + 0.1225 + 0.019), 0.03, PLUSH.shelfZ);
+  }
+
+  hoverKey(on: boolean): void {
+    this.keyHover = on ? 1 : 0;
+  }
+
+  get hasPlush(): boolean {
+    return this.slotItems.some((p) => !!p);
   }
 
   hover(i: number): void {
@@ -644,7 +693,9 @@ export class Plushes {
       const p = this.slotItems[i];
       if (!p || p === this.hero) continue;
       const base = PLUSH.shelfScale;
-      if (this.singLeft[i] > 0) {
+      if (this.singLeft[i] > 0 && this.singWait[i] > 0) {
+        this.singWait[i] -= dt; // waiting its turn in the medley
+      } else if (this.singLeft[i] > 0) {
         this.singLeft[i] -= dt;
         this.singT[i] += dt;
         const b = Math.abs(Math.sin((this.singT[i] / ROW_BEAT) * Math.PI)); // a hop per row of its song
@@ -665,6 +716,17 @@ export class Plushes {
         p.scale.setScalar(p.scale.x + (base * (1 + 0.1 * want) - p.scale.x) * k);
       }
     }
+    // the wind-up key turns while the shelf plays; it swells a touch under a fingertip
+    const bow = this.windKey.children[2];
+    if (this.keyTurnLeft > 0) {
+      this.keyTurnLeft -= dt;
+      bow.rotation.x += dt * 5;
+    } else {
+      bow.rotation.x += (Math.round(bow.rotation.x / Math.PI) * Math.PI - bow.rotation.x) * Math.min(1, dt * 6);
+    }
+    const ks = 1 + 0.15 * this.keyHover;
+    this.windKey.scale.y += (ks - this.windKey.scale.y) * Math.min(1, dt * 12);
+    this.windKey.scale.z = this.windKey.scale.y;
     const h = this.hero;
     // the halo glows in while the plush pops and dances, and fades as it hops away
     const staged = !!h && (this.phase === 'pop' || this.phase === 'hopOut' || this.phase === 'dance');

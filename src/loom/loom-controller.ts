@@ -36,6 +36,7 @@ export type Target =
   | { kind: 'token' }
   | { kind: 'skein'; i: number }
   | { kind: 'plush'; i: number }
+  | { kind: 'windKey' }
   | { kind: 'nudge'; dir: 1 | -1 }
   | null;
 
@@ -55,7 +56,11 @@ export interface ControllerHooks {
   nudge?(dir: 1 | -1): void;
   /** A finished plush on the shelf was poked or pinched: it sings its picture. */
   plush?(i: number): void;
+  /** The shelf's wind-up key: the whole shelf plays its songs in turn. */
+  windKey?(): void;
 }
+
+const KEY_TARGET = { kind: 'windKey' } as const;
 
 /** Lever settle speed in t/s, shuttle return speed in m/s. */
 const LEVER_SETTLE = 6;
@@ -88,6 +93,8 @@ export class LoomController {
   skeins = 0;
   /** Centres of the finished plushes on the shelf, by slot (null = no plush there). */
   plushSpots: ({ x: number; y: number; z: number } | null)[] = [];
+  /** The wind-up key on the shelf end (null: no shelf). */
+  keySpot: { x: number; y: number; z: number } | null = null;
   /** Nudge arrows present (default placement)? */
   nudgeEnabled = false;
   /** Co-op role gating: which controls this player may touch. */
@@ -172,6 +179,8 @@ export class LoomController {
         this.hooks.skein?.(t.i);
       } else if (t?.kind === 'plush') {
         this.hooks.plush?.(t.i);
+      } else if (t?.kind === 'windKey') {
+        this.hooks.windKey?.();
       } else if (t?.kind === 'nudge') {
         this.hooks.nudge?.(t.dir);
       } else if (t && !this.isHeld(t) && !(t.kind === 'shuttle' && this.autoThrow)) {
@@ -225,6 +234,8 @@ export class LoomController {
       this.hooks.skein?.(t.i);
     } else if (t.kind === 'plush') {
       this.hooks.plush?.(t.i);
+    } else if (t.kind === 'windKey') {
+      this.hooks.windKey?.();
     } else if (t.kind === 'nudge') {
       this.hooks.nudge?.(t.dir);
     } else if (!this.shuttle.held && !this.autoThrow) {
@@ -363,7 +374,7 @@ export class LoomController {
   }
 
   private sliderOf(t: Exclude<Target, null>): Slider {
-    if (t.kind === 'token' || t.kind === 'nudge' || t.kind === 'skein' || t.kind === 'plush') return this.bobbin; // never held
+    if (t.kind === 'token' || t.kind === 'nudge' || t.kind === 'skein' || t.kind === 'plush' || t.kind === 'windKey') return this.bobbin; // never held
     if (t.kind === 'shuttle') return this.shuttle;
     if (t.kind === 'bobbin') return this.bobbin;
     return this.levers[t.k];
@@ -431,6 +442,14 @@ export class LoomController {
       if (dp < bestD) {
         bestD = dp;
         best = { kind: 'plush', i };
+      }
+    }
+    if (this.keySpot) {
+      const c = this.keySpot;
+      const dk = Math.hypot(p.x - c.x, p.y - c.y, p.z - c.z) - 0.01;
+      if (dk < bestD) {
+        bestD = dk;
+        best = KEY_TARGET;
       }
     }
     if (this.nudgeEnabled) {

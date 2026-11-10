@@ -233,6 +233,11 @@ class Synth {
     this.kalimba(this.rootMidi + 24, 0.2, 0.08);
   }
 
+  /** Winding the shelf's music-box key: four quick rising clicks. */
+  windUp(): void {
+    for (let i = 0; i < 4; i++) this.play(`fx/tick-${i % 3}.ogg`, 0.24, i * 0.11, 0.9 + i * 0.1, false);
+  }
+
   /** Undo spool ratchet: a tick that rises with each notch of the pull. */
   ratchet(notch: number): void {
     this.play(`fx/tick-${notch % 3}.ogg`, 0.22, 0, 1 + notch * 0.08, false);
