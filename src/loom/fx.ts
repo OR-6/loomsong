@@ -14,6 +14,7 @@ const _s = new Vector3();
 const _eu = new Euler();
 const _c = new Color();
 const CONFETTI = [0xe8553e, 0xf7be3b, 0x1fb3a0, 0xe8679e, 0x7cc142, 0xfff2dc];
+const GOLD = [0xf7c948, 0xffe08a, 0xfff6d8];
 
 export class Fx {
   readonly root = new Group();
@@ -57,8 +58,13 @@ export class Fx {
     for (let j = 0; j < n; j++) {
       const i = this.nextPuff;
       this.nextPuff = (i + 1) % PUFFS;
-      this.pp.set([x + (Math.random() - 0.5) * 0.008, y, z + (Math.random() - 0.5) * 0.006], i * 3);
-      this.pv.set([(Math.random() - 0.5) * 0.12, 0.08 + Math.random() * 0.1, (Math.random() - 0.5) * 0.08], i * 3);
+      const o = i * 3;
+      this.pp[o] = x + (Math.random() - 0.5) * 0.008;
+      this.pp[o + 1] = y;
+      this.pp[o + 2] = z + (Math.random() - 0.5) * 0.006;
+      this.pv[o] = (Math.random() - 0.5) * 0.12;
+      this.pv[o + 1] = 0.08 + Math.random() * 0.1;
+      this.pv[o + 2] = (Math.random() - 0.5) * 0.08;
       this.pt[i] = 0.45 + Math.random() * 0.2;
       this.puffs.setColorAt(i, _c.setHex(color).offsetHSL(0, -0.1, 0.12));
     }
@@ -66,19 +72,26 @@ export class Fx {
     this.live = true;
   }
 
-  /** Confetti burst rising from a point. */
-  confetti(x: number, y: number, z: number): void {
-    for (let j = 0; j < BITS; j++) {
+  /** Confetti burst rising from a point. `gold`: a small golden sparkle (an on-beat row). */
+  confetti(x: number, y: number, z: number, count = BITS, power = 1, gold = false): void {
+    for (let j = 0; j < count; j++) {
       const i = this.nextBit;
       this.nextBit = (i + 1) % BITS;
       const a = Math.random() * Math.PI * 2;
-      const sp = 0.12 + Math.random() * 0.22;
-      this.bp.set([x + (Math.random() - 0.5) * 0.06, y, z + (Math.random() - 0.5) * 0.05], i * 3);
-      this.bv.set([Math.cos(a) * sp * 0.6, 0.45 + Math.random() * 0.35, Math.sin(a) * sp * 0.6], i * 3);
-      this.br.set([Math.random() * 6, Math.random() * 6, Math.random() * 6], i * 3);
-      this.bs.set([(Math.random() - 0.5) * 18, (Math.random() - 0.5) * 18, (Math.random() - 0.5) * 18], i * 3);
-      this.bt[i] = 1.6 + Math.random() * 0.8;
-      this.bits.setColorAt(i, _c.setHex(CONFETTI[i % CONFETTI.length]));
+      const sp = (0.12 + Math.random() * 0.22) * power;
+      const o = i * 3;
+      this.bp[o] = x + (Math.random() - 0.5) * 0.06 * power;
+      this.bp[o + 1] = y;
+      this.bp[o + 2] = z + (Math.random() - 0.5) * 0.05 * power;
+      this.bv[o] = Math.cos(a) * sp * 0.6;
+      this.bv[o + 1] = (0.45 + Math.random() * 0.35) * power;
+      this.bv[o + 2] = Math.sin(a) * sp * 0.6;
+      for (let k = 0; k < 3; k++) {
+        this.br[o + k] = Math.random() * 6;
+        this.bs[o + k] = (Math.random() - 0.5) * 18;
+      }
+      this.bt[i] = (1.6 + Math.random() * 0.8) * (gold ? 0.55 : 1);
+      this.bits.setColorAt(i, _c.setHex(gold ? GOLD[j % GOLD.length] : CONFETTI[i % CONFETTI.length]));
     }
     if (this.bits.instanceColor) this.bits.instanceColor.needsUpdate = true;
     this.live = true;

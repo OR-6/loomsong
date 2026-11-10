@@ -905,6 +905,11 @@ export class LoomView {
     }
   }
 
+  /** Where the next row will be woven (z). */
+  get fellZNow(): number {
+    return this.fellZ;
+  }
+
   /** Pip is picked up: a quick squash, wings flared. */
   grabPip(): void {
     this.pipGrabT = 0;

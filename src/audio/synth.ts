@@ -233,6 +233,22 @@ class Synth {
     this.kalimba(this.rootMidi + 24, 0.2, 0.08);
   }
 
+  /** Seconds from the nearest music beat right now (null when the music isn't playing). */
+  beatOffset(): number | null {
+    const ctx = this.ctx;
+    if (!ctx || ctx.state !== 'running' || !this.musicOn || this.paused || ctx.currentTime < this.holdUntil || this.nextBeat === 0) return null;
+    const spb = 60 / this.mood.bpm;
+    const now = ctx.currentTime;
+    const prev = this.nextBeat - spb;
+    return Math.min(Math.abs(now - prev), Math.abs(this.nextBeat - now));
+  }
+
+  /** A row landed on the beat: a bright bell chord in the key, in time with the music. */
+  onBeat(): void {
+    const r = this.rootMidi;
+    for (const [d, g] of [[24, 0.1], [28, 0.08], [31, 0.08]] as const) this.kalimba(r + d, g, 0.005);
+  }
+
   /** Winding the shelf's music-box key: four quick rising clicks. */
   windUp(): void {
     for (let i = 0; i < 4; i++) this.play(`fx/tick-${i % 3}.ogg`, 0.24, i * 0.11, 0.9 + i * 0.1, false);

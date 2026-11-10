@@ -45,6 +45,9 @@ import { loadFont } from '../ui/fonts.js';
 const params = new URLSearchParams(location.search);
 const FIXED_DESK = params.get('desk');
 
+/** Seconds either side of a music beat that count as "on the beat". */
+const BEAT_WINDOW = 0.12;
+
 const HINT_TEXT: Record<HintStep, string> = {
   lever: 'Slide it away',
   unlatch: 'Slide it back',
@@ -56,6 +59,8 @@ const HINT_TEXT: Record<HintStep, string> = {
 
 export interface GameDebug {
   phase: string;
+  /** Right rows thrown on the music's beat (debug/E2E). */
+  onBeat?: number;
   deskY: number | null;
   deskSource: string | null;
   loomOrigin: number[] | null;
@@ -266,6 +271,13 @@ export class GameSystem extends createSystem({
         this.view.rowVerdict(good);
         audio.chirp(good ? 'happy' : 'sad');
         audio.verdict(good);
+        // in rhythm: a right row thrown on the music's beat lands with a golden sparkle and a chord
+        const off = good ? audio.beatOffset() : null;
+        if (off !== null && off < BEAT_WINDOW) {
+          audio.onBeat();
+          this.view.fx.confetti(0, 0.012, this.view.fellZNow, 26, 0.45, true);
+          this.debug.onBeat = (this.debug.onBeat ?? 0) + 1;
+        }
       }
     });
 
