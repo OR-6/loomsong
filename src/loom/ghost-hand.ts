@@ -115,16 +115,16 @@ export class GhostHand {
       emissiveIntensity: 0.25,
       roughness: 0.6,
       transparent: true,
-      opacity: 0.62,
+      opacity: 0.32,
       depthWrite: false,
     });
     // a soft blue rim (fresnel) so the fingers' outlines read, not a milky blob
     body.onBeforeCompile = (sh) => {
       sh.fragmentShader = sh.fragmentShader.replace(
         '#include <dithering_fragment>',
-        `float rim = pow(1.0 - clamp(abs(dot(normalize(normal), normalize(vViewPosition))), 0.0, 1.0), 1.2);
-        gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.29, 0.565, 0.886), rim);
-        gl_FragColor.a = max(gl_FragColor.a, rim * 0.85);
+        `float rim = pow(1.0 - clamp(abs(dot(normalize(normal), normalize(vViewPosition))), 0.0, 1.0), 0.9);
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.239, 0.545, 1.0), rim);
+        gl_FragColor.a = max(gl_FragColor.a, rim);
         #include <dithering_fragment>`,
       );
     };
@@ -196,7 +196,7 @@ export class GhostHand {
       this.to.set(x, LEVER.knobY, LEVER.restZ - LEVER.travel);
     } else {
       // pinch the boat's back edge (outside end), so Pip stays visible
-      const back = g.fromEnd === 0 ? -0.032 : 0.032;
+      const back = g.fromEnd === 0 ? -0.04 : 0.04; // well behind the tail, so Pip stays in view
       const a = (g.fromEnd === 0 ? SHUTTLE.minX : SHUTTLE.maxX) + back;
       const b = (g.fromEnd === 0 ? SHUTTLE.maxX : SHUTTLE.minX) + back;
       this.from.set(a, shuttleY(a) + 0.002, SHUTTLE.z);

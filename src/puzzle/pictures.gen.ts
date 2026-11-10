@@ -143,7 +143,7 @@ export const PICTURES: PictureLevel[] = [
     "name": "Duck",
     "chapter": "garden",
     "mystery": false,
-    "color": 0xf2b632,
+    "color": 0xe9a21a,
     "picture": [
       ".##.....",
       "####....",
@@ -329,7 +329,7 @@ export const PICTURES: PictureLevel[] = [
     "name": "Moon",
     "chapter": "night",
     "mystery": true,
-    "color": 0xf5c84a,
+    "color": 0xeeae1c,
     "picture": [
       "..####..",
       ".###....",

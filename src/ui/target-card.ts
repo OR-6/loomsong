@@ -100,7 +100,8 @@ export class TargetCard {
     }
     const g = this.ctx;
     const lift = hex(this.color ?? th.palette.weft);
-    const ground = hex(th.palette.warp);
+    // empty cells take a little of the chapter paper tint (Night's cells read dusk, not white)
+    const ground = this.paper ? mixHex(hex(th.palette.warp), this.paper, 0.5) : hex(th.palette.warp);
     const grace = '#c9b79c';
     const px = (m: number) => m * PX_PER_M;
     g.clearRect(0, 0, c.width, c.height);
@@ -129,7 +130,7 @@ export class TargetCard {
       const x0 = c.width / 2 - ((total - 1) * px(gap)) / 2;
       for (let i = 0; i < total; i++) {
         const spent = i >= total - this.used;
-        drawKnot(g, x0 + i * px(gap), px(pad + titleH / 2), px(0.0085), i < this.par ? lift : grace, spent, highContrast);
+        drawKnot(g, x0 + i * px(gap), px(pad + titleH / 2), px(Math.min(0.0085, gap * 0.42)), i < this.par ? lift : grace, spent, highContrast);
       }
     }
     void title;
@@ -274,4 +275,17 @@ function drawStar(g: CanvasRenderingContext2D, x: number, y: number, r: number, 
   g.strokeStyle = '#3b2a20';
   g.stroke();
   g.restore();
+}
+
+/** Mix two '#rrggbb' colours (t = 0 → a, 1 → b). */
+function mixHex(a: string, b: string, t: number): string {
+  const pa = parseInt(a.slice(1), 16);
+  const pb = parseInt(b.slice(1), 16);
+  let out = 0;
+  for (const sh of [16, 8, 0]) {
+    const ca = (pa >> sh) & 255;
+    const cb = (pb >> sh) & 255;
+    out |= Math.round(ca + (cb - ca) * t) << sh;
+  }
+  return '#' + out.toString(16).padStart(6, '0');
 }

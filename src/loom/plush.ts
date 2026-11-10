@@ -70,13 +70,13 @@ export const PLUSH = {
   shelfZ: 0.03,
   /** The plush dances in the air right above the loom it was woven on (seen face-on from the seat). */
   stageX: 0,
-  stageZ: 0.11,
+  stageZ: 0.13,
   /** Hero size while it pops and dances (shelf size is shelfScale). */
   hero: 1.15,
   /** Hover height while it dances (it faces the seated player). */
-  danceY: 0.2,
+  danceY: 0.165,
   /** Width of the cream halo behind the dancing plush (m). */
-  haloSize: 0.21,
+  haloSize: 0.2,
 } as const;
 
 /** Seconds per row when a shelf plush sings its picture. */
@@ -653,7 +653,7 @@ export class Plushes {
     const staged = !!h && (this.phase === 'pop' || this.phase === 'hopOut' || this.phase === 'dance');
     this.haloA += ((staged ? 1 : 0) - this.haloA) * Math.min(1, dt * (staged ? 6 : 9));
     const hm = this.halo.material as MeshBasicMaterial;
-    hm.opacity = this.haloA * 0.92;
+    hm.opacity = this.haloA * 0.88;
     this.halo.visible = this.haloA > 0.02 && !!h;
     if (h && this.halo.visible) {
       this.halo.position.set(h.position.x, h.position.y + 0.012, h.position.z - 0.03);
@@ -675,7 +675,7 @@ export class Plushes {
       }
     } else if (this.phase === 'hopOut') {
       const k = Math.min(1, this.t / 0.6);
-      this.arc(h, k, 0.09);
+      this.arc(h, k, 0.045); // a low hop: stays inside a seated view
       h.rotation.y = Math.PI * 2 * ease(k); // a twirl on the way
       if (k >= 1) {
         this.phase = 'dance';

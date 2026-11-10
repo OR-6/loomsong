@@ -361,7 +361,7 @@ export class LoomView {
     // faint target picture on the rows still to weave
     this.ghostCloth = new InstancedMesh(
       cellGeo,
-      new MeshBasicMaterial({ transparent: true, opacity: 0.7, depthWrite: false }), // unlit: reads clearly from the seat
+      new MeshBasicMaterial({ transparent: true, opacity: 0.5, depthWrite: false }), // unlit: reads clearly from the seat
       WARPS * LOOM.maxRows,
     );
     this.ghostCloth.name = 'TargetGhost';
@@ -900,7 +900,7 @@ export class LoomView {
           _p.set(warpX(i), 0.0049, z);
           _m.compose(_p, _q.identity(), _s.set(0.9, 0.15, 0.88)); // flat faint tile on the felt
           this.ghostCloth.setMatrixAt(idx, _m);
-          this.ghostCloth.setColorAt(idx, _c.setHex(this.liftColor));
+          this.ghostCloth.setColorAt(idx, _c.setHex(this.liftColor).lerp(_c2.setHex(this.groundColor), 0.3)); // softer than woven rows
           idx++;
         }
       }
@@ -1117,7 +1117,7 @@ export class LoomView {
   private applyColors(): void {
     const p = this.palette;
     this.liftColor = this.pictureColor ?? p.weft;
-    this.groundColor = 0xfff3dc; // light warm cream yarn: the picture colour reads against it, not white tile
+    this.groundColor = 0xf3e7cf; // warm oatmeal-cream yarn: the picture colour reads against it, not white tile
     // warp colour comes per strand (instance colour × white), brighter when lifted
     (this.warps?.material as MeshStandardMaterial | undefined)?.color.setHex(0xffffff);
     const yarn = this.bobbin ? (materialOf(this.bobbin, 'Wound') as MeshStandardMaterial | null) : null;
