@@ -34,8 +34,8 @@ export const PLUSH = {
   shelfScale: 0.41,
   slots: 5,
   slotGap: 0.047,
-  /** Plush base height on the shelf: plinth top (12 mm) + felt cushion. */
-  shelfTopY: 0.0165,
+  /** Plush base height on the shelf: bench top (36 mm) + felt cushion. */
+  shelfTopY: 0.0405,
   /** Shelf centre, on the side away from the lever bank (x is multiplied by -side). */
   shelfX: 0.275,
   shelfZ: -0.02,
@@ -302,10 +302,11 @@ export class Plushes {
     this.shelf.position.set(-side * PLUSH.shelfX, 0, PLUSH.shelfZ);
     for (let i = 0; i < this.cushions.length; i++) {
       this.slotPos(i, this.cushions[i].position);
-      this.cushions[i].position.y = 0.0122;
+      this.cushions[i].position.y = 0.0362;
     }
-    // tag hangs on the back board's scalloped top
-    this.tag.mesh.position.set(-side * PLUSH.shelfX, 0.074, PLUSH.shelfZ - 0.022);
+    // paper tag leaning against the front of the bench
+    this.tag.mesh.position.set(-side * PLUSH.shelfX, 0.016, PLUSH.shelfZ + 0.042);
+    this.tag.mesh.rotation.set(-0.75, 0, 0);
     for (let i = 0; i < PLUSH.slots; i++) {
       const p = this.slotItems[i];
       if (p) this.slotPos(i, p.position);
@@ -313,7 +314,7 @@ export class Plushes {
   }
 
   slotPos(i: number, out: Vector3): Vector3 {
-    return out.set(-this.side * PLUSH.shelfX + (i - (PLUSH.slots - 1) / 2) * PLUSH.slotGap, PLUSH.shelfTopY, PLUSH.shelfZ + 0.008);
+    return out.set(-this.side * PLUSH.shelfX + (i - (PLUSH.slots - 1) / 2) * PLUSH.slotGap, PLUSH.shelfTopY, PLUSH.shelfZ);
   }
 
   /** Show the current chapter's finished pictures (rebuilds only changed slots). */
