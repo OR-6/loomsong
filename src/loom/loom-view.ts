@@ -164,6 +164,8 @@ export class LoomView {
   private undoWiggle = 0;
   private undoGlow = 0;
   private bobbinGlowShown = -1;
+  /** Tutorial/idle hint breathing on the undo spool (0–1). */
+  undoHint = 0;
   private knobCaps: (Object3D | null)[] = [];
   private shuttleMat!: MeshStandardMaterial;
   bobbin!: Object3D;
@@ -676,7 +678,7 @@ export class LoomView {
   }
 
   setBobbinHighlight(level: 0 | 1 | 2): void {
-    const k = (level === 2 ? 0.45 : level === 1 ? 0.22 : 0) + this.undoGlow * 0.35;
+    const k = (level === 2 ? 0.45 : level === 1 ? 0.22 : 0) + this.undoGlow * 0.35 + this.undoHint * 0.3;
     if (k === this.bobbinGlowShown) return;
     this.bobbinGlowShown = k;
     this.bobbin.traverse((n) => {

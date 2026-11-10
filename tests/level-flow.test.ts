@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LevelFlow, TIMING, firstLeverForRow0, type FlowHooks } from '../src/app/level-flow';
+import { LevelFlow, TIMING, firstLeverForRow0, nextStep, type FlowHooks } from '../src/app/level-flow';
 import { LoomModel } from '../src/loom/loom-model';
 import { LEVELS, levelAt } from '../src/puzzle/catalog';
 import type { Progress } from '../src/persistence/progress';
@@ -94,5 +94,56 @@ describe('level flow', () => {
       const k = firstLeverForRow0(l);
       expect(l.tieUp[k] & ~l.target[0]).toBe(0);
     }
+  });
+
+  it('level 1 tutorial guides every row: goal once, put a lever back, lift the next, undo a wrong row', () => {
+    const { model, flow, log } = setup();
+    flow.start();
+    expect(flow.tutorial).toBe(true);
+    // Sprout row 0 = lever 0
+    model.setLatched(0, true);
+    expect(log.at(-1)).toBe('hint shuttle 0');
+    model.commitRow();
+    expect(log.at(-1)).toBe('hint card 0'); // the goal, said once
+    for (let t = 0; t < TIMING.cardHint + 0.1; t += 0.05) flow.update(0.05);
+    expect(log.at(-1)).toBe('hint shuttle 0'); // row 1 is the stem again: lever 0 is still up
+    // a wrong row (both levers) → undo
+    model.setLatched(1, true);
+    expect(log.at(-1)).toBe('hint unlatch 1');
+    model.commitRow();
+    expect(log.at(-1)).toBe('hint undo 0');
+    model.undo();
+    expect(log.at(-1)).toBe('hint unlatch 1');
+    model.setLatched(1, false);
+    model.commitRow();
+    model.commitRow();
+    // the leaves: lever 0 back down, lever 1 up
+    expect(log.at(-1)).toBe('hint unlatch 0');
+    model.setLatched(0, false);
+    expect(log.at(-1)).toBe('hint lever 1');
+    model.setLatched(1, true);
+    expect(log.at(-1)).toBe('hint shuttle 0');
+    model.commitRow();
+    expect(flow.phase).toBe('won');
+    expect(flow.progress.tutorialDone).toBe(true);
+  });
+
+  it('after the tutorial, idling shows a gentle hint that clears on the next touch', () => {
+    const { model, flow, log } = setup({ level: 0, best: {}, tutorialDone: true, theme: 'toy' });
+    flow.start();
+    expect(flow.tutorial).toBe(false);
+    for (let t = 0; t < TIMING.idleHint + 0.2; t += 0.1) flow.update(0.1);
+    expect(log.at(-1)).toBe('hint lever 0'); // Garden: the exact lever
+    model.setLatched(0, true);
+    expect(log.at(-1)).toBe('hint none 0');
+  });
+
+  it('nextStep: undo a wrong row, else the fewest lever moves, else throw', () => {
+    const lv = LEVELS[0];
+    expect(nextStep(lv, [], [false, false]).step).toBe('lever');
+    expect(nextStep(lv, [], [true, false]).step).toBe('shuttle');
+    expect(nextStep(lv, [lv.target[0] ^ 1], [true, false]).step).toBe('undo');
+    const s = nextStep(lv, [], [true, true]);
+    expect(s).toEqual({ step: 'unlatch', lever: 1 });
   });
 });

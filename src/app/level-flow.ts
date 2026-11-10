@@ -6,13 +6,18 @@
 import type { LoomModel, LoomEvent } from '../loom/loom-model.js';
 import type { Level } from '../puzzle/levels.js';
 import { isWon, rowStatuses, stars, type RowStatus } from '../puzzle/session.js';
-import { isLifted } from '../puzzle/tieup.js';
+import { isLifted, type Mask8 } from '../puzzle/tieup.js';
 import { WARPS } from '../config.js';
 import type { Progress } from '../persistence/progress.js';
 
 export type FlowPhase = 'play' | 'won' | 'playback' | 'between';
 
-export type HintStep = 'lever' | 'shuttle' | 'card' | 'none';
+/**
+ * What to touch next. 'lever': lift lever k; 'unlatch': put lever k back;
+ * 'shuttle': slide Pip; 'undo': pull the spool (last row is wrong);
+ * 'card': read the card (the goal, or "match the next row" in idle hints).
+ */
+export type HintStep = 'lever' | 'unlatch' | 'shuttle' | 'undo' | 'card' | 'none';
 
 export interface FlowHooks {
   load(level: Level, index: number): void;
@@ -32,7 +37,9 @@ export const TIMING = {
   rowTime: 0.42,
   noteGap: 0.05,
   afterPlayback: 1.6,
-  cardHint: 4.5,
+  cardHint: 3.5,
+  /** Seconds without touching anything before a gentle hint (after the tutorial). */
+  idleHint: 12,
 } as const;
 
 export class LevelFlow {
@@ -48,6 +55,13 @@ export class LevelFlow {
   private timer = 0;
   private playRow = 0;
   private hintTimer = 0;
+  /** Level 1 on a first run: every step is shown until the picture is woven. */
+  tutorial = false;
+  /** The goal ("match the card") has been explained once. */
+  private goalShown = false;
+  private idle = 0;
+  /** The current hint came from idling (cleared by the next touch). */
+  private idleShown = false;
 
   constructor(
     private model: LoomModel,
@@ -62,12 +76,18 @@ export class LevelFlow {
     this.challenge = false;
     this.index = Math.max(0, Math.floor(index));
     this.load(this.levelAt(this.index));
-    this.setHint(this.index === 0 && !this.progress.tutorialDone ? 'lever' : 'none');
+    this.tutorial = this.index === 0 && !this.progress.tutorialDone;
+    this.goalShown = false;
+    this.idle = 0;
+    this.idleShown = false;
+    if (this.tutorial) this.guide();
+    else this.setHint('none');
   }
 
   /** Weave someone else's cloth; afterwards resume normal progression. */
   startChallenge(level: Level): void {
     this.challenge = true;
+    this.tutorial = false;
     this.index = this.progress.level;
     this.load(level);
     this.setHint('none');
@@ -89,9 +109,19 @@ export class LevelFlow {
   }
 
   update(dt: number): void {
-    if (this.hintStep === 'card') {
+    if (this.hintStep === 'card' && this.hintTimer > 0) {
       this.hintTimer -= dt;
-      if (this.hintTimer <= 0) this.setHint('none');
+      if (this.hintTimer <= 0) {
+        if (this.tutorial) this.guide();
+        else this.setHint('none');
+      }
+    }
+    if (this.phase === 'play' && !this.tutorial && !this.mirror && !this.challenge) {
+      this.idle += dt;
+      if (this.idle > TIMING.idleHint && !this.idleShown) {
+        this.idleShown = true;
+        this.idleHint();
+      }
     }
     if (this.phase === 'play') return;
     this.timer -= dt;
@@ -134,6 +164,7 @@ export class LevelFlow {
   /** Co-op guest: load the host's level without touching saved progress. */
   mirrorStart(index: number): void {
     this.challenge = false;
+    this.tutorial = false;
     this.index = Math.max(0, Math.floor(index));
     this.load(this.levelAt(this.index));
     this.setHint('none');
@@ -155,17 +186,31 @@ export class LevelFlow {
       if (e.type === 'sync' || e.type === 'lever') this.emitStatus();
       return;
     }
-    if (e.type === 'lever' && this.hintStep === 'lever' && e.latched) this.setHint('shuttle');
-    if (e.type === 'row' && this.hintStep === 'shuttle') {
-      this.setHint('card');
-      this.hintTimer = TIMING.cardHint;
-      this.progress.tutorialDone = true;
-      this.hooks.save(this.progress);
+    // any touch resets the idle clock and clears an idle hint
+    if (e.type === 'lever' || e.type === 'row' || e.type === 'undo') {
+      this.idle = 0;
+      if (this.idleShown) {
+        this.idleShown = false;
+        if (!this.tutorial) this.setHint('none');
+      }
     }
     if (e.type === 'row' || e.type === 'undo') {
-      if (this.phase === 'play' && isWon(this.level, this.model.rows)) this.win();
-      else this.emitStatus();
+      if (this.phase === 'play' && isWon(this.level, this.model.rows)) {
+        this.win();
+        return;
+      }
+      this.emitStatus();
     }
+    if (!this.tutorial || this.phase !== 'play') return;
+    if (e.type === 'row' && !this.goalShown && this.model.rows.length === 1 && this.model.rows[0] === this.level.target[0]) {
+      // the first right row: say the goal once, then keep guiding
+      this.goalShown = true;
+      this.setHint('card');
+      this.hintTimer = TIMING.cardHint;
+      return;
+    }
+    if (this.hintStep === 'card' && this.hintTimer > 0) return;
+    if (e.type === 'lever' || e.type === 'row' || e.type === 'undo') this.guide();
   }
 
   private win(): void {
@@ -194,9 +239,23 @@ export class LevelFlow {
     this.hooks.status(this.level, rowStatuses(this.level, this.model.rows), this.lastStars);
   }
 
-  private setHint(step: HintStep): void {
+  /** Tutorial: show the very next action for the current row. */
+  private guide(): void {
+    const n = nextStep(this.level, this.model.rows, this.model.latched);
+    this.setHint(n.step, n.lever);
+  }
+
+  /** After the tutorial, idle hints point at the kind of action, not the answer (except in Garden). */
+  private idleHint(): void {
+    const n = nextStep(this.level, this.model.rows, this.model.latched);
+    const easy = this.level.chapter === 'garden' || !this.level.chapter;
+    if (n.step === 'undo' || n.step === 'shuttle' || easy) this.setHint(n.step, n.lever);
+    else this.setHint('card'); // "match the next row": the puzzle stays the player's
+  }
+
+  private setHint(step: HintStep, lever = -1): void {
     this.hintStep = step;
-    this.hooks.hint(step, firstLeverForRow0(this.level));
+    this.hooks.hint(step, lever >= 0 ? lever : firstLeverForRow0(this.level));
   }
 }
 
@@ -204,6 +263,41 @@ export function totalStars(p: Pick<Progress, 'best'>): number {
   let n = 0;
   for (const v of Object.values(p.best)) n += v;
   return n;
+}
+
+/**
+ * The next action toward the picture: undo a wrong last row; otherwise put back
+ * a lever the next row doesn't need, lift one it does (fewest moves from the
+ * levers as they are), or throw Pip when the shed already matches.
+ */
+export function nextStep(level: Level, rows: readonly Mask8[], latched: readonly boolean[]): { step: HintStep; lever: number } {
+  const r = rows.length;
+  if (r > 0 && rows[r - 1] !== level.target[r - 1]) return { step: 'undo', lever: -1 };
+  if (r >= level.target.length) return { step: 'none', lever: -1 };
+  const L = level.tieUp.length;
+  let best = -1;
+  let bestCost = Infinity;
+  for (let s = 0; s < 1 << L; s++) {
+    let m = 0;
+    for (let k = 0; k < L; k++) if ((s >> k) & 1) m |= level.tieUp[k];
+    if (m !== level.target[r]) continue;
+    let flips = 0;
+    let count = 0;
+    for (let k = 0; k < L; k++) {
+      const on = ((s >> k) & 1) === 1;
+      if (on !== !!latched[k]) flips++;
+      if (on) count++;
+    }
+    const cost = flips * 10 + count;
+    if (cost < bestCost) {
+      bestCost = cost;
+      best = s;
+    }
+  }
+  if (best < 0) return { step: 'card', lever: -1 };
+  for (let k = 0; k < L; k++) if (!!latched[k] && !((best >> k) & 1)) return { step: 'unlatch', lever: k };
+  for (let k = 0; k < L; k++) if (!latched[k] && (best >> k) & 1) return { step: 'lever', lever: k };
+  return { step: 'shuttle', lever: -1 };
 }
 
 /** Lowest-index lever that is part of a cheapest way to weave row 0. */

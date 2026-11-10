@@ -17,7 +17,7 @@ import {
   type Entity,
   PCFSoftShadowMap,
 } from '@iwsdk/core';
-import { BOBBIN, CARD, LEVER, LEVERS, LOOM, NUDGE, PLACE, SHUTTLE, TOKEN, WARPS, leverX, nudgeX, tokenX, shuttleY } from '../config.js';
+import { BOBBIN, CARD, LEVER, LEVERS, LOOM, NUDGE, PLACE, SHUTTLE, TOKEN, WARPS, bobbinX, leverX, nudgeX, tokenX, shuttleY } from '../config.js';
 import { applyCalibration, hands, calibration, type Side } from '../input/hands.js';
 import { Calibrator } from '../input/calibration.js';
 import { LoomController, type HandInput } from '../loom/loom-controller.js';
@@ -47,8 +47,10 @@ const FIXED_DESK = params.get('desk');
 
 const HINT_TEXT: Record<HintStep, string> = {
   lever: 'Slide it away',
+  unlatch: 'Slide it back',
   shuttle: 'Slide Pip across',
-  card: 'Match the card',
+  undo: 'Pull the spool to undo',
+  card: 'Match the next row',
   none: '',
 };
 
@@ -341,7 +343,7 @@ export class GameSystem extends createSystem({
       },
       hint: (step, lever) => {
         this.hintLever = lever;
-        this.tutor.set(HINT_TEXT[step]);
+        this.tutor.set(this.hintText(step));
         if (this.debug) this.debug.hint = step;
       },
       save: (p) => saveProgress(p),
@@ -611,6 +613,12 @@ export class GameSystem extends createSystem({
   }
 
   /** The ghost hand demonstrates the current tutorial gesture on the real target. */
+  /** The tag's words: in the tutorial the card hint states the goal once. */
+  private hintText(step: HintStep): string {
+    if (step === 'card' && this.flow?.tutorial) return 'Weave each row like the card';
+    return HINT_TEXT[step];
+  }
+
   private syncGhost(dt: number, step: HintStep): void {
     const ghost = this.view.ghost;
     if (!ghost.ready) {
@@ -621,7 +629,13 @@ export class GameSystem extends createSystem({
     const c = this.controller;
     const side = c.bankSide;
     ghost.show(
-      this.notice ? null : step === 'lever' ? { kind: 'lever', k: this.hintLever } : step === 'shuttle' ? { kind: 'shuttle', fromEnd: c.shuttle.t < 0.5 ? 0 : 1 } : null,
+      this.notice
+        ? null
+        : step === 'lever' || step === 'unlatch'
+          ? { kind: 'lever', k: this.hintLever, back: step === 'unlatch' }
+          : step === 'shuttle'
+            ? { kind: 'shuttle', fromEnd: c.shuttle.t < 0.5 ? 0 : 1 }
+            : null,
       side,
     );
     const busy = c.hover.left !== null || c.hover.right !== null || c.holding.left !== null || c.holding.right !== null;
@@ -697,7 +711,7 @@ export class GameSystem extends createSystem({
     this.noticeTimer = seconds;
     this.debug.notice = text;
     // Clearing a notice brings back the tutorial hint it covered.
-    this.tutor.set(text || HINT_TEXT[this.flow.hintStep]);
+    this.tutor.set(text || this.hintText(this.flow.hintStep));
   }
 
   setPaused(p: boolean): void {
@@ -928,13 +942,19 @@ export class GameSystem extends createSystem({
       if (this.noticeTimer <= 0) this.showNotice('', 0);
       return;
     }
+    this.view.undoHint = 0;
     if (step === 'none') return;
     const side = this.controller.bankSide;
     const pulse = 0.5 + 0.5 * Math.sin(this.time * 4); // a smooth breath, not an error blink
-    if (step === 'lever') {
+    if (step === 'lever' || step === 'unlatch') {
       const k = this.hintLever;
+      const up = this.model.latched[k];
       m.position.set(leverX(k, side) - side * 0.085, 0.07, LEVER.restZ - LEVER.travel / 2);
-      if (!this.model.latched[k]) this.view.setLeverHighlight(k, 0, false, pulse);
+      if (up === (step === 'unlatch')) this.view.setLeverHighlight(k, 0, up, pulse);
+    } else if (step === 'undo') {
+      // the red spool breathes, with the tag above it
+      m.position.set(bobbinX(side), BOBBIN.y + 0.07, BOBBIN.z);
+      this.view.undoHint = pulse;
     } else if (step === 'shuttle') {
       // Tag hangs just outside the frame beside Pip's perch, never over the threads.
       const end = this.controller.shuttle.t < 0.5 ? -1 : 1;

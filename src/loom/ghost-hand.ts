@@ -9,7 +9,7 @@ import { Group, MeshStandardMaterial, Object3D, Quaternion, Skeleton, Vector3, t
 import { LEVER, SHUTTLE, leverX, shuttleY } from '../config.js';
 import { PINCH_POSE } from './pinch-pose.js';
 
-export type GhostGesture = { kind: 'lever'; k: number } | { kind: 'shuttle'; fromEnd: 0 | 1 } | null;
+export type GhostGesture = { kind: 'lever'; k: number; back?: boolean } | { kind: 'shuttle'; fromEnd: 0 | 1 } | null;
 
 const LOOP = 2.9;
 const _q = new Quaternion();
@@ -152,7 +152,7 @@ export class GhostHand {
   show(g: GhostGesture, side: 1 | -1): void {
     const same =
       g?.kind === this.gesture?.kind &&
-      (g?.kind !== 'lever' || (this.gesture?.kind === 'lever' && g.k === this.gesture.k)) &&
+      (g?.kind !== 'lever' || (this.gesture?.kind === 'lever' && g.k === this.gesture.k && !!g.back === !!this.gesture.back)) &&
       (g?.kind !== 'shuttle' || (this.gesture?.kind === 'shuttle' && g.fromEnd === this.gesture.fromEnd));
     if (same && side === this.side) return;
     this.gesture = g;
@@ -192,8 +192,11 @@ export class GhostHand {
     this.t = (this.t + dt) % LOOP;
     if (g.kind === 'lever') {
       const x = leverX(g.k, this.side);
-      this.from.set(x, LEVER.knobY, LEVER.restZ);
-      this.to.set(x, LEVER.knobY, LEVER.restZ - LEVER.travel);
+      // away to lift it; back toward you to put it down
+      const a = g.back ? LEVER.restZ - LEVER.travel : LEVER.restZ;
+      const b = g.back ? LEVER.restZ : LEVER.restZ - LEVER.travel;
+      this.from.set(x, LEVER.knobY, a);
+      this.to.set(x, LEVER.knobY, b);
     } else {
       // pinch the boat's back edge (outside end), so Pip stays visible
       const back = g.fromEnd === 0 ? -0.04 : 0.04; // well behind the tail, so Pip stays in view
