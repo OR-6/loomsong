@@ -23,6 +23,8 @@ TEAL = mat_paint('PaintTeal', 0x2a9d8f, rough=0.38, clearcoat=0.45)
 KNOB = mat_paint('KnobPaint', 0xe2563b, rough=0.35, clearcoat=0.5)
 YARN = mat_tex('Yarn', knit_img, tint=0xffffff, rough=0.95)
 CLOTH = mat_tex('ClothRoll', knit_img, tint=0xfff3e0, rough=0.95)
+YARN_L = mat_tex('SpoolYarnTomato', knit_img, tint=0xe2563b, rough=0.95)
+YARN_R = mat_tex('SpoolYarnTeal', knit_img, tint=0x2a9d8f, rough=0.95)
 
 root = empty('Loom')
 frame = empty('Frame', parent=root)
@@ -60,7 +62,16 @@ lathe('ClothWrap', [(0.0, -0.098), (0.0108, -0.098), (0.0118, -0.094), (0.0118, 
 PH = 0.074
 for s, n in ((-1, 'PostL'), (1, 'PostR')):
     rounded_box(n, (0.024, PH, 0.024), (s * HW, PH / 2 + 0.01, L['heddleZ']), bevel=0.009, segs=4, mat=WOOD, parent=frame)
-    ellipsoid(n + 'Finial', (0.0135, 0.0125, 0.0135), (s * HW, PH + 0.019, L['heddleZ']), mat=MUSTARD, parent=frame, segs=28)
+    # Post top: a turned collar holding a little spool of yarn (a craft-table detail,
+    # not a generic ball). Tomato yarn on the left post, teal on the right.
+    top = PH + 0.01 + 0.0005
+    lathe(n + 'Collar', [(0, 0), (0.0105, 0), (0.0118, 0.002), (0.0105, 0.004), (0.004, 0.0045), (0, 0.0045)],
+          (s * HW, top, L['heddleZ']), segs=28, mat=DARK, parent=frame)
+    lathe(n + 'Spool', [(0, 0), (0.0095, 0), (0.0098, 0.0025), (0.0052, 0.0032), (0.0052, 0.0158), (0.0098, 0.0165),
+                        (0.0095, 0.019), (0.0022, 0.019), (0.0022, 0.0205), (0, 0.0205)],
+          (s * HW, top + 0.0045, L['heddleZ']), segs=28, mat=WOOD, parent=frame)
+    lathe(n + 'SpoolYarn', [(0, 0.0032), (0.0078, 0.0032), (0.0086, 0.0055), (0.0086, 0.0135), (0.0078, 0.0158), (0, 0.0158)],
+          (s * HW, top + 0.0045, L['heddleZ']), segs=28, mat=(YARN_L if s < 0 else YARN_R), parent=frame)
 rounded_box('HeddleBar', (HW * 2 + 0.004, 0.017, 0.016), (0, PH - 0.003, L['heddleZ']), bevel=0.0065, segs=4, mat=WOOD, parent=frame)
 
 # Painted dowel ends where beams meet (reads as "built from wood").
