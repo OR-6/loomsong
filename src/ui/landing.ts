@@ -158,11 +158,14 @@ export function mountLanding(world: World): void {
     audio.resume(); // user gesture: unlock audio early
     world.launchXR();
   });
-  if (!world.xrEnabled) {
-    // no headset here: the main action becomes joining a friend's loom as the caller
+  // No headset here (a laptop or phone: desktop browsers know WebXR even with nothing plugged in,
+  // so ask whether immersive AR can actually run): the main action becomes joining as the caller.
+  const noHeadset = () => {
     el.querySelector<HTMLElement>('.go')!.hidden = true;
     el.querySelector<HTMLElement>('#xr-unsupported')!.hidden = false;
-  }
+  };
+  if (!world.xrEnabled) noHeadset();
+  else void shouldCall().then((call) => call && noHeadset());
   const callCode = el.querySelector<HTMLInputElement>('#call-code')!;
   const callJoin = () => void coop.join(callCode.value, 'caller');
   el.querySelector('#call-join')!.addEventListener('click', callJoin);

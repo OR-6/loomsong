@@ -446,6 +446,12 @@ class Synth {
     this.pad?.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.25);
   }
 
+  /** Out of the game (2D page): the drone pad fades out; music() brings it back. */
+  restMusic(): void {
+    const ctx = this.ctx;
+    if (ctx && this.pad && this.pad.gain.gain.value > 0.001) this.pad.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
+  }
+
   /** Plucks duck the music a little so the threads stay the lead voice. */
   private duck(ctx: AudioContext, when: number): void {
     const b = this.musicBus;

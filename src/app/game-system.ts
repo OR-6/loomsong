@@ -961,8 +961,10 @@ export class GameSystem extends createSystem({
     const dt = Math.min(delta, 0.05);
     if (this.paused) return;
     this.watchFrames(delta);
-    audio.music(); // the background music box schedules a few notes ahead
     const immersive = this.visibilityState.peek() !== VisibilityState.NonImmersive;
+    // the background music box plays only in the game (never on the 2D page)
+    if (immersive && this.placement.phase === 'placed') audio.music();
+    else audio.restMusic();
     this.player.head.getWorldPosition(this.head);
 
     if (this.placement.phase !== 'placed') {
