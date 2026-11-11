@@ -17,7 +17,7 @@ import {
   type Entity,
   PCFSoftShadowMap,
 } from '@iwsdk/core';
-import { BOBBIN, CARD, LEVER, LEVERS, LOOM, NUDGE, PLACE, SHUTTLE, TOKEN, WARPS, bobbinX, leverX, nudgeX, skeinPos, tokenX, shuttleY } from '../config.js';
+import { BASKET, BOBBIN, CARD, LEVER, LEVERS, LOOM, NUDGE, PLACE, SHUTTLE, TOKEN, WARPS, bobbinX, leverX, nudgeX, skeinPos, tokenX, shuttleY } from '../config.js';
 import { applyCalibration, hands, calibration, type Side } from '../input/hands.js';
 import { Calibrator } from '../input/calibration.js';
 import { LoomController, type HandInput } from '../loom/loom-controller.js';
@@ -29,9 +29,9 @@ import { audio } from '../audio/synth.js';
 import { LevelFlow, TIMING, type HintStep } from './level-flow.js';
 import { CHAPTERS, LEVELS, chapterStates, levelAt } from '../puzzle/catalog.js';
 import type { Level } from '../puzzle/levels.js';
-import { PLUSH, ROW_BEAT, type ShelfItem } from '../loom/plush.js';
+import { PLUSH, ROW_BEAT, SPOTS, type DeskItem, type ShelfItem } from '../loom/plush.js';
 import { isLifted } from '../puzzle/tieup.js';
-const PLUSH_SLOTS = PLUSH.slots;
+const PLUSH_SLOTS = SPOTS;
 import { loadProgress, saveProgress, workshopUnlocked, type Progress } from '../persistence/progress.js';
 import { THEMES, highContrast, otherTheme, type Theme, type ThemeId } from '../ui/theme.js';
 import { loadSettings, saveSettings, type Settings } from '../persistence/settings.js';
@@ -69,6 +69,8 @@ export interface GameDebug {
   onBeat?: number;
   /** The celebration ribbon's text ('' when hidden). */
   banner?: string;
+  /** Where the last carried plush ended up (debug/E2E). */
+  lastDrop?: string;
   /** Threads strummed by a fingertip (debug/E2E). */
   strums?: number;
   deskY: number | null;
@@ -113,6 +115,8 @@ export class GameSystem extends createSystem({
   private head = new Vector3();
   private fwd = new Vector3();
   private tmp = new Vector3();
+  private tmp2 = new Vector3();
+  private medleyOrder: number[] = [];
   private planeYs: number[] = [];
   private bloom = 0;
   private sessionTime = 0;
@@ -229,6 +233,8 @@ export class GameSystem extends createSystem({
       skein: (i) => this.pickChapter(i),
       nudge: (dir) => this.nudgeDesk(dir),
       plush: (i) => this.singPlush(i),
+      carry: (i, p) => this.view.plushes.carry(i, p),
+      drop: (i, p) => this.dropPlush(i, p),
       windKey: () => this.playShelf(),
       swap: () => {
         this.model.setWeft(this.model.weft ? 0 : 1);
@@ -361,6 +367,7 @@ export class GameSystem extends createSystem({
         this.view.card.setPicture(level.color ?? null, level.par);
         this.shelf = shelfItems(level, this.progress);
         this.view.plushes.setShelf(this.shelf, CHAPTERS.find((c) => c.id === level.chapter)?.name ?? '');
+        this.view.plushes.setDesk(deskItems(this.progress));
         this.syncBasket(level);
         this.view.setShed(0, true);
         this.view.setRows(this.model.rows);
@@ -383,7 +390,7 @@ export class GameSystem extends createSystem({
         audio.chirp('cheer');
         // It comes alive: the woven picture pops out as a plush.
         const lv = this.flow.level;
-        this.view.plushes.celebrate(lv.id, lv.target, lv.color ?? this.shown().palette.weft, this.flow.challenge ? -1 : shelfSlot(lv));
+        this.view.plushes.celebrate(lv.id, lv.target, lv.color ?? this.shown().palette.weft, this.flow.challenge ? -1 : this.progress.placed?.[lv.id] ? PLUSH.slots + LEVELS.findIndex((l) => l.id === lv.id) : shelfSlot(lv));
         this.controller.releaseAll();
         // the levers drop back to rest with a clack as the picture comes alive (not a move: flips restored)
         const flips = this.model.leverFlips;
@@ -785,10 +792,11 @@ export class GameSystem extends createSystem({
 
   /** A shelf plush was poked: it sings its picture. */
   private singPlush(i: number): void {
-    const it = this.shelf[i];
-    if (!it?.done || this.time < this.singUntil) return;
+    const id = this.view.plushes.idAt(i);
+    const lv = id ? LEVELS.find((l) => l.id === id) : undefined;
+    if (!lv || this.time < this.singUntil) return;
     audio.resume();
-    const secs = this.schedulePictureSong(it.rows, 0);
+    const secs = this.schedulePictureSong(lv.target, 0);
     this.singUntil = this.time + secs;
     audio.holdMusic(secs + 0.3);
     this.view.plushes.sing(i, secs);
@@ -820,10 +828,15 @@ export class GameSystem extends createSystem({
     audio.resume();
     audio.windUp();
     let t = 0.55; // after the winding clicks
-    for (let i = 0; i < this.shelf.length; i++) {
-      const it = this.shelf[i];
-      if (!it?.done) continue;
-      const secs = this.schedulePictureSong(it.rows, t);
+    // every plush plays, shelf and desk alike, left to right as they stand: arranging them composes the tune
+    const order = this.medleyOrder;
+    order.length = 0;
+    for (let i = 0; i < SPOTS; i++) if (this.view.plushes.idAt(i) && this.view.plushes.plushCentre(i, this.plushVecs[i])) order.push(i);
+    order.sort((a, b) => this.plushVecs[a].x - this.plushVecs[b].x);
+    for (const i of order) {
+      const lv = LEVELS.find((l) => l.id === this.view.plushes.idAt(i));
+      if (!lv) continue;
+      const secs = this.schedulePictureSong(lv.target, t);
       this.view.plushes.sing(i, secs, t);
       this.sparkleAt[i] = this.time + t; // a gold sparkle over each plush as its turn starts
       t += secs + 0.2;
@@ -833,6 +846,73 @@ export class GameSystem extends createSystem({
     this.singUntil = this.time + total;
     audio.holdMusic(total + 0.3);
     this.view.setPipMood(total > 0.6 ? 'happy' : 'sad');
+  }
+
+  /**
+   * A carried plush was let go. On the real table (a detected plane at the desk's
+   * height, or near the loom when the room has no planes) it stays there, saved;
+   * near its own shelf slot it goes back; anywhere else (off the edge, in the air,
+   * inside the loom) it hops back where it came from.
+   */
+  private dropPlush(i: number, p: { x: number; y: number; z: number } | null): void {
+    const plushes = this.view.plushes;
+    const id = plushes.idAt(i);
+    if (!id) return;
+    if (!p) {
+      plushes.putBack(i);
+      return;
+    }
+    const slot = this.shelf.findIndex((it) => it.id === id);
+    const side = this.controller.bankSide;
+    const home = slot >= 0 ? plushes.slotPos(slot, this.tmp2) : null;
+    if (home && Math.hypot(p.x - home.x, p.z - home.z) < 0.07 && p.y < 0.12) {
+      // back onto the shelf
+      plushes.moveTo(i, slot);
+      if (this.progress.placed) delete this.progress.placed[id];
+      saveProgress(this.progress);
+      this.shelf[slot].placed = false;
+      this.debug.lastDrop = 'shelf';
+      return;
+    }
+    const nearShelf = Math.abs(p.x + side * PLUSH.shelfX) < 0.15 && Math.abs(p.z - PLUSH.shelfZ) < 0.06;
+    const inLoom = Math.abs(p.x) < LOOM.frameHalfWidth + 0.03 && p.z > LOOM.backBeamZ - 0.03 && p.z < LOOM.frontBeamZ + 0.02;
+    const inBank = Math.abs(p.x - side * 0.23) < 0.11 && Math.abs(p.z) < 0.1; // the lever bank
+    const inBasket = Math.hypot(p.x + side * BASKET.x, p.z - BASKET.z) < 0.085; // the chapter basket
+    const onPlaque = Math.abs(p.x) < 0.11 && p.z > 0.09 && p.z < 0.2; // the level plaque
+    const tooHigh = p.y > 0.2;
+    const d = LEVELS.findIndex((l) => l.id === id);
+    if (d < 0 || d >= PLUSH.desk || nearShelf || inLoom || inBank || inBasket || onPlaque || tooHigh || !this.onTable(p)) {
+      plushes.putBack(i);
+      audio.pluck(2, 0.35, 0, 0.05);
+      this.debug.lastDrop = 'back';
+      return;
+    }
+    const x = Math.round(p.x * 1000) / 1000;
+    const z = Math.round(p.z * 1000) / 1000;
+    plushes.moveTo(i, PLUSH.slots + d, x, z);
+    (this.progress.placed ??= {})[id] = [x, z];
+    saveProgress(this.progress);
+    if (slot >= 0) this.shelf[slot].placed = true;
+    this.view.fx.confetti(x, 0.01, z, 18, 0.25);
+    this.view.setPipMood('happy');
+    this.debug.lastDrop = `desk ${x},${z}`;
+    if (Object.keys(this.progress.placed).length === 1) this.showNotice('It lives on your desk now', 4, 'centre');
+  }
+
+  /**
+   * Is this loom-space point over the real table? When the loom was set on a
+   * detected table plane, that plane (or another at the desk's height) must lie
+   * under the point: off the table's edge it won't stay. When the table isn't in
+   * the room data (placed by palm alone), anywhere within reach of the loom.
+   */
+  private onTable(p: { x: number; y: number; z: number }): boolean {
+    if (this.placement.source !== 'plane') return Math.hypot(p.x, p.z) < 0.55;
+    const root = this.view.root;
+    this.tmp2.set(p.x, 0, p.z);
+    root.localToWorld(this.tmp2);
+    const deskY = this.tmp2.y;
+    this.planesUnder(this.tmp2);
+    return this.planeYs.some((y) => Math.abs(y - deskY) < 0.05);
   }
 
   /** Where the shelf plushes are, for touch (no allocation: one vector per slot). */
@@ -915,11 +995,13 @@ export class GameSystem extends createSystem({
         break;
       }
       case 'plush': {
-        const it = this.shelf[t.i ?? 0];
-        const spot = c.plushSpots[t.i ?? 0];
-        if (it && spot) {
+        const i = t.i ?? 0;
+        const id = this.view.plushes.idAt(i);
+        const spot = c.plushSpots[i];
+        if (id && spot && this.view.plushes.carried < 0) {
           Object.assign(at, spot);
-          text = `${LEVELS.find((l) => l.id === it.id)?.name ?? ''}: poke to sing`;
+          const name = LEVELS.find((l) => l.id === id)?.name ?? '';
+          text = i < PLUSH.slots ? `${name}: poke to sing, pinch to carry` : `${name}: poke to sing`;
           lift = 0.045;
         }
         break;
@@ -1397,7 +1479,17 @@ function shelfItems(level: Level, progress: Progress): ShelfItem[] {
   if (!ch) return [];
   return ch.levels.map((id) => {
     const l = LEVELS.find((x) => x.id === id);
-    return { id, rows: l?.target ?? [], color: l?.color ?? 0xe2563b, done: (progress.best[id] ?? 0) > 0 };
+    const done = (progress.best[id] ?? 0) > 0;
+    return { id, rows: l?.target ?? [], color: l?.color ?? 0xe2563b, done, placed: done && !!progress.placed?.[id] };
+  });
+}
+
+/** Finished plushes living on the desk, by desk index (= picture index). */
+function deskItems(progress: Progress): (DeskItem | null)[] {
+  return LEVELS.slice(0, PLUSH.desk).map((l) => {
+    const at = progress.placed?.[l.id];
+    if (!at || !((progress.best[l.id] ?? 0) > 0)) return null;
+    return { id: l.id, rows: l.target, color: l.color ?? 0xe2563b, x: at[0], z: at[1] };
   });
 }
 

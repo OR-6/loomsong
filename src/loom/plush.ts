@@ -79,7 +79,23 @@ export const PLUSH = {
   haloSize: 0.17,
   /** Radius of the felt stage disc under the dancing plush (m). */
   stageR: 0.052,
+  /** Plushes that can live on the real desk (one spot per picture). */
+  desk: 16,
+  /** Size on the desk: bigger than on the shelf, so taking one out is a reward. */
+  deskScale: 0.62,
 } as const;
+
+/** Spots: the shelf slots first, then one desk spot per picture. */
+export const SPOTS = PLUSH.slots + PLUSH.desk;
+
+/** A finished plush living on the real desk. */
+export interface DeskItem {
+  id: string;
+  rows: readonly Mask8[];
+  color: number;
+  x: number;
+  z: number;
+}
 
 /** Seconds per row when a shelf plush sings its picture. */
 export const ROW_BEAT = 0.3;
@@ -118,6 +134,7 @@ export function buildPlush(rows: readonly Mask8[], color: number): Group {
   const cell = PLUSH.cell;
   const g = new Group();
   g.name = 'Plush';
+  g.rotation.order = 'YXZ'; // turn first, then lean: a desk plush can face you and lean back
   let n = 0;
   for (const r of rows) for (let i = 0; i < WARPS; i++) if (isLifted(r, i)) n++;
   // matte felt (no sheen/gloss: it read as glassy), the loom's knitted stitch
@@ -330,6 +347,8 @@ export interface ShelfItem {
   rows: readonly Mask8[];
   color: number;
   done: boolean;
+  /** It lives on the desk now: its shelf slot stays empty. */
+  placed?: boolean;
 }
 
 type ShowPhase = 'none' | 'pop' | 'hopOut' | 'dance' | 'hopShelf' | 'fade';
@@ -344,8 +363,21 @@ const back = (t: number) => {
 export class Plushes {
   readonly root = new Group();
   private shelf: Object3D;
-  private slotItems: (Group | null)[] = new Array(PLUSH.slots).fill(null);
-  private slotIds: (string | null)[] = new Array(PLUSH.slots).fill(null);
+  /** Plush per spot (shelf slots, then desk spots) and its picture id. */
+  private slotItems: (Group | null)[] = new Array(SPOTS).fill(null);
+  private slotIds: (string | null)[] = new Array(SPOTS).fill(null);
+  /** Where each desk spot's plush stands (loom space, on the desk: y 0). */
+  private deskPos = Array.from({ length: SPOTS }, () => new Vector3());
+  /** A soft contact shadow under each desk plush (it sits on the real table). */
+  private shadows: Mesh[] = [];
+  /** The plush being carried (-1: none) and where the pinch wants it. */
+  private carryI = -1;
+  private carryAt = new Vector3();
+  private carryVx = 0;
+  /** Per spot: 0..1 progress of a hop from landFrom to its home (1 = still). */
+  private landT: number[] = new Array(SPOTS).fill(1);
+  private landFrom = Array.from({ length: SPOTS }, () => new Vector3());
+  private landScale: number[] = new Array(SPOTS).fill(PLUSH.shelfScale);
   private side: 1 | -1 = 1;
   private hero: Group | null = null;
   private heroSlot = -1;
@@ -363,10 +395,10 @@ export class Plushes {
   private stage: Group;
   private haloA = 0;
   /** Per shelf slot: seconds left of its song (poked plushes sing and bounce). */
-  private singLeft: number[] = new Array(PLUSH.slots).fill(0);
-  private singT: number[] = new Array(PLUSH.slots).fill(0);
+  private singLeft: number[] = new Array(SPOTS).fill(0);
+  private singT: number[] = new Array(SPOTS).fill(0);
   /** Seconds each slot waits before its song starts (a medley staggers them). */
-  private singWait: number[] = new Array(PLUSH.slots).fill(0);
+  private singWait: number[] = new Array(SPOTS).fill(0);
   /** The brass wind-up key on the shelf's outer end: poke it and the whole shelf plays. */
   readonly windKey = new Group();
   private keyTurnLeft = 0;
@@ -405,6 +437,17 @@ export class Plushes {
     this.stage.add(rim);
     this.stage.visible = false;
     this.root.add(this.stage);
+    const shadowGeo = new PlaneGeometry(1, 1);
+    const shadowMat = new MeshBasicMaterial({ map: blobTexture(), transparent: true, depthWrite: false, color: 0x000000, opacity: 0.42 });
+    for (let i = 0; i < SPOTS; i++) {
+      const sh = new Mesh(shadowGeo, shadowMat);
+      sh.name = 'PlushShadow';
+      sh.rotation.x = -Math.PI / 2;
+      sh.renderOrder = -1;
+      sh.visible = false;
+      this.root.add(sh);
+      this.shadows.push(sh);
+    }
     // a butterfly wind-up key: brass shaft out of the shelf end, two loops for fingers
     {
       const brass = new MeshStandardMaterial({ color: 0xd9a441, metalness: 0.55, roughness: 0.35 });
@@ -544,6 +587,103 @@ export class Plushes {
     return out.set(-this.side * PLUSH.shelfX + (i - (PLUSH.slots - 1) / 2) * PLUSH.slotGap, PLUSH.shelfTopY, PLUSH.shelfZ);
   }
 
+  /** Where spot i's plush rests: its shelf slot, or its place on the desk. */
+  home(i: number, out: Vector3): Vector3 {
+    return i < PLUSH.slots ? this.slotPos(i, out) : out.copy(this.deskPos[i]);
+  }
+
+  /** Resting lean: a desk plush sits back a little, looking up at the seated player. */
+  restX(i: number): number {
+    return i < PLUSH.slots ? 0 : -0.32;
+  }
+
+  /** Resting turn: a desk plush faces the player's seat (in front of the loom). */
+  restY(i: number): number {
+    if (i < PLUSH.slots) return 0;
+    const d = this.deskPos[i];
+    return Math.atan2(-d.x, 0.5 - d.z);
+  }
+
+  homeScale(i: number): number {
+    return i < PLUSH.slots ? PLUSH.shelfScale : PLUSH.deskScale;
+  }
+
+  /** Picture id of the plush at spot i (null: empty). */
+  idAt(i: number): string | null {
+    return this.slotItems[i] ? this.slotIds[i] : null;
+  }
+
+  /** The plushes living on the desk, by desk index (rebuilds only changed spots). */
+  setDesk(items: readonly (DeskItem | null)[]): void {
+    for (let d = 0; d < PLUSH.desk; d++) {
+      const i = PLUSH.slots + d;
+      const it = items[d] ?? null;
+      const want = it ? it.id : null;
+      if (want === this.slotIds[i] && (this.slotItems[i] || !want)) {
+        if (it && i !== this.carryI && this.landT[i] >= 1) this.deskPos[i].set(it.x, 0, it.z);
+        continue;
+      }
+      const old = this.slotItems[i];
+      if (old && old !== this.hero) disposePlush(old);
+      this.slotItems[i] = null;
+      this.slotIds[i] = want;
+      if (!it) continue;
+      this.deskPos[i].set(it.x, 0, it.z);
+      const p = buildPlush(it.rows, it.color);
+      p.scale.setScalar(PLUSH.deskScale);
+      p.position.copy(this.deskPos[i]);
+      p.rotation.set(this.restX(i), this.restY(i), 0);
+      this.root.add(p);
+      this.slotItems[i] = p;
+      this.landT[i] = 1;
+    }
+  }
+
+  /** Pinched and carried: the plush follows the pinch, dangling a little. */
+  carry(i: number, p: { x: number; y: number; z: number }): void {
+    if (!this.slotItems[i] || (this.hero && this.heroSlot === i)) return;
+    if (this.carryI !== i) {
+      this.carryI = i;
+      this.singLeft[i] = 0;
+      this.slotItems[i]!.rotation.set(0, 0, 0);
+    }
+    this.carryAt.set(p.x, p.y - 0.03, p.z);
+  }
+
+  /** The plush being carried, or -1. */
+  get carried(): number {
+    return this.carryI;
+  }
+
+  /**
+   * Set the carried plush down at spot `to` (a shelf slot, or a desk spot at x, z),
+   * hopping from where it is. Returns false if there was nothing to move.
+   */
+  moveTo(i: number, to: number, x = 0, z = 0): boolean {
+    const g = this.slotItems[i];
+    if (!g) return false;
+    if (to !== i) {
+      const old = this.slotItems[to];
+      if (old) disposePlush(old);
+      this.slotItems[to] = g;
+      this.slotIds[to] = this.slotIds[i];
+      this.slotItems[i] = null;
+      this.slotIds[i] = null;
+      this.singLeft[i] = 0;
+    }
+    if (to >= PLUSH.slots) this.deskPos[to].set(x, 0, z);
+    this.landFrom[to].copy(g.position);
+    this.landScale[to] = g.scale.y;
+    this.landT[to] = 0;
+    if (this.carryI === i) this.carryI = -1;
+    return true;
+  }
+
+  /** Let go somewhere it can't stay: it hops back home. */
+  putBack(i: number): void {
+    this.moveTo(i, i);
+  }
+
   /** Show the current chapter's finished pictures (rebuilds only changed slots). */
   setShelf(items: readonly ShelfItem[], chapter = ''): void {
     this.settle();
@@ -574,7 +714,7 @@ export class Plushes {
     }
     for (let i = 0; i < PLUSH.slots; i++) {
       const it = items[i];
-      const id = it && it.done ? it.id : null;
+      const id = it && it.done && !it.placed ? it.id : null;
       if (id === this.slotIds[i]) continue;
       const old = this.slotItems[i];
       if (old) disposePlush(old);
@@ -605,8 +745,10 @@ export class Plushes {
 
   /** Centre of the finished plush in a shelf slot, or null when the slot holds none. */
   plushCentre(i: number, out: Vector3): Vector3 | null {
-    if (!this.slotItems[i] || (this.hero && this.heroSlot === i)) return null;
-    return this.slotPos(i, out).setY(PLUSH.shelfTopY + 0.022);
+    const p = this.slotItems[i];
+    if (!p || (this.hero && this.heroSlot === i)) return null;
+    if (i === this.carryI || this.landT[i] < 1) return out.copy(p.position).setY(p.position.y + 0.022 * (p.scale.y / PLUSH.shelfScale));
+    return this.home(i, out).setY(out.y + 0.022 * (this.homeScale(i) / PLUSH.shelfScale));
   }
 
   /** A poked plush sings: it bounces and sways on the shelf for `seconds`. */
@@ -661,7 +803,7 @@ export class Plushes {
     if (!this.hero || (this.phase !== 'dance' && this.phase !== 'hopOut')) return;
     this.from.copy(this.hero.position);
     if (this.heroSlot >= 0) {
-      this.slotPos(this.heroSlot, this.to);
+      this.home(this.heroSlot, this.to);
       this.phase = 'hopShelf';
     } else {
       this.to.copy(this.from).add(_p.set(0, 0.08, -0.06)); // off and away
@@ -683,11 +825,13 @@ export class Plushes {
     }
     const old = this.slotItems[this.heroSlot];
     if (old && old !== h) disposePlush(old);
-    h.scale.setScalar(PLUSH.shelfScale);
-    h.rotation.set(0, 0, 0);
-    this.slotPos(this.heroSlot, h.position);
+    h.scale.setScalar(this.homeScale(this.heroSlot));
+    h.rotation.set(this.restX(this.heroSlot), this.restY(this.heroSlot), 0);
+    this.home(this.heroSlot, h.position);
     this.slotItems[this.heroSlot] = h;
     this.slotIds[this.heroSlot] = this.heroId;
+    this.landT[this.heroSlot] = 1;
+    if (this.heroSlot >= PLUSH.slots) return;
     const ghost = this.ghosts[this.heroSlot];
     if (ghost) {
       disposePlush(ghost);
@@ -708,30 +852,78 @@ export class Plushes {
       this.pennants[i].rotation.x = Math.sin(ph) * 0.1 + Math.sin(ph * 0.43 + i) * 0.05;
       this.pennants[i].rotation.y = Math.sin(ph * 0.7 + 1.3) * 0.06;
     }
-    for (let i = 0; i < PLUSH.slots; i++) {
+    for (let i = 0; i < SPOTS; i++) {
       const p = this.slotItems[i];
-      if (!p || p === this.hero) continue;
-      const base = PLUSH.shelfScale;
+      const sh = this.shadows[i];
+      if (!p || p === this.hero) {
+        sh.visible = false;
+        continue;
+      }
+      const base = this.homeScale(i);
+      const up = base / PLUSH.shelfScale; // bigger desk plushes hop higher
+      // the soft shadow on the real desk: under desk plushes and under one in the hand
+      const onDesk = i >= PLUSH.slots || i === this.carryI;
+      sh.visible = onDesk;
+      if (onDesk) {
+        const lift = Math.min(1, Math.max(0, p.position.y) / 0.25);
+        sh.position.set(p.position.x, 0.0006, p.position.z + 0.004);
+        sh.scale.setScalar((0.075 + 0.05 * lift) * (p.scale.x / PLUSH.deskScale));
+      }
+      if (i === this.carryI) {
+        // in the hand: follow the pinch with a little lag, swing with the motion, grow toward desk size
+        const k = Math.min(1, dt * 18);
+        const ox = p.position.x;
+        p.position.lerp(this.carryAt, k);
+        const vx = dt > 0 ? (p.position.x - ox) / dt : 0;
+        this.carryVx += (vx - this.carryVx) * Math.min(1, dt * 10);
+        p.rotation.z += (Math.max(-0.5, Math.min(0.5, -this.carryVx * 1.6)) - p.rotation.z) * Math.min(1, dt * 12);
+        p.rotation.x += (0.12 - p.rotation.x) * k;
+        p.scale.setScalar(p.scale.x + (PLUSH.deskScale * 1.04 - p.scale.x) * Math.min(1, dt * 8));
+        continue;
+      }
+      if (this.landT[i] < 1) {
+        // a hop down onto the desk (or back to the shelf) with a squash as it lands
+        this.landT[i] = Math.min(1, this.landT[i] + dt / 0.42);
+        const k = this.landT[i];
+        this.home(i, _p);
+        p.position.lerpVectors(this.landFrom[i], _p, ease(k));
+        p.position.y += 0.035 * 4 * k * (1 - k);
+        const kr = Math.min(1, dt * 10);
+        p.rotation.z *= 0.85;
+        p.rotation.x += (this.restX(i) - p.rotation.x) * kr;
+        p.rotation.y += (this.restY(i) - p.rotation.y) * kr;
+        const squash = k > 0.8 ? Math.sin(((k - 0.8) / 0.2) * Math.PI) : 0;
+        const sc = this.landScale[i] + (base - this.landScale[i]) * ease(k);
+        p.scale.set(sc * (1 + 0.12 * squash), sc * (1 - 0.16 * squash), sc);
+        if (k >= 1) {
+          this.home(i, p.position);
+          p.rotation.set(this.restX(i), this.restY(i), 0);
+          p.scale.setScalar(base);
+          this.onLand?.();
+        }
+        continue;
+      }
       if (this.singLeft[i] > 0 && this.singWait[i] > 0) {
         this.singWait[i] -= dt; // waiting its turn in the medley
       } else if (this.singLeft[i] > 0) {
         this.singLeft[i] -= dt;
         this.singT[i] += dt;
         const b = Math.abs(Math.sin((this.singT[i] / ROW_BEAT) * Math.PI)); // a hop per row of its song
-        this.slotPos(i, p.position);
-        p.position.y += 0.012 * b;
+        this.home(i, p.position);
+        p.position.y += 0.012 * up * b;
         p.rotation.z = 0.16 * Math.sin((this.singT[i] / ROW_BEAT) * Math.PI * 0.5);
         p.scale.set(base * (1 + 0.06 * (1 - b)), base * (1 - 0.08 * (1 - b) + 0.06 * b), base);
         if (this.singLeft[i] <= 0) {
-          this.slotPos(i, p.position);
-          p.rotation.set(0, 0, 0);
+          this.home(i, p.position);
+          p.rotation.set(this.restX(i), this.restY(i), 0);
           p.scale.setScalar(base);
         }
       } else {
         // hovered: lean toward the hand and swell a touch
         const want = i === this.hoverSlot ? 1 : 0;
         const k = Math.min(1, dt * 12);
-        p.rotation.x += (-0.18 * want - p.rotation.x) * k;
+        p.rotation.x += (this.restX(i) - 0.18 * want - p.rotation.x) * k;
+        p.rotation.y += (this.restY(i) - p.rotation.y) * k;
         p.scale.setScalar(p.scale.x + (base * (1 + 0.1 * want) - p.scale.x) * k);
       }
     }
@@ -801,7 +993,7 @@ export class Plushes {
       this.arc(h, k, 0.07);
       h.rotation.z *= 0.8;
       h.rotation.x *= 0.85;
-      const target = this.phase === 'fade' ? 0.001 : PLUSH.shelfScale;
+      const target = this.phase === 'fade' ? 0.001 : this.homeScale(this.heroSlot);
       h.scale.setScalar(PLUSH.hero + (target - PLUSH.hero) * ease(k));
       if (k >= 1) {
         if (this.phase === 'hopShelf') this.onLand?.();
@@ -840,4 +1032,21 @@ function haloTexture(): CanvasTexture {
   haloTex = new CanvasTexture(c);
   haloTex.colorSpace = SRGBColorSpace;
   return haloTex;
+}
+
+let blobTex: CanvasTexture | null = null;
+/** A soft dark disc fading to clear: the contact shadow a plush leaves on the real desk. */
+function blobTexture(): CanvasTexture {
+  if (blobTex) return blobTex;
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d')!;
+  const grad = g.createRadialGradient(32, 32, 2, 32, 32, 31);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.45, 'rgba(255,255,255,0.7)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 64, 64);
+  blobTex = new CanvasTexture(c);
+  return blobTex;
 }

@@ -9,6 +9,8 @@ export interface Progress {
   theme: 'toy' | 'workshop';
   /** Most recently finished cloth (for the share card). */
   lastCloth?: { tieUp: number[]; rows: number[]; rootMidi: number };
+  /** Plushes set down on the real desk: picture id → [x, z] in loom space (m). */
+  placed?: Record<string, [number, number]>;
 }
 
 /** Workshop unlocks when the Garden chapter (the first four pictures) is done. */
@@ -29,6 +31,7 @@ export function loadProgress(): Progress {
     tutorialDone: p.tutorialDone === true,
     theme: p.theme === 'workshop' ? 'workshop' : 'toy',
     lastCloth: validCloth(p.lastCloth) ? p.lastCloth : undefined,
+    placed: validPlaced(p.placed),
   };
 }
 
@@ -58,4 +61,13 @@ function validCloth(c: unknown): c is NonNullable<Progress['lastCloth']> {
     x.rows.length <= 12 &&
     typeof x.rootMidi === 'number'
   );
+}
+
+function validPlaced(v: unknown): Record<string, [number, number]> | undefined {
+  if (!v || typeof v !== 'object') return undefined;
+  const out: Record<string, [number, number]> = {};
+  for (const [k, xz] of Object.entries(v as Record<string, unknown>)) {
+    if (Array.isArray(xz) && xz.length === 2 && xz.every((n) => typeof n === 'number' && Number.isFinite(n) && Math.abs(n) < 2)) out[k] = [xz[0], xz[1]];
+  }
+  return out;
 }

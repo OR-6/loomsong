@@ -57,8 +57,12 @@ export interface ControllerHooks {
   skein?(i: number): void;
   /** Desk-height nudge pressed. */
   nudge?(dir: 1 | -1): void;
-  /** A finished plush on the shelf was poked or pinched: it sings its picture. */
+  /** A finished plush was poked or pinched (and let go without moving): it sings its picture. */
   plush?(i: number): void;
+  /** A pinched plush is being carried: follow the pinch point (loom space). */
+  carry?(i: number, p: Vec3Like): void;
+  /** A carried plush was let go here (null: the carry was cut short; it goes back). */
+  drop?(i: number, p: Vec3Like | null): void;
   /** The shelf's wind-up key: the whole shelf plays its songs in turn. */
   windKey?(): void;
   /** Sea: a swap spool by a perch was touched: Pip changes yarn. */
@@ -113,6 +117,8 @@ export class LoomController {
    */
   mirror = false;
   private pokeArmed: Record<Side, boolean> = { left: true, right: true };
+  private carryFrom: Record<Side, Vec3Like> = { left: { x: 0, y: 0, z: 0 }, right: { x: 0, y: 0, z: 0 } };
+  private carrying: Record<Side, boolean> = { left: false, right: false };
   private prevShuttleX: number = SHUTTLE.minX;
 
   constructor(public model: LoomModel, public hooks: ControllerHooks = {}) {
@@ -189,7 +195,12 @@ export class LoomController {
       } else if (t?.kind === 'skein') {
         this.hooks.skein?.(t.i);
       } else if (t?.kind === 'plush') {
-        this.hooks.plush?.(t.i);
+        // a plush can be carried: decide on release (moved → set it down; still → it sings)
+        this.holding[side] = t;
+        this.carryFrom[side].x = h.pinch.x;
+        this.carryFrom[side].y = h.pinch.y;
+        this.carryFrom[side].z = h.pinch.z;
+        this.carrying[side] = false;
       } else if (t?.kind === 'windKey') {
         this.hooks.windKey?.();
       } else if (t?.kind === 'swap') {
@@ -201,12 +212,21 @@ export class LoomController {
         this.sliderOf(t).grab(this.axisOf(t, h.pinch));
         this.hooks.grab?.(t);
       }
+    } else if (held && held.kind === 'plush' && h.pinching) {
+      const f = this.carryFrom[side];
+      if (!this.carrying[side] && Math.hypot(h.pinch.x - f.x, h.pinch.y - f.y, h.pinch.z - f.z) > 0.03) this.carrying[side] = true;
+      if (this.carrying[side]) this.hooks.carry?.(held.i, h.pinch);
     } else if (held && h.pinching) {
       const s = this.sliderOf(held);
       s.drag(this.axisOf(held, h.pinch));
       if (held.kind === 'shuttle') this.checkPassWhileHeld();
     }
-    if (held && (h.edge === 'end' || !h.pinching)) {
+    if (held && held.kind === 'plush' && (h.edge === 'end' || !h.pinching)) {
+      if (this.carrying[side]) this.hooks.drop?.(held.i, h.pinch);
+      else this.hooks.plush?.(held.i);
+      this.carrying[side] = false;
+      this.holding[side] = null;
+    } else if (held && (h.edge === 'end' || !h.pinching)) {
       const s = this.sliderOf(held);
       s.release();
       if (held.kind === 'lever') this.setLatched(held.k, s.target === 1);
@@ -263,6 +283,12 @@ export class LoomController {
     for (const side of ['left', 'right'] as const) {
       const held = this.holding[side];
       if (!held) continue;
+      if (held.kind === 'plush') {
+        if (this.carrying[side]) this.hooks.drop?.(held.i, null);
+        this.carrying[side] = false;
+        this.holding[side] = null;
+        continue;
+      }
       const s = this.sliderOf(held);
       s.release();
       if (held.kind === 'lever') this.setLatched(held.k, s.target === 1);
