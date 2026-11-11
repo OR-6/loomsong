@@ -1125,6 +1125,35 @@ export class LoomView {
    * beaten in behind it toward the heddle. (If wrong rows overflow the space,
    * the newest stays at the back and older ones slide forward.)
    */
+  /** A lever clicks into place: its knob pops and a puff of felt fluff in its colour comes off the slot. */
+  latchPop(k: number, latched: boolean): void {
+    this.revealPop[k] = Math.max(this.revealPop[k], latched ? 0.45 : 0.3);
+    const z = latched ? LEVER.restZ - LEVER.travel - 0.004 : LEVER.restZ + 0.004;
+    this.fx.puff(leverX(k, this.side), 0.032, z, this.tieHidden[k] ? 0xd9cdb8 : this.palette.knobs[k], latched ? 4 : 2);
+  }
+
+  /** Notes float up off a woven row as the finished cloth plays it (one or two, from its picture threads). */
+  singRow(r: number): void {
+    const rows = this.rowsCache;
+    const row = rows[r];
+    if (row === undefined) return;
+    // while its plush dances, the notes come out of the plush: it's singing its picture
+    const head = this.plushes.heroHead(this.tmpHead);
+    if (head) {
+      this.fx.note(head.x + (r % 2 ? 0.035 : -0.035), head.y, head.z, this.liftColor);
+      return;
+    }
+    const z = this.rowZ(r, rows.length);
+    let n = 0;
+    for (let i = (r * 3) % WARPS, k = 0; k < WARPS && n < 2; k++, i = (i + 3) % WARPS) {
+      if (!isLifted(row, i)) continue;
+      this.fx.note(warpX(i), 0.03, z, this.liftColor);
+      n++;
+    }
+  }
+
+  private tmpHead = new Vector3();
+
   private rowZ(r: number, count: number): number {
     const shift = Math.max(0, count - LOOM.maxRows);
     return LOOM.clothFrontZ - (r - shift + 0.5) * LOOM.rowPitch;

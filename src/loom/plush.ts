@@ -431,7 +431,8 @@ export class Plushes {
   /** Hovered shelf slot (-1: none): it leans in a little, inviting a poke. */
   private hoverSlot = -1;
   /** Called when the plush lands on the shelf (sound). */
-  onLand: (() => void) | null = null;
+  /** Called when a plush lands (sound, a ring of dust): where it landed, in loom space. */
+  onLand: ((at: Vector3) => void) | null = null;
   onHop: (() => void) | null = null;
 
   constructor() {
@@ -838,6 +839,13 @@ export class Plushes {
     this.hoverSlot = i;
   }
 
+  /** Top of the dancing plush's head (loom space), or null when none is out: where its song's notes rise from. */
+  heroHead(out: Vector3): Vector3 | null {
+    const h = this.hero;
+    if (!h || !this.staged) return null;
+    return out.set(h.position.x, h.position.y + ((h.userData.height as number) ?? 0.08) * h.scale.y + 0.01, h.position.z + 0.01);
+  }
+
   /** One row of the song: a bounce and a sway. */
   beat(): void {
     if (this.phase !== 'dance') return;
@@ -967,7 +975,7 @@ export class Plushes {
           this.home(i, p.position);
           p.rotation.set(this.restX(i), this.restY(i), 0);
           p.scale.setScalar(base);
-          this.onLand?.();
+          this.onLand?.(p.position);
         }
         continue;
       }
@@ -1046,7 +1054,7 @@ export class Plushes {
         this.phase = 'dance';
         this.t = 0;
         this.bounce = 0;
-        this.onLand?.();
+        this.onLand?.(h.position);
       }
     } else if (this.phase === 'dance') {
       this.bounce = Math.min(1, this.bounce + dt / 0.32);
@@ -1078,7 +1086,7 @@ export class Plushes {
       const target = this.phase === 'fade' ? 0.001 : this.homeScale(this.heroSlot);
       h.scale.setScalar(PLUSH.hero + (target - PLUSH.hero) * ease(k));
       if (k >= 1) {
-        if (this.phase === 'hopShelf') this.onLand?.();
+        if (this.phase === 'hopShelf') this.onLand?.(h.position);
         this.settle();
       }
     }

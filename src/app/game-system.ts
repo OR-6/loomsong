@@ -243,7 +243,10 @@ export class GameSystem extends createSystem({
     // (No tone mapping: filmic curves washed the toy palette into pastels.)
     this.view = new LoomView(this.shown());
     if (NO_SHADOWS) this.view.setShadow(false); // `?shadows=0`: compare frame times on the headset
-    this.view.plushes.onLand = () => audio.hop();
+    this.view.plushes.onLand = (at) => {
+      audio.hop();
+      this.view.fx.ring(at.x, at.y, at.z, 0xfff1d6, at.y > 0.08 ? 0.07 : 0.055); // a soft ring of dust where it lands
+    };
     this.view.plushes.onHop = () => audio.pluck(7, 0.6, 0, 0.1);
     this.controller = new LoomController(this.model, {
       pluck: (i, speed) => {
@@ -259,6 +262,7 @@ export class GameSystem extends createSystem({
       leverClick: (k, latched) => {
         if (this.quietLevers) return;
         audio.click(latched);
+        this.view.latchPop(k, latched);
         // the lever strums its own threads (up when lifting, down and softer when dropping): you learn it by ear
         const mask = this.flow?.level.tieUp[k] ?? 0;
         let j = 0;
@@ -454,7 +458,7 @@ export class GameSystem extends createSystem({
       win: (stars) => {
         this.controller.enabled = false;
         this.view.setPipMood('cheer');
-        this.view.fx.confetti(0, 0.02, LOOM.clothFrontZ - 0.04, 160);
+        this.view.fx.confetti(0, 0.05, LOOM.clothFrontZ, 160, 1.35); // felt confetti bursting up and out around the plush
         audio.chirp('cheer');
         // It comes alive: the woven picture pops out as a plush.
         const lv = this.flow.level;
@@ -512,6 +516,7 @@ export class GameSystem extends createSystem({
       },
       glowRow: (r) => {
         this.view.setGlowRow(r);
+        if (r >= 0) this.view.singRow(r); // the cloth sings: notes float up off the row
         // The plush dances a beat per row, then hops up to the shelf.
         if (r >= 0) this.view.plushes.beat();
         else this.view.plushes.finish();

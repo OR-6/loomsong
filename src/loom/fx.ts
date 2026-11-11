@@ -1,9 +1,30 @@
 /**
  * Toy juice particles (loom-local, pooled, no per-frame allocation):
  * - puff(): little balls of yarn fluff that pop out and fade (a row is beaten in);
- * - confetti(): paper confetti that bursts up, flutters and falls (a picture is done).
+ * - confetti(): felt confetti (hearts, stars and buttons) that bursts up, flutters and falls;
+ * - ring(): a soft ring of dust that spreads where something lands;
+ * - note(): a musical note that floats up off the cloth as it plays.
  */
-import { Color, DoubleSide, Euler, Group, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, Quaternion, SphereGeometry, Vector3 } from '@iwsdk/core';
+import {
+  CanvasTexture,
+  Color,
+  DoubleSide,
+  Euler,
+  Group,
+  InstancedMesh,
+  Matrix4,
+  Mesh,
+  MeshBasicMaterial,
+  MeshStandardMaterial,
+  PlaneGeometry,
+  Quaternion,
+  RingGeometry,
+  Shape,
+  ShapeGeometry,
+  SphereGeometry,
+  SRGBColorSpace,
+  Vector3,
+} from '@iwsdk/core';
 
 const PUFFS = 48;
 const BITS = 170;
@@ -15,11 +36,74 @@ const _eu = new Euler();
 const _c = new Color();
 const CONFETTI = [0xe8553e, 0xf7be3b, 0x1fb3a0, 0x7b5bb8, 0xe8679e, 0xfff2dc];
 const GOLD = [0xf7c948, 0xffe08a, 0xfff6d8];
+const RINGS = 6;
+const NOTES = 16;
+
+/** A felt heart about 1.2 cm across. */
+function heartGeo(): ShapeGeometry {
+  const s = new Shape();
+  const k = 0.0062;
+  s.moveTo(0, -k);
+  s.bezierCurveTo(-k * 1.6, -k * 0.1, -k * 1.1, k * 1.25, 0, k * 0.55);
+  s.bezierCurveTo(k * 1.1, k * 1.25, k * 1.6, -k * 0.1, 0, -k);
+  return new ShapeGeometry(s, 6);
+}
+
+/** A five-point felt star. */
+function starGeo(): ShapeGeometry {
+  const s = new Shape();
+  for (let i = 0; i < 10; i++) {
+    const a = Math.PI / 2 + (i * Math.PI) / 5;
+    const r = i % 2 === 0 ? 0.0072 : 0.0031;
+    if (i === 0) s.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+    else s.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+  }
+  s.closePath();
+  return new ShapeGeometry(s);
+}
+
+/** A round felt button with two holes. */
+function buttonGeo(): ShapeGeometry {
+  const s = new Shape();
+  s.absarc(0, 0, 0.0052, 0, Math.PI * 2, false);
+  for (const x of [-0.0016, 0.0016]) {
+    const h = new Shape();
+    h.absarc(x, 0, 0.0008, 0, Math.PI * 2, true);
+    s.holes.push(h);
+  }
+  return new ShapeGeometry(s, 12);
+}
+
+/** A white ♪ (tinted per note by the material colour). */
+function noteTexture(): CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#ffffff';
+  g.strokeStyle = 'rgba(60,40,20,0.55)';
+  g.lineWidth = 3;
+  g.font = '52px serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.strokeText('♪', 32, 34);
+  g.fillText('♪', 32, 34);
+  const t = new CanvasTexture(c);
+  t.colorSpace = SRGBColorSpace;
+  return t;
+}
 
 export class Fx {
   readonly root = new Group();
   private puffs: InstancedMesh;
-  private bits: InstancedMesh;
+  /** Felt confetti: three shapes, a third of the pool each (bit i lives in shape i % 3, slot i / 3). */
+  private bitMeshes: InstancedMesh[] = [];
+  private rings: Mesh[] = [];
+  private ringT = new Float32Array(RINGS);
+  private nextRing = 0;
+  private notes: Mesh[] = [];
+  private noteT = new Float32Array(NOTES);
+  private noteX = new Float32Array(NOTES);
+  private nextNote = 0;
   private pp = new Float32Array(PUFFS * 3);
   private pv = new Float32Array(PUFFS * 3);
   private pt = new Float32Array(PUFFS); // remaining life (s)
@@ -35,16 +119,58 @@ export class Fx {
   constructor() {
     this.root.name = 'Fx';
     this.puffs = new InstancedMesh(new SphereGeometry(1, 10, 8), new MeshBasicMaterial({ transparent: true, opacity: 0.9, depthWrite: false }), PUFFS);
-    this.bits = new InstancedMesh(new PlaneGeometry(0.009, 0.014), new MeshStandardMaterial({ side: DoubleSide, roughness: 0.6 }), BITS);
-    for (const m of [this.puffs, this.bits]) {
+    const felt = new MeshStandardMaterial({ side: DoubleSide, roughness: 0.95 });
+    for (const geo of [heartGeo(), starGeo(), buttonGeo()]) this.bitMeshes.push(new InstancedMesh(geo, felt, Math.ceil(BITS / 3)));
+    for (const m of [this.puffs, ...this.bitMeshes]) {
       m.frustumCulled = false;
-      m.count = 0;
       this.root.add(m);
     }
-    this.puffs.count = PUFFS;
-    this.bits.count = BITS;
     for (let i = 0; i < PUFFS; i++) this.hide(this.puffs, i);
-    for (let i = 0; i < BITS; i++) this.hide(this.bits, i);
+    for (let i = 0; i < BITS; i++) this.hide(this.bitMeshes[i % 3], Math.floor(i / 3));
+    const ringGeo = new RingGeometry(0.8, 1, 32);
+    ringGeo.rotateX(-Math.PI / 2);
+    for (let i = 0; i < RINGS; i++) {
+      const r = new Mesh(ringGeo, new MeshBasicMaterial({ color: 0xfff1d6, transparent: true, opacity: 0, depthWrite: false }));
+      r.visible = false;
+      r.renderOrder = 2;
+      this.root.add(r);
+      this.rings.push(r);
+    }
+    const noteGeo = new PlaneGeometry(0.024, 0.024);
+    const noteTex = noteTexture();
+    for (let i = 0; i < NOTES; i++) {
+      const n = new Mesh(noteGeo, new MeshBasicMaterial({ map: noteTex, transparent: true, opacity: 0, depthWrite: false }));
+      n.visible = false;
+      n.renderOrder = 6;
+      this.root.add(n);
+      this.notes.push(n);
+    }
+  }
+
+  /** A soft ring of dust spreading where something lands (a plush on the desk or the shelf). */
+  ring(x: number, y: number, z: number, color = 0xfff1d6, size = 0.05): void {
+    const i = this.nextRing;
+    this.nextRing = (i + 1) % RINGS;
+    const r = this.rings[i];
+    r.position.set(x, y + 0.001, z);
+    (r.material as MeshBasicMaterial).color.setHex(color);
+    r.userData.size = size;
+    r.visible = true;
+    this.ringT[i] = 0.55;
+    this.live = true;
+  }
+
+  /** A musical note floating up off the cloth (the cloth sings its rows). */
+  note(x: number, y: number, z: number, color: number): void {
+    const i = this.nextNote;
+    this.nextNote = (i + 1) % NOTES;
+    const n = this.notes[i];
+    n.position.set(x, y, z);
+    this.noteX[i] = x;
+    (n.material as MeshBasicMaterial).color.setHex(color).offsetHSL(0, 0, 0.08);
+    n.visible = true;
+    this.noteT[i] = 1.4;
+    this.live = true;
   }
 
   private hide(m: InstancedMesh, i: number): void {
@@ -91,9 +217,9 @@ export class Fx {
         this.bs[o + k] = (Math.random() - 0.5) * 18;
       }
       this.bt[i] = (1.6 + Math.random() * 0.8) * (gold ? 0.55 : 1);
-      this.bits.setColorAt(i, _c.setHex(gold ? GOLD[j % GOLD.length] : CONFETTI[i % CONFETTI.length]));
+      this.bitMeshes[i % 3].setColorAt(Math.floor(i / 3), _c.setHex(gold ? GOLD[j % GOLD.length] : CONFETTI[(i * 7) % CONFETTI.length]));
     }
-    if (this.bits.instanceColor) this.bits.instanceColor.needsUpdate = true;
+    for (const m of this.bitMeshes) if (m.instanceColor) m.instanceColor.needsUpdate = true;
     this.live = true;
   }
 
@@ -138,10 +264,34 @@ export class Fx {
       _eu.set(this.br[o], this.br[o + 1], this.br[o + 2]);
       _q.setFromEuler(_eu);
       _m.compose(_p, _q, _s.setScalar(sc));
-      this.bits.setMatrixAt(i, _m);
+      this.bitMeshes[i % 3].setMatrixAt(Math.floor(i / 3), _m);
+    }
+    for (let i = 0; i < RINGS; i++) {
+      if (this.ringT[i] <= 0) continue;
+      any = true;
+      this.ringT[i] -= dt;
+      const r = this.rings[i];
+      const k = 1 - Math.max(0, this.ringT[i]) / 0.55; // 0 → 1
+      const e = 1 - Math.pow(1 - k, 3);
+      r.scale.setScalar(Math.max(0.001, (0.25 + 0.75 * e) * (r.userData.size as number)));
+      (r.material as MeshBasicMaterial).opacity = 0.55 * (1 - k);
+      if (this.ringT[i] <= 0) r.visible = false;
+    }
+    for (let i = 0; i < NOTES; i++) {
+      if (this.noteT[i] <= 0) continue;
+      any = true;
+      this.noteT[i] -= dt;
+      const n = this.notes[i];
+      const k = 1 - Math.max(0, this.noteT[i]) / 1.4;
+      n.position.y += 0.045 * dt;
+      n.position.x = this.noteX[i] + Math.sin(k * 7 + i) * 0.006;
+      n.rotation.z = Math.sin(k * 5 + i) * 0.25;
+      n.scale.setScalar(k < 0.15 ? k / 0.15 : 1);
+      (n.material as MeshBasicMaterial).opacity = k < 0.15 ? k / 0.15 : Math.max(0, 1 - (k - 0.5) / 0.5);
+      if (this.noteT[i] <= 0) n.visible = false;
     }
     this.puffs.instanceMatrix.needsUpdate = true;
-    this.bits.instanceMatrix.needsUpdate = true;
+    for (const m of this.bitMeshes) m.instanceMatrix.needsUpdate = true;
     this.live = any;
   }
 }
