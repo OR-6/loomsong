@@ -149,6 +149,8 @@ export class GameSystem extends createSystem({
   private quiltFly: { id: string; t: number; from: Vector3; to: Vector3; q0: Quaternion; q1: Quaternion; g: Group } | null = null;
   private quiltFlyIn = -1;
   private quiltFlyId = '';
+  /** Capture-only photo set is up. */
+  private photoMode = false;
   private planeYs: number[] = [];
   private bloom = 0;
   private sessionTime = 0;
@@ -583,7 +585,10 @@ export class GameSystem extends createSystem({
       /** World positions of interactables, for E2E scripts. */
       targets: () => this.targets(),
       /** Capture-only photo set (desk + warm backdrop) for marketing shots. */
-      photo: (on: boolean) => this.view.photoSet(on),
+      photo: (on: boolean) => {
+        this.view.photoSet(on);
+        this.photoMode = on; // the photo backdrop hides the room's walls: no quilts in marketing shots
+      },
     };
 
     this.cleanupFuncs.push(
@@ -968,7 +973,10 @@ export class GameSystem extends createSystem({
    * room data: no quilts this session (nothing floats in the air).
    */
   private updateQuilts(dt: number): void {
-    if (this.coopLink) return;
+    if (this.coopLink || this.photoMode) {
+      this.quiltRoot.visible = false;
+      return;
+    }
     if (!this.wall) {
       this.wallSearchIn -= dt;
       if (this.wallSearchIn > 0) return;

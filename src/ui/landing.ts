@@ -42,7 +42,7 @@ export function mountLanding(world: World): void {
             <i class="tape" aria-hidden="true"></i>
 
             <p id="tagline">A tiny loom on your real desk. Hands only.</p>
-            <p class="lede">Lift the levers, slide Pip across, and each row you weave sings. Finish a picture and it comes alive as a little knitted toy.</p>
+            <p class="lede">Lift the levers, slide Pip across, and each row you weave sings. Finish a picture and it comes alive as a little felt toy that stays on your desk.</p>
             <div class="go">
               <button id="enter-xr" class="patch" type="button">Enter mixed reality</button>
               <p class="note">Sit at a desk with your controllers down and hand tracking on.</p>
@@ -73,9 +73,9 @@ export function mountLanding(world: World): void {
           <ol class="steps">
             <li class="s1"><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('levers-close.jpg')}" alt="The red lever lifts its threads" width="800" height="600" /></figure>
               <div class="hang"><b><span class="num" aria-hidden="true">1</span><span class="visually-hidden">Step 1: </span>Lift the levers</b>Each lever lifts its own threads. Pick the ones that make the next row on the card.</div></li>
-            <li class="s2"><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('pip-pinch.jpg')}" alt="A glowing ghost hand shows how to pinch Pip" width="800" height="600" /></figure>
+            <li class="s2"><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('pip-pinch.jpg')}" alt="A ghost hand shows how to pinch Pip" width="800" height="600" /></figure>
               <div class="hang"><b><span class="num" aria-hidden="true">2</span><span class="visually-hidden">Step 2: </span>Slide Pip across</b>Pinch the little bird and slide it through. The row is woven, and its threads ring out.</div></li>
-            <li class="s3"><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('plush-dance.jpg')}" alt="The finished duck pops off the loom as a knitted plush" width="800" height="600" /></figure>
+            <li class="s3"><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('plush-dance.jpg')}" alt="The finished duck pops off the loom as a felt plush" width="800" height="600" /></figure>
               <div class="hang"><b><span class="num" aria-hidden="true">3</span><span class="visually-hidden">Step 3: </span>Watch it come alive</b>A finished picture pops off the loom as a plush and hops onto your shelf.</div></li>
           </ol>
         </section>
@@ -86,8 +86,8 @@ export function mountLanding(world: World): void {
             <path d="M-10 30 Q 300 4 520 22 T 1010 10" fill="none" stroke="#0d5d53" stroke-width="6" stroke-linecap="round" opacity=".35"/>
             <path d="M-10 30 Q 300 4 520 22 T 1010 10" fill="none" stroke="url(#ply-teal)" stroke-width="4.5" stroke-linecap="round"/>
           </svg>
-          <figure class="photo small"><i class="peg"></i><span class="label">Garden, on your shelf</span><img loading="lazy" src="${sitePhoto('shelf.jpg')}" alt="Finished plushes on a little shelf with a brass wind-up key" width="800" height="500" /></figure>
-          <div class="note-card"><i class="tape"></i><b>Four chapters, eighteen pictures</b><p>Garden teaches your hands, Home combines levers, Night hides what they lift, and Sea weaves in two colours. Wind the key on your shelf and your plushes sing their songs in turn.</p></div>
+          <figure class="photo small"><i class="peg"></i><span class="label">Your shelf, your desk</span><img loading="lazy" src="${sitePhoto('shelf.jpg')}" alt="Finished plushes on the shelf and on the desk, beside the wrapped present of the day" width="800" height="500" /></figure>
+          <div class="note-card"><i class="tape"></i><b>Four chapters, and a new picture every day</b><p>Garden teaches your hands, Home combines levers, Night hides what they lift, and Sea weaves in two colours. Carry your plushes anywhere on your desk and they stay there; finish a chapter and its quilt hangs on your wall. Wind the key and every plush sings in turn.</p></div>
           <figure class="photo small"><i class="peg"></i><span class="label">Sea: two colours</span><img loading="lazy" src="${sitePhoto('sea-boat.jpg')}" alt="A red boat woven on blue water rows" width="800" height="500" /></figure>
         </section>
 
