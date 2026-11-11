@@ -1453,8 +1453,9 @@ export class LoomView {
     if (on && !this.photo) {
       const g = new Group();
       g.name = 'PhotoSet';
-      // a plain pale-maple tabletop (a busy grain read as sand dunes)
-      const desk = new Mesh(new PlaneGeometry(1.8, 1.1), new MeshStandardMaterial({ color: 0xe2c29c, roughness: 0.62 }));
+      // a pale maple tabletop: planks running left to right, a faint fine grain, a soft vignette (low contrast:
+      // a busy grain read as sand dunes)
+      const desk = new Mesh(new PlaneGeometry(1.8, 1.1), new MeshStandardMaterial({ map: mapleTexture(), roughness: 0.62 }));
       desk.rotation.x = -Math.PI / 2;
       desk.position.set(0, -0.0008, 0.12);
       desk.receiveShadow = true;
@@ -1760,4 +1761,53 @@ function mysteryMark(): Mesh {
   m.name = 'MysteryMark';
   m.rotation.x = -Math.PI / 2; // undo the ring's turn: dome up again
   return m;
+}
+
+/** Photo-set tabletop: maple planks with a quiet grain and a soft vignette baked in (capture only). */
+function mapleTexture(): CanvasTexture {
+  const W = 1024;
+  const H = 640;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const g = c.getContext('2d')!;
+  let seed = 21;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const plank = 92;
+  for (let y = 0, k = 0; y < H; y += plank, k++) {
+    // each plank a touch different
+    const l = 0.97 + rnd() * 0.06;
+    g.fillStyle = `rgb(${Math.round(226 * l)},${Math.round(194 * l)},${Math.round(156 * l)})`;
+    g.fillRect(0, y, W, plank);
+    // fine grain: long, slightly wavy streaks along the plank
+    for (let i = 0; i < 46; i++) {
+      const yy = y + rnd() * plank;
+      const amp = 1 + rnd() * 3;
+      const ph = rnd() * 6;
+      g.strokeStyle = `rgba(${rnd() < 0.5 ? '120,80,40' : '255,240,215'},${0.035 + rnd() * 0.04})`;
+      g.lineWidth = 0.6 + rnd() * 1.2;
+      g.beginPath();
+      for (let x = 0; x <= W; x += 16) {
+        const py = yy + Math.sin(x / (90 + i * 3) + ph) * amp;
+        if (x === 0) g.moveTo(x, py);
+        else g.lineTo(x, py);
+      }
+      g.stroke();
+    }
+    // the seam between planks, offset per plank
+    g.fillStyle = 'rgba(110,70,35,0.16)';
+    g.fillRect(0, y, W, 1.5);
+    const cut = (k * 337) % W;
+    g.fillRect(cut, y, 1.5, plank);
+  }
+  // a soft vignette: the far corners fall off so the eye stays on the loom
+  const v = g.createRadialGradient(W / 2, H * 0.45, H * 0.25, W / 2, H * 0.45, W * 0.62);
+  v.addColorStop(0, 'rgba(60,35,15,0)');
+  v.addColorStop(1, 'rgba(60,35,15,0.28)');
+  g.fillStyle = v;
+  g.fillRect(0, 0, W, H);
+  const t = new CanvasTexture(c);
+  t.colorSpace = SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
 }

@@ -46,15 +46,18 @@ run('tools/photo-on.mjs');
 hands();
 
 // 1. the first lever lifts its threads (level 1)
-evalJs(`const g = window.__loom.game; g.controller.toggleLever(0); await new Promise((r) => setTimeout(r, 900)); g.tutor.mesh.visible = false; return 1;`);
-await shoot('levers', [0.36, 0.2, 0.3], [0.17, 0.035, 0.0], 50, 300);
+evalJs(`const g = window.__loom.game; const c = g.controller; const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); c.toggleLever(0); for (let r = 0; r < 2; r++) { const n = g.model.rows.length; c.throwShuttle(); for (let w = 0; w < 40 && g.model.rows.length <= n; w++) await sleep(100); await sleep(300); } await sleep(8200); c.toggleLever(1); await sleep(900); g.tutor.mesh.visible = false; g.banner.mesh.visible = false; return g.model.rows.length;`);
+await shoot('levers', [0.3, 0.33, 0.33], [0.11, 0.03, -0.01], 50, 300);
 evalJs(`const g = window.__loom.game; g.tutor.mesh.visible = true; return 1;`);
 save('levers', 'levers-close.jpg', 800, 600, 960, 720);
 
 // 2. the ghost hand shows how to pinch Pip (the shuttle step)
-// the ghost hand loops its demo: take a few and keep the one where it's on Pip (PIP=a|b|c|d picks; default b)
-await wait(1200);
-for (const k of ['a', 'b', 'c', 'd']) await shoot(`pip-${k}`, [-0.05, 0.24, 0.36], [-0.08, 0.05, 0.0], 52, 450);
+// Pip follows the ghost hand's demo slide for a moment (capture only), so the hand pinches Pip mid-slide;
+// a few frames are kept (PIP=a|b|c|d picks; default b)
+evalJs(`const g = window.__loom.game; g.tutor.mesh.visible = true; return 1;`);
+evalJs(`const g = window.__loom.game; const c = g.controller; const lo = -0.168, hi = 0.168; const end = performance.now() + 6000; const follow = () => { const x = g.view.ghost.root.position.x; if (g.view.ghost.root.visible) c.shuttle.t = Math.max(0, Math.min(0.62, (x + 0.02 - lo) / (hi - lo))); if (performance.now() < end) requestAnimationFrame(follow); }; requestAnimationFrame(follow); return 1;`);
+await wait(900);
+for (const k of ['a', 'b', 'c', 'd']) await shoot(`pip-${k}`, [-0.02, 0.27, 0.34], [-0.03, 0.04, 0.0], 50, 420);
 save(`pip-${process.env.PIP ?? 'b'}`, 'pip-pinch.jpg', 800, 600, 960, 720);
 for (const k of ['a', 'b', 'c', 'd']) save(`pip-${k}`, `.pip-${k}.jpg`, 400, 300, 960, 720);
 
@@ -62,7 +65,7 @@ for (const k of ['a', 'b', 'c', 'd']) save(`pip-${k}`, `.pip-${k}.jpg`, 400, 300
 run('tools/seed-desk.mjs');
 await wait(1500);
 hands();
-await shoot('hero', [0.1, 0.27, 0.46], [-0.02, 0.02, 0.03], 54, 1200);
+await shoot('hero', [0.14, 0.3, 0.56], [0.03, 0.02, 0.06], 56, 1200);
 save('hero', 'hero-34.jpg', 1100, 618);
 save('hero', 'og.jpg', 1200, 630, 1280, 672);
 save('hero', 'loom-clip-poster.jpg', 960, 540);

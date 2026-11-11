@@ -156,9 +156,11 @@
       #landing .hang::before { display: none; content: ''; position: absolute; left: 11px; top: 18px; width: 7px; height: 7px; border-radius: 50%;
         background: var(--felt); box-shadow: inset 0 1px 1px #0006; }
       #landing .hang b { display: flex; align-items: center; gap: 8px; font: 400 19px/1.1 var(--display); color: var(--walnut); margin-bottom: 6px; }
-      /* a stitched numeral, sewn on rather than typed */
-      #landing .hang .num { display: inline-grid; place-items: center; width: 28px; height: 28px; flex: none; border-radius: 50%;
-        border: 2px solid var(--tomato); border-radius: 48% 52% 50% 46% / 52% 47% 53% 48%; transform: rotate(-8deg); color: var(--tomato); font: 400 16px var(--display); }
+      /* a felt patch sewn on: tomato felt, a cream running stitch inside the edge, a cream numeral */
+      #landing .hang .num { display: inline-grid; place-items: center; width: 31px; height: 31px; flex: none;
+        background: var(--felt-noise, none), var(--tomato); color: #fff4de; font: 400 16px var(--display);
+        border-radius: 48% 52% 50% 46% / 52% 47% 53% 48%; transform: rotate(-8deg);
+        outline: 1.6px dashed #fff1d6; outline-offset: -5px; box-shadow: 0 1px 0 #0003, 0 2px 4px -2px #0005; }
       #landing .s2 .hang { margin-left: auto; margin-right: 6px; transform: rotate(-2.2deg); }
       #landing .s3 .hang { margin-left: 34px; transform: none; }
 
