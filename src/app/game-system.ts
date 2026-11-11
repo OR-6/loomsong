@@ -30,6 +30,7 @@ import { TOKEN_SIZE, LoomView } from '../loom/loom-view.js';
 import { Placement, loomPose } from './placement.js';
 import { Label } from '../ui/label.js';
 import { audio } from '../audio/synth.js';
+import { keyFor } from '../audio/soundtrack.js';
 import { LevelFlow, TIMING, type HintStep } from './level-flow.js';
 import { CHAPTERS, DAILY_LEVELS, LEVELS, chapterStates, dailyLevel, dayKey, levelAt, pictureById, streakOf } from '../puzzle/catalog.js';
 import type { Level } from '../puzzle/levels.js';
@@ -132,6 +133,7 @@ export class GameSystem extends createSystem({
   private fwd = new Vector3();
   private tmp = new Vector3();
   private tmp2 = new Vector3();
+  private tmpQ = new Quaternion();
   /** The loom's pose is saved under the room anchor for this placement. */
   private loomSaved = false;
   /** The loom's own parent before the room anchor takes it. */
@@ -444,7 +446,7 @@ export class GameSystem extends createSystem({
         this.view.setShed(0, true);
         this.view.setRows(this.model.rows);
         this.view.setGlowRow(-1);
-        audio.setRoot(level.rootMidi);
+        audio.setRoot(keyFor(level.chapter, level.rootMidi)); // the threads play in the chapter track's key
         audio.setMood(level.chapter ?? 'garden');
         if (this.debug) {
           this.debug.level = level.id;
@@ -458,7 +460,9 @@ export class GameSystem extends createSystem({
       win: (stars) => {
         this.controller.enabled = false;
         this.view.setPipMood('cheer');
-        this.view.fx.confetti(0, 0.05, LOOM.clothFrontZ, 160, 1.35); // felt confetti bursting up and out around the plush
+        // felt confetti from both sides of the plush, out and away (the card and its stars stay clear)
+        this.view.fx.confetti(-0.09, 0.04, LOOM.clothFrontZ + 0.02, 22, 1.05);
+        this.view.fx.confetti(0.09, 0.04, LOOM.clothFrontZ + 0.02, 22, 1.05);
         audio.chirp('cheer');
         // It comes alive: the woven picture pops out as a plush.
         const lv = this.flow.level;
@@ -1055,7 +1059,11 @@ export class GameSystem extends createSystem({
   /** Where quilt k of n hangs: side by side along the wall, centred straight ahead. */
   private quiltSlot(k: number, n: number, out: Vector3): Vector3 {
     const w = this.wall!;
-    return out.copy(w.at).addScaledVector(w.t, (k - (n - 1) / 2) * (QUILT_W + 0.08) * w.size);
+    // off to the shelf's side of the wall, so the quilts never hang right behind the card
+    const right = this.tmp2.set(1, 0, 0).applyQuaternion(this.view.root.getWorldQuaternion(this.tmpQ));
+    const shelfSide = -this.controller.bankSide * Math.sign(right.dot(w.t) || 1);
+    const off = shelfSide * (QUILT_W * w.size * 0.5 + 0.25 * w.size);
+    return out.copy(w.at).addScaledVector(w.t, off + shelfSide * k * (QUILT_W + 0.08) * w.size);
   }
 
   private makeQuilt(id: string): Group | null {

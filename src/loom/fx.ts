@@ -6,7 +6,6 @@
  * - note(): a musical note that floats up off the cloth as it plays.
  */
 import {
-  CanvasTexture,
   Color,
   DoubleSide,
   Euler,
@@ -19,10 +18,10 @@ import {
   PlaneGeometry,
   Quaternion,
   RingGeometry,
+  ExtrudeGeometry,
   Shape,
   ShapeGeometry,
   SphereGeometry,
-  SRGBColorSpace,
   Vector3,
 } from '@iwsdk/core';
 
@@ -34,7 +33,7 @@ const _p = new Vector3();
 const _s = new Vector3();
 const _eu = new Euler();
 const _c = new Color();
-const CONFETTI = [0xe8553e, 0xf7be3b, 0x1fb3a0, 0x7b5bb8, 0xe8679e, 0xfff2dc];
+const CONFETTI = [0xe2563b, 0xf2b632, 0x2a9d8f, 0xfff1d6]; // the game's palette only: tomato, mustard, teal, cream
 const GOLD = [0xf7c948, 0xffe08a, 0xfff6d8];
 const RINGS = 6;
 const NOTES = 16;
@@ -42,30 +41,17 @@ const NOTES = 16;
 /** A felt heart about 1.2 cm across. */
 function heartGeo(): ShapeGeometry {
   const s = new Shape();
-  const k = 0.0062;
+  const k = 0.0078;
   s.moveTo(0, -k);
   s.bezierCurveTo(-k * 1.6, -k * 0.1, -k * 1.1, k * 1.25, 0, k * 0.55);
   s.bezierCurveTo(k * 1.1, k * 1.25, k * 1.6, -k * 0.1, 0, -k);
   return new ShapeGeometry(s, 6);
 }
 
-/** A five-point felt star. */
-function starGeo(): ShapeGeometry {
-  const s = new Shape();
-  for (let i = 0; i < 10; i++) {
-    const a = Math.PI / 2 + (i * Math.PI) / 5;
-    const r = i % 2 === 0 ? 0.0072 : 0.0031;
-    if (i === 0) s.moveTo(Math.cos(a) * r, Math.sin(a) * r);
-    else s.lineTo(Math.cos(a) * r, Math.sin(a) * r);
-  }
-  s.closePath();
-  return new ShapeGeometry(s);
-}
-
 /** A round felt button with two holes. */
 function buttonGeo(): ShapeGeometry {
   const s = new Shape();
-  s.absarc(0, 0, 0.0052, 0, Math.PI * 2, false);
+  s.absarc(0, 0, 0.0066, 0, Math.PI * 2, false);
   for (const x of [-0.0016, 0.0016]) {
     const h = new Shape();
     h.absarc(x, 0, 0.0008, 0, Math.PI * 2, true);
@@ -74,22 +60,26 @@ function buttonGeo(): ShapeGeometry {
   return new ShapeGeometry(s, 12);
 }
 
-/** A white ♪ (tinted per note by the material colour). */
-function noteTexture(): CanvasTexture {
-  const c = document.createElement('canvas');
-  c.width = c.height = 64;
-  const g = c.getContext('2d')!;
-  g.fillStyle = '#ffffff';
-  g.strokeStyle = 'rgba(60,40,20,0.55)';
-  g.lineWidth = 3;
-  g.font = '52px serif';
-  g.textAlign = 'center';
-  g.textBaseline = 'middle';
-  g.strokeText('♪', 32, 34);
-  g.fillText('♪', 32, 34);
-  const t = new CanvasTexture(c);
-  t.colorSpace = SRGBColorSpace;
-  return t;
+const _ink = new Color(0x4a3426);
+
+/** A felt ♪ cut-out about 2 cm tall, 3 mm thick: a round head, a stem and a flag. */
+function noteGeometry(): ExtrudeGeometry {
+  const head = new Shape();
+  head.absellipse(0, 0, 0.0042, 0.0031, 0, Math.PI * 2, false, -0.35);
+  const stem = new Shape();
+  stem.moveTo(0.0032, 0.0008);
+  stem.lineTo(0.0044, 0.0008);
+  stem.lineTo(0.0044, 0.017);
+  stem.lineTo(0.0032, 0.017);
+  stem.closePath();
+  const flag = new Shape();
+  flag.moveTo(0.0038, 0.017);
+  flag.quadraticCurveTo(0.0098, 0.0145, 0.0086, 0.0085);
+  flag.quadraticCurveTo(0.0078, 0.0118, 0.0038, 0.0128);
+  flag.closePath();
+  const g = new ExtrudeGeometry([head, stem, flag], { depth: 0.003, bevelEnabled: true, bevelThickness: 0.0006, bevelSize: 0.0005, bevelSegments: 2, curveSegments: 10 });
+  g.translate(-0.004, -0.008, -0.0015);
+  return g;
 }
 
 export class Fx {
@@ -120,7 +110,7 @@ export class Fx {
     this.root.name = 'Fx';
     this.puffs = new InstancedMesh(new SphereGeometry(1, 10, 8), new MeshBasicMaterial({ transparent: true, opacity: 0.9, depthWrite: false }), PUFFS);
     const felt = new MeshStandardMaterial({ side: DoubleSide, roughness: 0.95 });
-    for (const geo of [heartGeo(), starGeo(), buttonGeo()]) this.bitMeshes.push(new InstancedMesh(geo, felt, Math.ceil(BITS / 3)));
+    for (const geo of [heartGeo(), buttonGeo(), heartGeo()]) this.bitMeshes.push(new InstancedMesh(geo, felt, Math.ceil(BITS / 3))); // felt hearts and buttons
     for (const m of [this.puffs, ...this.bitMeshes]) {
       m.frustumCulled = false;
       this.root.add(m);
@@ -136,10 +126,9 @@ export class Fx {
       this.root.add(r);
       this.rings.push(r);
     }
-    const noteGeo = new PlaneGeometry(0.024, 0.024);
-    const noteTex = noteTexture();
+    const noteGeo = noteGeometry();
     for (let i = 0; i < NOTES; i++) {
-      const n = new Mesh(noteGeo, new MeshBasicMaterial({ map: noteTex, transparent: true, opacity: 0, depthWrite: false }));
+      const n = new Mesh(noteGeo, new MeshStandardMaterial({ color: 0x4a3426, roughness: 0.95, transparent: true, opacity: 0 }));
       n.visible = false;
       n.renderOrder = 6;
       this.root.add(n);
@@ -167,7 +156,7 @@ export class Fx {
     const n = this.notes[i];
     n.position.set(x, y, z);
     this.noteX[i] = x;
-    (n.material as MeshBasicMaterial).color.setHex(color).offsetHSL(0, 0, 0.08);
+    (n.material as MeshStandardMaterial).color.setHex(color).lerp(_ink, 0.55); // ink-brown felt, warmed by the picture's colour
     n.visible = true;
     this.noteT[i] = 1.4;
     this.live = true;
@@ -287,7 +276,7 @@ export class Fx {
       n.position.x = this.noteX[i] + Math.sin(k * 7 + i) * 0.006;
       n.rotation.z = Math.sin(k * 5 + i) * 0.25;
       n.scale.setScalar(k < 0.15 ? k / 0.15 : 1);
-      (n.material as MeshBasicMaterial).opacity = k < 0.15 ? k / 0.15 : Math.max(0, 1 - (k - 0.5) / 0.5);
+      (n.material as MeshStandardMaterial).opacity = k < 0.15 ? k / 0.15 : Math.max(0, 1 - (k - 0.5) / 0.5);
       if (this.noteT[i] <= 0) n.visible = false;
     }
     this.puffs.instanceMatrix.needsUpdate = true;

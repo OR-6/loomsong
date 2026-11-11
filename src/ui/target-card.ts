@@ -175,9 +175,12 @@ export class TargetCard {
       const hidden = this.secret && st === 'todo';
       // the row to weave next sits on a soft yellow band (easier to find than the pin alone)
       if (r === nextRow && stars === 0 && !highContrast) {
-        g.fillStyle = 'rgba(247,190,59,0.45)';
+        g.fillStyle = 'rgba(247,180,40,0.72)';
         roundRect(g, px(gridX - 0.002), px(y + 0.0006), px(WARPS * cell + 0.004), px(cell - 0.0012), px(cell * 0.2));
         g.fill();
+        g.strokeStyle = '#c9861d';
+        g.lineWidth = px(0.0009);
+        g.stroke();
       }
       for (let i = 0; i < WARPS; i++) {
         const x = gridX + i * cell;

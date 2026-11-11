@@ -387,7 +387,10 @@ export class LoomView {
       const sm = m as MeshStandardMaterial;
       if (name === 'Beech' && theme.id === 'workshop') sm.color.setHex(0xc9905e);
       // painted wood is matte: no plastic-pipe highlight on the frame (brass and the like keep their shine)
-      if (theme.id === 'toy' && sm.isMeshStandardMaterial && sm.metalness < 0.3) sm.roughness = Math.max(sm.roughness, 0.86);
+      if (theme.id === 'toy' && sm.isMeshStandardMaterial && sm.metalness < 0.3) {
+        sm.roughness = Math.max(sm.roughness, 0.86);
+        sm.envMapIntensity = 0.3; // no plastic glints from the environment light
+      }
       // the toy loom's frame is painted mustard (art direction): a made toy, not bare plastic-looking pipe
       if (theme.id === 'toy' && name === 'Beech') sm.color.setHex(0xe8ac3e);
     };
@@ -568,6 +571,14 @@ export class LoomView {
         this.shuttleMat.metalness = 0;
         this.shuttleMat.map = feltTexture();
         this.shuttleMat.envMapIntensity = 0.3;
+        // every part of Pip matte (wings, beak, boat): a felt toy, not a rubber duck
+        pip.traverse((o) => {
+          const m = (o as Mesh).material as MeshStandardMaterial | undefined;
+          if (m?.isMeshStandardMaterial && m.metalness < 0.3) {
+            m.roughness = Math.max(m.roughness, 0.85);
+            m.envMapIntensity = 0.3;
+          }
+        });
         this.shuttleMat.needsUpdate = true;
       }
       // Head shares the body's material so the hover glow covers all of Pip.

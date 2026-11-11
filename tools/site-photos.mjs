@@ -54,7 +54,7 @@ save('levers', 'levers-close.jpg', 800, 600, 960, 720);
 // 2. the ghost hand shows how to pinch Pip (the shuttle step)
 // Pip follows the ghost hand's demo slide for a moment (capture only), so the hand pinches Pip mid-slide;
 // a few frames are kept (PIP=a|b|c|d picks; default b)
-evalJs(`const g = window.__loom.game; g.tutor.mesh.visible = true; return 1;`);
+evalJs(`const g = window.__loom.game; g.tutor.mesh.visible = false; return 1;`); // the caption says it: no tag in the photo
 evalJs(`const g = window.__loom.game; const c = g.controller; const lo = -0.168, hi = 0.168; const end = performance.now() + 6000; const follow = () => { const x = g.view.ghost.root.position.x; if (g.view.ghost.root.visible) c.shuttle.t = Math.max(0, Math.min(0.62, (x + 0.02 - lo) / (hi - lo))); if (performance.now() < end) requestAnimationFrame(follow); }; requestAnimationFrame(follow); return 1;`);
 await wait(900);
 for (const k of ['a', 'b', 'c', 'd']) await shoot(`pip-${k}`, [-0.02, 0.27, 0.34], [-0.03, 0.04, 0.0], 50, 420);

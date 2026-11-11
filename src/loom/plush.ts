@@ -72,7 +72,7 @@ export const PLUSH = {
   stageX: 0,
   stageZ: 0.225,
   /** Hero size while it pops and dances (shelf size is shelfScale): about 13 cm across, the size of a real toy. */
-  hero: 1.2,
+  hero: 1.05,
   /** Even a short picture's plush dances at least this long before it bows and hops away (s). */
   minDance: 2.4,
   /** Hover height while it dances (it faces the seated player). */
@@ -80,7 +80,7 @@ export const PLUSH = {
   /** Width of the cream halo behind the dancing plush (m). */
   haloSize: 0.2,
   /** Radius of the felt stage disc under the dancing plush (m). */
-  stageR: 0.05,
+  stageR: 0.042,
   /** Plushes that can live on the real desk (one spot per picture: chapters, then pictures of the day). */
   desk: 40,
   /** Size on the desk: bigger than on the shelf, so taking one out is a reward. */
@@ -115,7 +115,7 @@ function plushPuffGeometry(): BufferGeometry {
   for (let i = 0; i < p.count; i++) {
     v.fromBufferAttribute(p, i);
     s.copy(v).normalize().multiplyScalar(0.62);
-    v.multiplyScalar(0.72).addScaledVector(s, 0.28);
+    v.multiplyScalar(0.6).addScaledVector(s, 0.4);
     p.setXYZ(i, v.x, v.y, v.z);
   }
   g.computeVertexNormals();

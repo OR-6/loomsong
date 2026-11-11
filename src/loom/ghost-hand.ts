@@ -201,7 +201,8 @@ export class GhostHand {
       // pinch the boat's back edge (outside end), so Pip stays visible
       const back = g.fromEnd === 0 ? -0.04 : 0.04; // well behind the tail, so Pip stays in view
       const a = (g.fromEnd === 0 ? SHUTTLE.minX : SHUTTLE.maxX) + back;
-      const b = (g.fromEnd === 0 ? SHUTTLE.maxX : SHUTTLE.minX) + back;
+      const far = (g.fromEnd === 0 ? SHUTTLE.maxX : SHUTTLE.minX) + back;
+      const b = a + (far - a) * 0.45; // a short push that stays by Pip and its tag: the gesture, not the whole pass
       this.from.set(a, shuttleY(a) + 0.002, SHUTTLE.z);
       this.to.set(b, shuttleY(b) + 0.002, SHUTTLE.z);
     }

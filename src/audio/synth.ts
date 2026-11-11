@@ -9,6 +9,7 @@
  * the procedural synth: triangle + sine overtone → lowpass.
  * Reverb = convolver with a generated impulse. Master compressor.
  */
+import { SOUNDTRACK, type Track } from './soundtrack.js';
 import { WARPS } from '../config.js';
 
 const KALIMBA = [47, 49, 51, 54, 56, 59, 61, 63, 66, 69, 71];
@@ -77,6 +78,11 @@ class Synth {
   private pad: { osc: OscillatorNode[]; gain: GainNode; lp: BiquadFilterNode } | null = null;
   /** Music notes scheduled so far (debug/E2E). */
   musicNotes = 0;
+  /** The chapter whose music should play. */
+  private chapter = 'garden';
+  /** The recorded track playing now (null: the built-in music box), and its load state. */
+  private track: { name: string; src: AudioBufferSourceNode; gain: GainNode; t0: number; info: Track } | null = null;
+  private trackBufs = new Map<string, AudioBuffer | 'loading' | 'failed'>();
 
   constructor() {
     this.setRoot(62);
@@ -236,7 +242,19 @@ class Synth {
   /** Seconds from the nearest music beat right now (null when the music isn't playing). */
   beatOffset(): number | null {
     const ctx = this.ctx;
-    if (!ctx || ctx.state !== 'running' || !this.musicOn || this.paused || ctx.currentTime < this.holdUntil || this.nextBeat === 0) return null;
+    if (!ctx || ctx.state !== 'running' || !this.musicOn || this.paused || ctx.currentTime < this.holdUntil) return null;
+    if (this.track) {
+      // a recorded track: on the beat only when its tempo is known
+      const { bpm, firstBeat } = this.track.info;
+      if (!bpm) return null;
+      const spb = 60 / bpm;
+      const dur = this.track.src.buffer?.duration ?? 0;
+      let pos = ctx.currentTime - this.track.t0;
+      if (dur > 0) pos %= dur;
+      const ph = (((pos - (firstBeat ?? 0)) % spb) + spb) % spb;
+      return Math.min(ph, spb - ph);
+    }
+    if (this.nextBeat === 0) return null;
     const spb = 60 / this.mood.bpm;
     const now = ctx.currentTime;
     const prev = this.nextBeat - spb;
@@ -434,6 +452,7 @@ class Synth {
 
   /** Per-chapter mood: tempo, register and density. */
   setMood(chapter: string): void {
+    this.chapter = chapter;
     this.mood = MOODS[chapter] ?? MOODS.garden;
     if (this.pad && this.ctx) this.pad.lp.frequency.setTargetAtTime(this.mood.padBright, this.ctx.currentTime, 1.5);
   }
@@ -444,12 +463,20 @@ class Synth {
     if (!ctx) return;
     this.holdUntil = ctx.currentTime + seconds;
     this.pad?.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.25);
+    // the recorded track steps back under the win song, then returns
+    if (this.track) {
+      const g = this.track.gain.gain;
+      g.cancelScheduledValues(ctx.currentTime);
+      g.setTargetAtTime(this.track.info.gain * 0.12, ctx.currentTime, 0.3);
+      g.setTargetAtTime(this.track.info.gain, ctx.currentTime + seconds, 0.8);
+    }
   }
 
   /** Out of the game (2D page): the drone pad fades out; music() brings it back. */
   restMusic(): void {
     const ctx = this.ctx;
     if (ctx && this.pad && this.pad.gain.gain.value > 0.001) this.pad.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
+    if (ctx && this.track) this.stopTrack(ctx, 0.6);
   }
 
   /** Plucks duck the music a little so the threads stay the lead voice. */
@@ -471,6 +498,8 @@ class Synth {
       this.nextBeat = this.holdUntil + 0.6;
       return;
     }
+    // a recorded track for this chapter: it plays instead of the built-in music box
+    if (this.playTrack(ctx)) return;
     this.ensurePad(ctx);
     if (this.pad && this.pad.gain.gain.value < 0.001) this.pad.gain.gain.setTargetAtTime(this.mood.padGain, now, 1.2);
     if (this.nextBeat < now) this.nextBeat = now + 0.05;
@@ -500,6 +529,54 @@ class Synth {
       this.nextBeat += spb * (inBar === 3 && Math.random() < 0.3 ? 1.08 : 1); // a little rubato
       this.beat++;
     }
+  }
+
+  /**
+   * The chapter's recorded track (loaded on first need, looped, crossfaded on
+   * chapter change). False while there is none, or it's still loading: the
+   * built-in music box plays meanwhile.
+   */
+  private playTrack(ctx: AudioContext): boolean {
+    const info = SOUNDTRACK[this.chapter];
+    if (!info || !this.musicBus) {
+      if (this.track) this.stopTrack(ctx, 1.2);
+      return false;
+    }
+    if (this.track?.name === info.file) return true;
+    const buf = this.trackBufs.get(info.file);
+    if (buf === undefined) {
+      this.trackBufs.set(info.file, 'loading');
+      fetch(audioUrl(info.file))
+        .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+        .then((a) => ctx.decodeAudioData(a))
+        .then((b) => this.trackBufs.set(info.file, b))
+        .catch(() => this.trackBufs.set(info.file, 'failed'));
+      return !!this.track; // the previous chapter's track carries on until this one is ready
+    }
+    if (buf === 'loading') return !!this.track;
+    if (buf === 'failed') return false;
+    // crossfade: the old track fades out, the new one fades in
+    if (this.track) this.stopTrack(ctx, 1.5);
+    this.stopPad();
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    gain.gain.setTargetAtTime(info.gain, ctx.currentTime, 0.8);
+    src.connect(gain).connect(this.musicBus);
+    src.start();
+    this.track = { name: info.file, src, gain, t0: ctx.currentTime, info };
+    return true;
+  }
+
+  private stopTrack(ctx: AudioContext, fade: number): void {
+    const t = this.track;
+    if (!t) return;
+    this.track = null;
+    t.gain.gain.cancelScheduledValues(ctx.currentTime);
+    t.gain.gain.setTargetAtTime(0, ctx.currentTime, fade / 3);
+    t.src.stop(ctx.currentTime + fade + 0.1);
   }
 
   /** A soft music-box bell (sine + a quiet inharmonic partial, fast decay) on the music bus. */
