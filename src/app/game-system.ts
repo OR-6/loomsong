@@ -60,7 +60,6 @@ const params = new URLSearchParams(location.search);
 const FIXED_DESK = params.get('desk');
 
 const KNOB_NAMES: Record<number, string> = { 0xe8553e: 'red', 0x1fb3a0: 'teal', 0xf2b632: 'yellow', 0x7b5bb8: 'purple' };
-const ORDINAL = ['first', 'second', 'third', 'fourth'];
 
 /** Seconds either side of a music beat that count as "on the beat". */
 const BEAT_WINDOW = 0.12;
@@ -842,22 +841,23 @@ export class GameSystem extends createSystem({
   }
 
   /** The ghost hand demonstrates the current tutorial gesture on the real target. */
-  /** The tag's words: levers by their colour ("Lift the red lever"); in the tutorial the card hint states the goal once. */
+  /** The tag's words: levers by number and colour ("Lift lever 1 (red)"); in the tutorial the card hint states the goal once. */
   private hintText(step: HintStep): string {
     if (step === 'card' && this.flow?.tutorial) return 'Weave each row like the card';
     if (step === 'lever' || step === 'unlatch') {
       const name = this.leverName(this.hintLever);
-      return step === 'lever' ? `Lift the ${name} lever` : `Put the ${name} lever back`;
+      return step === 'lever' ? `Lift ${name}` : `Put ${name} back`;
     }
     return HINT_TEXT[step];
   }
 
   /** A lever's spoken name: its knob colour, or its place when colours don't tell them apart (brass, mystery). */
+  /** "lever 1 (red)": the number matches the dots on the lever box, the colour the knob (none when knobs share a colour or are undyed). */
   private leverName(k: number): string {
     const knobs = this.shown().palette.knobs;
     const same = knobs.every((c) => c === knobs[0]);
-    if (same || this.flow?.level?.mystery) return ORDINAL[k] ?? 'next';
-    return KNOB_NAMES[knobs[k]] ?? ORDINAL[k] ?? 'next';
+    const colour = same || this.flow?.level?.mystery ? '' : KNOB_NAMES[knobs[k]] ?? '';
+    return colour ? `lever ${k + 1} (${colour})` : `lever ${k + 1}`;
   }
 
   private syncGhost(dt: number, step: HintStep): void {
@@ -986,6 +986,7 @@ export class GameSystem extends createSystem({
       const g = this.makeQuilt(ch.id);
       if (!g) continue;
       this.quiltSlot(k, done.length, g.position);
+      g.position.y += ((g.userData.height as number) * this.wall.size) / 2; // its middle at eye height
       g.lookAt(this.tmp2.copy(g.position).add(this.wall.n));
       g.scale.setScalar(this.wall.size);
       this.quiltRoot.add(g);
@@ -1002,6 +1003,7 @@ export class GameSystem extends createSystem({
           const from = new Vector3(-this.controller.bankSide * PLUSH.shelfX, 0.1, PLUSH.shelfZ);
           this.view.root.localToWorld(from);
           const to = this.quiltSlot(Math.max(0, k), done.length, new Vector3());
+          to.y += ((g.userData.height as number) * this.wall.size) / 2;
           const q1 = new Quaternion();
           g.position.copy(to);
           g.lookAt(this.tmp2.copy(to).add(this.wall.n));
@@ -1076,14 +1078,14 @@ export class GameSystem extends createSystem({
       if (t < 0.4 || t > 4 || t >= bestT) continue;
       // where the line of sight meets the wall, at the hanging height; it must be on the wall
       const at = new Vector3().copy(this.head).addScaledVector(this.fwd, t);
-      at.y = this.head.y + 0.18;
+      at.y = this.head.y; // the quilt's middle at eye height: no looking up past the top of the view
       inv.copy(obj.matrixWorld).invert();
       const local = this.tmp.copy(at).applyMatrix4(inv);
       if (!insidePolygon(pl.polygon, local.x, local.z, 0.15)) continue;
       bestT = t;
       at.addScaledVector(n, 0.012); // just off the wall
       // bigger on a far wall, so it reads from the seat (about 14° across)
-      best = { at, n: n.clone(), t: new Vector3(0, 1, 0).cross(n).normalize(), size: Math.min(2.1, Math.max(1, (t * 0.24) / QUILT_W)) };
+      best = { at, n: n.clone(), t: new Vector3(0, 1, 0).cross(n).normalize(), size: Math.min(2.6, Math.max(1.1, (t * 0.33) / QUILT_W)) };
     }
     return best;
   }

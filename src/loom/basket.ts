@@ -71,7 +71,14 @@ export class Basket {
     if (m?.basket) {
       this.bowl = cloneModel(m.basket);
       this.bowl.traverse((o) => {
-        if ((o as Mesh).isMesh) o.castShadow = o.receiveShadow = true;
+        if (!(o as Mesh).isMesh) return;
+        o.castShadow = o.receiveShadow = true;
+        // a woven wicker bowl (warm tan), not a glazed teal dish: it sat too close to the gift and the knobs
+        const m = (o as Mesh).material as MeshStandardMaterial;
+        if (m?.color) {
+          m.color.setHex(m.color.getHSL({ h: 0, s: 0, l: 0 }).l > 0.7 ? 0xf1e2c4 : 0xc89b62);
+          m.roughness = 0.92;
+        }
       });
       this.root.add(this.bowl);
     }

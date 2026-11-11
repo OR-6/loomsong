@@ -113,7 +113,7 @@ export class TargetCard {
     const lift = hex(this.color ?? th.palette.weft);
     // empty cells take a little of the chapter paper tint (Night's cells read dusk, not white)
     // empty cells: Night's are a pale moonlit lilac so the picture pops on the dusk paper
-    const ground = this.sparkles ? '#f3f1fa' : this.paper ? mixHex('#efe6d2', this.paper, 0.5) : '#efe6d2';
+    const ground = this.sparkles ? '#f3f1fa' : this.paper ? '#f4ecda' : '#efe6d2'; // empty cells stay cream, even on Night's lavender card
     const grace = '#c9b79c';
     const px = (m: number) => m * PX_PER_M;
     g.clearRect(0, 0, c.width, c.height);
@@ -173,6 +173,12 @@ export class TargetCard {
       const st = status[r];
       // caller co-op: rows still to weave are hidden here (only the phone sees the picture)
       const hidden = this.secret && st === 'todo';
+      // the row to weave next sits on a soft yellow band (easier to find than the pin alone)
+      if (r === nextRow && stars === 0 && !highContrast) {
+        g.fillStyle = 'rgba(247,190,59,0.45)';
+        roundRect(g, px(gridX - 0.002), px(y + 0.0006), px(WARPS * cell + 0.004), px(cell - 0.0012), px(cell * 0.2));
+        g.fill();
+      }
       for (let i = 0; i < WARPS; i++) {
         const x = gridX + i * cell;
         const lifted = !hidden && isLifted(row, i);

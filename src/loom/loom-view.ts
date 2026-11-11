@@ -225,6 +225,23 @@ export class LoomView {
     this.key.castShadow = on;
     this.catcher.visible = on;
   }
+  /** The lever box's dots: 1–4 in front of each slot that has a lever this picture (empty slots stay plain). */
+  private layoutPips(): void {
+    const pips = this.slotPips;
+    if (!pips) return;
+    let n = 0;
+    const m = new Matrix4();
+    const levers = this.tieUp?.length ?? LEVERS;
+    for (let k = 0; k < Math.min(LEVERS, levers); k++) {
+      for (let j = 0; j <= k; j++) {
+        m.makeTranslation(leverX(k, this.side) + (j - k / 2) * 0.0068, 0.0295, 0.0915);
+        pips.setMatrixAt(n++, m);
+      }
+    }
+    pips.count = n;
+    pips.instanceMatrix.needsUpdate = true;
+  }
+
   /** Soft contact shadows under the shelf, the lever box, the basket and the gift (follow the lever side). */
   private blobs: Mesh[] = [];
   /**
@@ -371,6 +388,8 @@ export class LoomView {
       if (name === 'Beech' && theme.id === 'workshop') sm.color.setHex(0xc9905e);
       // painted wood is matte: no plastic-pipe highlight on the frame (brass and the like keep their shine)
       if (theme.id === 'toy' && sm.isMeshStandardMaterial && sm.metalness < 0.3) sm.roughness = Math.max(sm.roughness, 0.86);
+      // the toy loom's frame is painted mustard (art direction): a made toy, not bare plastic-looking pipe
+      if (theme.id === 'toy' && name === 'Beech') sm.color.setHex(0xe8ac3e);
     };
     this.frameNode = null;
     if (models) {
@@ -502,6 +521,7 @@ export class LoomView {
         (dot?.material as MeshStandardMaterial | undefined)?.color.setHex(palette.knobs[k]);
         cap.roughness = theme.knobRoughness;
         cap.metalness = theme.knobMetalness;
+        if (theme.id === 'toy') cap.envMapIntensity = 0.25; // painted wood: no candy glint
         this.leverMats.push(cap);
         knob.name = `Lever${k}`;
         this.levers.push(knob);
@@ -547,6 +567,7 @@ export class LoomView {
         this.shuttleMat.roughness = 0.92;
         this.shuttleMat.metalness = 0;
         this.shuttleMat.map = feltTexture();
+        this.shuttleMat.envMapIntensity = 0.3;
         this.shuttleMat.needsUpdate = true;
       }
       // Head shares the body's material so the hover glow covers all of Pip.
@@ -671,18 +692,7 @@ export class LoomView {
       this.slotPips.frustumCulled = false;
       this.root.add(this.slotPips);
     }
-    {
-      let n = 0;
-      const m = new Matrix4();
-      for (let k = 0; k < LEVERS; k++) {
-        for (let j = 0; j <= k; j++) {
-          m.makeTranslation(leverX(k, side) + (j - k / 2) * 0.0068, 0.0295, 0.0915);
-          this.slotPips.setMatrixAt(n++, m);
-        }
-      }
-      this.slotPips.count = n;
-      this.slotPips.instanceMatrix.needsUpdate = true;
-    }
+    this.layoutPips();
     // contact shadows: shelf, lever box, basket, the gift [x, z, width, depth]
     const spots: [number, number, number, number][] = [
       [-side * PLUSH.shelfX, PLUSH.shelfZ + 0.004, 0.31, 0.085],
@@ -1383,6 +1393,7 @@ export class LoomView {
   setPicture(color: number | null, tieUp: readonly Mask8[], hidden: readonly boolean[] = []): void {
     this.pictureColor = color;
     this.tieUp = tieUp;
+    this.layoutPips();
     this.tieHidden = tieUp.map((_, k) => !!hidden[k]);
     this.applyColors();
     for (let k = 0; k < LEVERS; k++) this.dyeLever(k);

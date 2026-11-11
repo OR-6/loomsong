@@ -118,24 +118,10 @@ export class Label {
     const x0 = (canvas.width - w) / 2;
     const y0 = h * 0.14;
     const th = h * 0.7;
-    const tail = h * 0.42;
-    // folded tails behind, a darker felt
-    ctx.fillStyle = '#a8372a';
-    for (const sx of [-1, 1]) {
-      const ex = sx < 0 ? x0 : x0 + w;
-      ctx.beginPath();
-      ctx.moveTo(ex, y0 + th * 0.25);
-      ctx.lineTo(ex + sx * tail, y0 + th * 0.25);
-      ctx.lineTo(ex + sx * tail * 0.6, y0 + th * 0.62);
-      ctx.lineTo(ex + sx * tail, y0 + th);
-      ctx.lineTo(ex, y0 + th);
-      ctx.closePath();
-      ctx.fill();
-    }
     // the band: a strip of tomato felt
     ctx.fillStyle = 'rgba(60,35,20,0.3)';
     ctx.fillRect(x0 + h * 0.03, y0 + h * 0.05, w, th);
-    ctx.fillStyle = '#d9533c';
+    ctx.fillStyle = '#e2563b';
     ctx.fillRect(x0, y0, w, th);
     // felt fuzz
     let seed = 5;

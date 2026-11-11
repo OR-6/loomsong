@@ -104,6 +104,26 @@ export const ROW_BEAT = 0.3;
 
 let puff: BufferGeometry | null = null;
 /** A unit cube pulled toward a sphere: a soft quilted pillow. */
+let plushPuff: BufferGeometry | null = null;
+/** A plush cell: a flatter pillow than the cloth's, so neighbouring cells read as one sewn fabric, not bubble wrap. */
+function plushPuffGeometry(): BufferGeometry {
+  if (plushPuff) return plushPuff;
+  const g = new BoxGeometry(1, 1, 1, 4, 4, 4);
+  const p = g.attributes.position;
+  const v = new Vector3();
+  const s = new Vector3();
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i);
+    s.copy(v).normalize().multiplyScalar(0.62);
+    v.multiplyScalar(0.72).addScaledVector(s, 0.28);
+    p.setXYZ(i, v.x, v.y, v.z);
+  }
+  g.computeVertexNormals();
+  g.userData.sharedGeometry = true;
+  plushPuff = g;
+  return g;
+}
+
 export function puffGeometry(): BufferGeometry {
   if (puff) return puff;
   const g = new BoxGeometry(1, 1, 1, 4, 4, 4);
@@ -140,7 +160,9 @@ export function buildPlush(rows: readonly Mask8[], color: number): Group {
   for (const r of rows) for (let i = 0; i < WARPS; i++) if (isLifted(r, i)) n++;
   // matte felt (no sheen/gloss: it read as glassy), the loom's knitted stitch
   const mat = new MeshStandardMaterial({ color: new Color(color), roughness: 0.95, metalness: 0, map: feltTexture() });
-  const body = new InstancedMesh(puffGeometry(), mat, Math.max(1, n));
+  const body = new InstancedMesh(plushPuffGeometry(), mat, Math.max(1, n));
+  // loose pixels (leaves, a cherry) become flat felt leaves, tilted out from the body
+  const parts = pieces(rows);
   body.name = 'PlushBody';
   body.frustumCulled = false;
   body.castShadow = true;
@@ -149,7 +171,14 @@ export function buildPlush(rows: readonly Mask8[], color: number): Group {
     for (let i = 0; i < WARPS; i++) {
       if (!isLifted(rows[r], i)) continue;
       _p.set((i - (WARPS - 1) / 2) * cell, LIFT + cell / 2 + r * cell, 0);
-      _m.compose(_p, _q.identity(), _s.set(cell * 1.16, cell * 1.14, cell * PLUSH.depth));
+      const c = parts.comp[r * WARPS + i];
+      if (parts.sizes.length > 1 && c !== parts.main) {
+        const out = Math.sign(i - parts.mainX) || 1;
+        _q.setFromAxisAngle(_z, -out * 0.55);
+        _m.compose(_p, _q, _s.set(cell * 1.2, cell * 0.78, cell * PLUSH.depth * 0.3));
+      } else {
+        _m.compose(_p, _q.identity(), _s.set(cell * 1.16, cell * 1.14, cell * PLUSH.depth));
+      }
       body.setMatrixAt(k++, _m);
     }
   }
@@ -326,6 +355,9 @@ export function disposePlush(g: Object3D): void {
       mat.map?.dispose();
       mat.dispose();
     }
+    // geometry made for this plush alone (merged parts, stalks) goes too; shared shapes stay
+    const geo = (m as unknown as Mesh).geometry;
+    if ((m as unknown as Mesh).isMesh && !m.isInstancedMesh && geo && !geo.userData?.sharedGeometry) geo.dispose();
   });
   g.removeFromParent();
 }
@@ -1040,7 +1072,7 @@ export class Plushes {
       if (k >= 1) this.hopAway();
     } else if (this.phase === 'hopShelf' || this.phase === 'fade') {
       const k = Math.min(1, this.t / 0.7);
-      this.arc(h, k, 0.07);
+      this.arc(h, k, this.phase === 'hopShelf' ? 0.13 : 0.07); // high enough to clear Pip's perch and the undo spool
       h.rotation.z *= 0.8;
       h.rotation.x *= 0.85;
       const target = this.phase === 'fade' ? 0.001 : this.homeScale(this.heroSlot);
@@ -1101,14 +1133,10 @@ function blobTexture(): CanvasTexture {
   return blobTex;
 }
 
-let stalkGeo: CylinderGeometry | null = null;
-/**
- * Pixels that don't touch the body (the Sprout's leaves, a cherry on its stem)
- * would float as loose cubes in a plush. Each loose piece gets a felt stalk to
- * the nearest cell of the biggest piece, a shade darker, like a sewn stem.
- */
-function addStalks(g: Group, rows: readonly Mask8[], color: number): void {
-  const cell = PLUSH.cell;
+const _z = new Vector3(0, 0, 1);
+
+/** Connected pieces of a picture (4-neighbour): each cell's piece, piece sizes, the biggest piece and its middle column. */
+function pieces(rows: readonly Mask8[]): { comp: number[]; sizes: number[]; main: number; mainX: number } {
   const H = rows.length;
   const on = (r: number, i: number) => r >= 0 && r < H && i >= 0 && i < WARPS && isLifted(rows[r], i);
   const comp: number[] = new Array(H * WARPS).fill(-1);
@@ -1135,10 +1163,25 @@ function addStalks(g: Group, rows: readonly Mask8[], color: number): void {
       sizes.push(size);
     }
   }
+  const main = sizes.length ? sizes.indexOf(Math.max(...sizes)) : -1;
+  let sx = 0;
+  let n = 0;
+  for (let k = 0; k < comp.length; k++) if (comp[k] === main) {
+    sx += k % WARPS;
+    n++;
+  }
+  return { comp, sizes, main, mainX: n ? sx / n : (WARPS - 1) / 2 };
+}
+
+/**
+ * Loose pieces (the Sprout's leaves, a cherry) hang from the body on a short
+ * curved felt stalk, a shade darker, like a sewn stem.
+ */
+function addStalks(g: Group, rows: readonly Mask8[], color: number): void {
+  const cell = PLUSH.cell;
+  const H = rows.length;
+  const { comp, sizes, main } = pieces(rows);
   if (sizes.length < 2) return;
-  const main = sizes.indexOf(Math.max(...sizes));
-  stalkGeo ??= new CylinderGeometry(1, 1, 1, 8);
-  stalkGeo.userData.sharedGeometry = true;
   const mat = new MeshStandardMaterial({ color: new Color(color).multiplyScalar(0.72), roughness: 0.95 });
   mat.name = 'PlushStalk';
   mat.userData.own = true;
@@ -1163,11 +1206,11 @@ function addStalks(g: Group, rows: readonly Mask8[], color: number): void {
     }
     const pa = centre(a[0], a[1], new Vector3());
     const pb = centre(b[0], b[1], new Vector3());
-    const stalk = new Mesh(stalkGeo, mat);
-    stalk.position.copy(pa).add(pb).multiplyScalar(0.5);
-    const len = pa.distanceTo(pb);
-    stalk.scale.set(cell * 0.13, len, cell * 0.13);
-    stalk.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), pb.sub(pa).normalize());
+    // a gentle droop in the middle, like a stem holding up a leaf
+    const mid = pa.clone().add(pb).multiplyScalar(0.5);
+    mid.y -= cell * 0.35;
+    const tube = new TubeGeometry(new CatmullRomCurve3([pa, mid, pb]), 10, cell * 0.11, 6);
+    const stalk = new Mesh(tube, mat);
     stalk.castShadow = true;
     g.add(stalk);
   }

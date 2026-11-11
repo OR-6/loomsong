@@ -44,7 +44,7 @@ check('tutorial hint: shuttle', s.debug.hint === 'shuttle', s.debug.hint);
 await passTo(true);
 s = state();
 check('row 1 woven', s.debug.rows.length === 1, JSON.stringify(s.debug.rows));
-check('tutorial hint: the goal (card)', s.debug.hint === 'card', s.debug.hint);
+check('tutorial hint: the goal (card, then what the knots mean)', s.debug.hint === 'card' || s.debug.hint === 'knots', s.debug.hint);
 shot('m1-02-row1', s.debug.loomOrigin);
 
 // Row 2: the stem again, ←

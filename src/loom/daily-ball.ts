@@ -100,7 +100,7 @@ export class DailyBall {
     this.tag.mesh.visible = state !== 'hidden';
     // opened: the tag hangs beside the box, so tomorrow's picture shows inside it
     const { w, h } = DAILY_BALL;
-    if (state === 'done') this.tag.mesh.position.set(-w * 1.25, h * 0.2, w * 0.35);
+    if (state === 'done') this.tag.mesh.position.set(0, h * 0.2, w * 0.62); // in front, below the silhouette
     else this.tag.mesh.position.set(0, h * 0.42, w * 0.56 + 0.002);
     const want = state === 'done' && tomorrow ? tomorrow.key : '';
     if (want !== this.peekKey) {
@@ -110,6 +110,11 @@ export class DailyBall {
       if (tomorrow && want) {
         this.peek = cutout(tomorrow.rows);
         this.peek.scale.setScalar(0.62);
+        // dark navy felt, so tomorrow's shape stands out against the kraft and the cream tag
+        this.peek.traverse((o) => {
+          const m = (o as Mesh).material as MeshStandardMaterial | undefined;
+          if (m?.color) m.color.setHex(0x34507a);
+        });
         this.peek.position.set(0, DAILY_BALL.h * 0.35, -DAILY_BALL.w * 0.1); // standing in the box, its top over the rim
         this.box.add(this.peek);
       }
@@ -144,19 +149,27 @@ export class DailyBall {
 }
 
 let dots: CanvasTexture | null = null;
-/** Kraft wrapping paper: faint lighter dots (the material colour tints it). */
+/** Kraft wrapping paper: plain, with a few long paper fibres (the material colour tints it). */
 function dotsTexture(): CanvasTexture {
   if (dots) return dots;
   const c = document.createElement('canvas');
-  c.width = c.height = 64;
+  c.width = c.height = 128;
   const g = c.getContext('2d')!;
-  g.fillStyle = '#e6e6e6';
-  g.fillRect(0, 0, 64, 64);
-  g.fillStyle = '#ffffff';
-  for (const [x, y] of [[16, 16], [48, 48], [48, 16], [16, 48]] as const) {
+  g.fillStyle = '#ececec';
+  g.fillRect(0, 0, 128, 128);
+  let seed = 9;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  g.lineWidth = 1;
+  for (let i = 0; i < 70; i++) {
+    const x = rnd() * 128;
+    const y = rnd() * 128;
+    const a = rnd() * Math.PI;
+    const l = 4 + rnd() * 10;
+    g.strokeStyle = rnd() < 0.5 ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.35)';
     g.beginPath();
-    g.arc(x + (y === 48 ? 0 : 0), y, 5, 0, Math.PI * 2);
-    g.fill();
+    g.moveTo(x, y);
+    g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l);
+    g.stroke();
   }
   dots = new CanvasTexture(c);
   dots.colorSpace = SRGBColorSpace;

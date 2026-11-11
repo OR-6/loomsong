@@ -12,7 +12,7 @@ check('a wall was found ahead of the seat', !!w.wall, JSON.stringify(w.wall));
 check('the Garden quilt hangs on it', !!w.quilts.garden, JSON.stringify(w.quilts));
 if (w.quilts.garden) {
   const [x, y, z] = w.quilts.garden;
-  check('in front of the player, about eye height', z < w.head[2] - 0.3 && Math.abs(y - (w.head[1] + 0.18)) < 0.05, JSON.stringify({ q: w.quilts.garden, head: w.head }));
+  check('in front of the player, its middle about eye height (hung from above it)', z < w.head[2] - 0.3 && y > w.head[1] && y < w.head[1] + 0.5, JSON.stringify({ q: w.quilts.garden, head: w.head }));
   if (process.argv[2]) {
     xr('set-transform', { device: 'headset', position: { x: 0, y: 1.2, z: 0 }, orientation: { pitch: 0, yaw: 0, roll: 0 } });
     xr('look-at', { device: 'headset', target: { x, y: y - 0.25, z } });

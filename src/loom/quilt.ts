@@ -13,9 +13,6 @@ import {
   PlaneGeometry,
   SphereGeometry,
   SRGBColorSpace,
-  TubeGeometry,
-  CatmullRomCurve3,
-  Vector3,
 } from '@iwsdk/core';
 import { WARPS } from '../config.js';
 import { isLifted, type Mask8 } from '../puzzle/tieup.js';
@@ -25,78 +22,110 @@ export interface QuiltPanel {
   color: number;
 }
 
-/** Quilt width on the wall (m). */
+/** Quilt width on the wall at arm's length (m); it's scaled up on far walls. */
 export const QUILT_W = 0.36;
 
 export function buildQuilt(title: string, panels: readonly QuiltPanel[], font = 'Lilita One, sans-serif'): Group {
   const g = new Group();
   g.name = 'Quilt';
-  const cols = panels.length <= 3 ? panels.length : 2;
-  const rowsN = Math.ceil(panels.length / cols);
-  // canvas: panels of 8x6 cells, sashing between, a title strip at the bottom
-  const cellPx = 22;
-  const panelW = WARPS * cellPx;
-  const panelH = 6 * cellPx;
-  const sash = 26;
-  const titleH = 54;
-  const W = cols * panelW + (cols + 1) * sash;
-  const H = rowsN * panelH + (rowsN + 1) * sash + titleH;
+  // patchwork: a patch per picture and one embroidered with the chapter's name, two to a row
+  const patches = panels.length + 1;
+  const cols = 2;
+  const rowsN = Math.ceil(patches / cols);
+  const cellPx = 24;
+  const patchW = WARPS * cellPx + 44;
+  const patchH = 6 * cellPx + 44;
+  const bind = 16;
+  const W = cols * patchW + 2 * bind;
+  const H = rowsN * patchH + 2 * bind;
   const c = document.createElement('canvas');
   c.width = W;
   c.height = H;
   const x = c.getContext('2d')!;
-  // cream sashing with a woven feel
-  x.fillStyle = '#f3e7cf';
-  x.fillRect(0, 0, W, H);
   let seed = 3;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  for (let i = 0; i < 900; i++) {
-    x.fillStyle = rnd() < 0.5 ? 'rgba(120,90,50,0.05)' : 'rgba(255,255,255,0.12)';
-    x.fillRect(rnd() * W, rnd() * H, 3, 1);
-  }
-  panels.forEach((p, k) => {
-    const px = sash + (k % cols) * (panelW + sash);
-    const py = sash + Math.floor(k / cols) * (panelH + sash);
-    // panel ground: undyed felt
-    x.fillStyle = '#e8dcc3';
-    x.fillRect(px, py, panelW, panelH);
-    const n = p.rows.length;
-    const top = py + (panelH - n * cellPx) / 2;
-    const col = '#' + p.color.toString(16).padStart(6, '0');
-    for (let r = 0; r < n; r++) {
-      const y = top + (n - 1 - r) * cellPx; // row 0 at the bottom
-      for (let i = 0; i < WARPS; i++) {
-        if (!isLifted(p.rows[r], i)) continue;
-        x.fillStyle = col;
-        x.fillRect(px + i * cellPx + 1, y + 1, cellPx - 2, cellPx - 2);
-        x.fillStyle = 'rgba(255,255,255,0.1)';
-        x.fillRect(px + i * cellPx + 2, y + 2, cellPx - 6, 4);
-      }
+  // binding: a tomato edge all round
+  x.fillStyle = '#c8442f';
+  x.fillRect(0, 0, W, H);
+  const grounds = ['#f3e7cf', '#b9cfa3', '#bcd3e8', '#f3c9bf', '#ecd38c'];
+  const rgb = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const far = (a: number[], b: number[]) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  for (let k = 0; k < rowsN * cols; k++) {
+    const px = bind + (k % cols) * patchW;
+    const py = bind + Math.floor(k / cols) * patchH;
+    const p = panels[k];
+    // a ground that stands apart from the picture's yarn
+    const col = p ? '#' + p.color.toString(16).padStart(6, '0') : '#c8442f';
+    const ground = p ? grounds.reduce((best, gr) => (far(rgb(gr), rgb(col)) > far(rgb(best), rgb(col)) ? gr : best), grounds[k % grounds.length]) : '#f3e7cf';
+    x.fillStyle = ground;
+    x.fillRect(px, py, patchW, patchH);
+    // a faint gingham on some patches, like scraps from different cloths
+    if (k % 2 === 1) {
+      x.fillStyle = 'rgba(255,255,255,0.18)';
+      for (let i = 0; i < patchW; i += 16) x.fillRect(px + i, py, 7, patchH);
+      for (let j = 0; j < patchH; j += 16) x.fillRect(px, py + j, patchW, 7);
     }
-    // a running stitch around each panel
-    x.setLineDash([8, 6]);
-    x.strokeStyle = 'rgba(110,80,50,0.7)';
-    x.lineWidth = 2.5;
-    x.strokeRect(px - 7, py - 7, panelW + 14, panelH + 14);
+    for (let i = 0; i < 160; i++) {
+      x.fillStyle = rnd() < 0.5 ? 'rgba(80,50,20,0.06)' : 'rgba(255,255,255,0.1)';
+      x.fillRect(px + rnd() * patchW, py + rnd() * patchH, 3, 1);
+    }
+    if (p) {
+      const n = p.rows.length;
+      const ox = px + (patchW - WARPS * cellPx) / 2;
+      const oy = py + (patchH - n * cellPx) / 2;
+      for (let r = 0; r < n; r++) {
+        const y = oy + (n - 1 - r) * cellPx; // row 0 at the bottom
+        for (let i = 0; i < WARPS; i++) {
+          if (!isLifted(p.rows[r], i)) continue;
+          x.fillStyle = col;
+          x.fillRect(ox + i * cellPx + 1, y + 1, cellPx - 2, cellPx - 2);
+          x.fillStyle = 'rgba(255,255,255,0.12)';
+          x.fillRect(ox + i * cellPx + 3, y + 3, cellPx - 8, 4);
+        }
+      }
+    } else if (k > panels.length) {
+      // a spare patch: a plain square with a quilted diamond
+      x.strokeStyle = 'rgba(70,45,25,0.45)';
+      x.lineWidth = 3;
+      x.setLineDash([9, 6]);
+      x.beginPath();
+      x.moveTo(px + patchW / 2, py + 24);
+      x.lineTo(px + patchW - 24, py + patchH / 2);
+      x.lineTo(px + patchW / 2, py + patchH - 24);
+      x.lineTo(px + 24, py + patchH / 2);
+      x.closePath();
+      x.stroke();
+      x.setLineDash([]);
+    } else {
+      // the name patch: big embroidered letters with a stitched outline
+      const size = Math.min(patchH * 0.42, (patchW * 1.6) / Math.max(4, title.length));
+      x.font = `400 ${Math.round(size)}px ${font}`;
+      x.textAlign = 'center';
+      x.textBaseline = 'middle';
+      x.lineWidth = 5;
+      x.strokeStyle = '#8f2f20';
+      x.setLineDash([6, 4]);
+      x.strokeText(title, px + patchW / 2, py + patchH / 2 + 4, patchW - 30);
+      x.setLineDash([]);
+      x.fillStyle = '#c8442f';
+      x.fillText(title, px + patchW / 2, py + patchH / 2 + 4, patchW - 30);
+    }
+    // the quilting stitch around each patch, and the seam
+    x.setLineDash([9, 6]);
+    x.strokeStyle = 'rgba(70,45,25,0.6)';
+    x.lineWidth = 3;
+    x.strokeRect(px + 10, py + 10, patchW - 20, patchH - 20);
     x.setLineDash([]);
-  });
-  // stitched title along the bottom
-  x.fillStyle = '#d9533c';
-  x.fillRect(sash, H - titleH - sash * 0.4, W - 2 * sash, titleH - 8);
-  x.setLineDash([7, 5]);
-  x.strokeStyle = 'rgba(255,241,214,0.95)';
+    x.strokeStyle = 'rgba(70,45,25,0.35)';
+    x.lineWidth = 2;
+    x.strokeRect(px, py, patchW, patchH);
+  }
+  // a stitch along the binding
+  x.setLineDash([8, 6]);
+  x.strokeStyle = 'rgba(255,236,210,0.85)';
   x.lineWidth = 2.5;
-  x.strokeRect(sash + 6, H - titleH - sash * 0.4 + 6, W - 2 * sash - 12, titleH - 20);
+  x.strokeRect(bind / 2, bind / 2, W - bind, H - bind);
   x.setLineDash([]);
-  x.fillStyle = '#fff4de';
-  x.font = `400 ${Math.round(titleH * 0.55)}px ${font}`;
-  x.textAlign = 'center';
-  x.textBaseline = 'middle';
-  x.fillText(title, W / 2, H - titleH / 2 - sash * 0.4 + 2);
-  // binding edge
-  x.strokeStyle = '#b9a07a';
-  x.lineWidth = 8;
-  x.strokeRect(4, 4, W - 8, H - 8);
   const tex = new CanvasTexture(c);
   tex.colorSpace = SRGBColorSpace;
   tex.anisotropy = 4;
@@ -124,15 +153,14 @@ export function buildQuilt(title: string, panels: readonly QuiltPanel[], font = 
     knob.position.x = s * (w / 2 + 0.022);
     g.add(knob);
   }
-  // twine up to a nail
-  const twine = new Mesh(
-    new TubeGeometry(new CatmullRomCurve3([new Vector3(-w * 0.42, 0, 0.002), new Vector3(0, 0.08, 0), new Vector3(w * 0.42, 0, 0.002)]), 16, 0.0012, 5),
-    new MeshStandardMaterial({ color: 0x8b6a48, roughness: 0.9 }),
-  );
-  g.add(twine);
-  const nail = new Mesh(new SphereGeometry(0.004, 8, 6), new MeshStandardMaterial({ color: 0x6e6a66, metalness: 0.6, roughness: 0.4 }));
-  nail.position.set(0, 0.08, 0);
-  g.add(nail);
+  // fabric tabs looped over the dowel
+  const tabMat = new MeshStandardMaterial({ color: 0xc8442f, roughness: 0.95 });
+  for (const f of [-0.38, 0, 0.38]) {
+    const tab = new Mesh(new CylinderGeometry(0.0085, 0.0085, 0.03, 12, 1, true, Math.PI * 0.15, Math.PI * 1.7), tabMat);
+    tab.rotation.z = Math.PI / 2;
+    tab.position.x = f * w;
+    g.add(tab);
+  }
   g.userData.height = h;
   return g;
 }
