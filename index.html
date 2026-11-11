@@ -88,7 +88,7 @@
       #landing .hero { position: relative; display: grid; padding-bottom: 46px; }
       #landing .hero-photo { width: min(100%, 860px); justify-self: end; margin-top: 10px; }
       #landing .hero-photo { transform: rotate(1.6deg); }
-      #landing .pitch { position: absolute; z-index: 5; left: 0; bottom: 0; width: min(46%, 470px); padding: 26px 28px 24px; color: var(--ink);
+      #landing .pitch { position: absolute; z-index: 5; left: -6px; bottom: -14px; width: min(42%, 440px); padding: 26px 28px 24px; color: var(--ink);
         background: #fbf3e0; border-radius: 2px; transform: rotate(-1.6deg); box-shadow: 0 1px 2px #0004, 0 14px 24px -10px #000a; }
       #landing .pitch #tagline { color: var(--walnut); }
       #landing .pitch .lede { color: #4a3426; }
@@ -226,7 +226,7 @@
       #landing .tagwrap:nth-child(3) { transform: rotate(-1deg); }
       /* a loop of red yarn through the punched hole */
       #landing .string { position: absolute; z-index: 2; left: -21px; top: 50%; width: 40px; height: 26px; margin-top: -13px; pointer-events: none; }
-      #landing .tag::after { content: 'off'; margin-left: 10px; font: 400 14px var(--display); color: #6b5a4e; }
+      #landing .tag::after { content: 'off'; margin-left: 10px; font: 400 14px var(--display); color: #4a3426; }
       #landing .tag[aria-checked='true']::after, #landing .tag[aria-pressed='true']::after { content: 'on'; color: var(--ink); }
       #landing .tag, #hand-pick { position: relative; font: 600 15px var(--serif); color: var(--ink); background: var(--paper);
         border: 0; padding: 9px 16px 9px 30px; cursor: pointer;
@@ -288,7 +288,8 @@
         #landing .mark { gap: 10px; }
         #landing h1 { font-size: clamp(34px, 10.5vw, 52px); }
         #enter-xr { font-size: 19px; padding: 15px 20px 16px; white-space: nowrap; }
-        #landing .plate { padding: 10px 26px 12px; }
+        #landing .plate { padding: 10px 32px 12px; }
+        #landing .plate::before { left: 9px; } #landing .plate::after { right: 9px; }
         #landing .weave { --cell: 8px; }
         #landing .more { grid-template-columns: 1fr; }
         #settings { display: grid; grid-template-columns: 1fr 1fr; }
