@@ -10,6 +10,7 @@ import { clothDataUrl } from './cloth-image.js';
 import { clothFromHash, shareUrl } from '../net/share.js';
 import { loadSettings, saveSettings, type HandPref } from '../persistence/settings.js';
 import { coop, type CoopStatus } from '../net/coop.js';
+import { mountCaller, shouldCall, unmountCaller } from './caller.js';
 
 export function mountLanding(world: World): void {
   const el = document.createElement('div');
@@ -44,7 +45,7 @@ export function mountLanding(world: World): void {
     <p class="small" id="xr-unsupported" hidden>Mixed reality isn't available in this browser. Open this page in your headset's browser.</p>
     <details id="coop">
       <summary>Play together (beta)</summary>
-      <p class="small">Two desks, one loom: the host works the levers, the guest throws the shuttle.</p>
+      <p class="small">Host a loom in your headset, then share the code. A friend on a <b>phone</b> joins as your caller: they see the card and press the levers while you slide Pip. A second headset joins as the shuttle thrower.</p>
       <div class="row">
         <button type="button" id="coop-host">Host a loom</button>
         <input id="coop-code" maxlength="4" placeholder="CODE" aria-label="Room code" autocomplete="off" />
@@ -119,9 +120,11 @@ export function mountLanding(world: World): void {
   const codeIn = el.querySelector<HTMLInputElement>('#coop-code')!;
   const leaveBtn = el.querySelector<HTMLButtonElement>('#coop-leave')!;
   el.querySelector('#coop-host')!.addEventListener('click', () => void coop.host());
-  el.querySelector('#coop-join')!.addEventListener('click', () => void coop.join(codeIn.value));
+  // a phone (no immersive AR) joins as the caller: the card and lever buttons
+  const join = async () => void coop.join(codeIn.value, (await shouldCall()) ? 'caller' : 'guest');
+  el.querySelector('#coop-join')!.addEventListener('click', () => void join());
   codeIn.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') void coop.join(codeIn.value);
+    if (e.key === 'Enter') void join();
   });
   leaveBtn.addEventListener('click', () => coop.leave());
   const showCoop = (st: CoopStatus) => {
@@ -129,7 +132,12 @@ export function mountLanding(world: World): void {
       idle: '',
       hosting: `Your code: ${st.code ?? ''}. ${st.message ?? ''}`,
       joining: st.message ?? 'Connecting…',
-      connected: st.role === 'host' ? `Connected (${st.code}). You work the levers. Enter XR.` : `Connected (${st.code}). You throw the shuttle. Enter XR.`,
+      connected:
+        st.role === 'host'
+          ? `Connected (${st.code}). Enter XR.`
+          : st.role === 'caller'
+            ? `Connected (${st.code}). You're the caller.`
+            : `Connected (${st.code}). You throw the shuttle. Enter XR.`,
       error: st.message ?? 'Something went wrong',
       closed: st.message ?? 'Disconnected',
     };
@@ -140,6 +148,12 @@ export function mountLanding(world: World): void {
     codeIn.disabled = busy;
   };
   window.addEventListener('loomsong:coop', (e) => showCoop((e as CustomEvent<CoopStatus>).detail));
+  // the phone caller's own screen
+  window.addEventListener('loomsong:coop', (e) => {
+    const st = (e as CustomEvent<CoopStatus>).detail;
+    if (st.role === 'caller' && st.state === 'connected' && coop.transport) mountCaller(coop.transport, st.code ?? '', () => coop.leave());
+    else if (st.state !== 'connected') unmountCaller();
+  });
 
   // Accessibility settings.
   const hc = el.querySelector<HTMLButtonElement>('#hc')!;

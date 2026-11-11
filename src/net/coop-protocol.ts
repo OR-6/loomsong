@@ -25,7 +25,12 @@ export interface Snapshot {
   ph: string; // flow phase
   st: number; // stars of the last win
 }
-export type GuestMsg = { k: 'sh'; t: number; h: boolean } | { k: 'req'; what: 'throw' | 'undo' };
+export type GuestMsg =
+  | { k: 'sh'; t: number; h: boolean }
+  | { k: 'req'; what: 'throw' | 'undo' }
+  /** A phone caller says hello, then works levers by index. */
+  | { k: 'hi'; who: 'caller' }
+  | { k: 'lev'; i: number; v: boolean };
 
 export interface Side {
   model: LoomModel;
@@ -48,7 +53,7 @@ export function validSnapshot(m: unknown): m is Snapshot {
     isNum(s.lat, 0, 15) &&
     Array.isArray(s.r) &&
     s.r.length <= 64 &&
-    s.r.every((x) => isNum(x, 0, 255)) &&
+    s.r.every((x) => isNum(x, 0, 511)) && // 8 warp bits + Sea's weft bit
     (s.sd === 0 || s.sd === 1) &&
     isNum(s.t, 0, 1) &&
     typeof s.ph === 'string' &&
@@ -61,6 +66,8 @@ export function validGuestMsg(m: unknown): m is GuestMsg {
   if (!g || typeof g !== 'object') return false;
   if (g.k === 'sh') return isNum(g.t, 0, 1) && typeof g.h === 'boolean';
   if (g.k === 'req') return g.what === 'throw' || g.what === 'undo';
+  if (g.k === 'hi') return g.who === 'caller';
+  if (g.k === 'lev') return Number.isInteger(g.i) && isNum(g.i, 0, LEVERS - 1) && typeof g.v === 'boolean';
   return false;
 }
 
@@ -83,11 +90,24 @@ export class CoopHost {
     link.onMessage((m) => this.receive(m));
   }
 
+  /** A phone caller joined: the headset keeps Pip too, and the phone can work the levers. */
+  caller = false;
+  onCaller: (() => void) | null = null;
+
   receive(m: unknown): void {
     if (!validGuestMsg(m)) return;
     const c = this.side.controller;
+    if (m.k === 'hi') {
+      this.caller = true;
+      c.allow = { levers: true, shuttle: true };
+      this.onCaller?.();
+      return;
+    }
     if (!c.enabled || this.side.flow.phase !== 'play') return; // ignore during wins
-    if (m.k === 'sh') c.remoteShuttle(m.t, m.h);
+    if (m.k === 'lev') {
+      if (this.caller && m.i < c.activeLevers) c.applyLatched(m.i, m.v);
+    } else if (this.caller) return; // a phone never drives the shuttle
+    else if (m.k === 'sh') c.remoteShuttle(m.t, m.h);
     else if (m.what === 'throw') c.throwShuttle();
     else c.doUndo();
   }

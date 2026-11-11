@@ -36,6 +36,11 @@ export class TargetCard {
   /** Optional paper tint for the chapter (e.g. a cool dusk for Night). */
   paper: string | null = null;
 
+  /** The card's canvas (the phone caller shows it as a plain 2D image). */
+  get element(): HTMLCanvasElement {
+    return this.canvas;
+  }
+
   setPicture(color: number | null, par: number): void {
     this.color = color;
     this.par = par;

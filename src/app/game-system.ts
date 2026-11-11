@@ -559,10 +559,18 @@ export class GameSystem extends createSystem({
     if (this.coopLink && (st.state !== 'connected' || coop.transport !== this.coopTransport)) {
       this.endCoop(st.state === 'closed' || st.state === 'error');
     }
+    // a phone caller runs its own 2D view (ui/caller.ts), not a mirrored loom
+    if (st.role === 'caller') return;
     if (st.state === 'connected' && coop.transport && !this.coopLink) {
       this.coopTransport = coop.transport;
       this.coopLink = st.role === 'host' ? new CoopHost(side, coop.transport) : new CoopGuest(side, coop.transport);
       this.debug.coop = st.role ?? 'solo';
+      if (this.coopLink instanceof CoopHost) {
+        this.coopLink.onCaller = () => {
+          this.debug.coop = 'host+caller';
+          this.showNotice('A caller joined: they can work the levers', 6, 'centre');
+        };
+      }
       if (this.placement.phase === 'placed') {
         this.showNotice(st.role === 'host' ? 'You work the levers' : 'You throw the shuttle', 6, 'centre');
       }

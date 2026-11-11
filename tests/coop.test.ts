@@ -65,7 +65,37 @@ describe('co-op protocol', () => {
     expect(validGuestMsg({ k: 'req', what: 'rm -rf' })).toBe(false);
     expect(validSnapshot({ k: 's', l: 0, lat: 1, r: [3], sd: 0, t: 0, ph: 'play', st: 0 })).toBe(true);
     expect(validSnapshot({ k: 's', l: 0, lat: 99, r: [3], sd: 0, t: 0, ph: 'play', st: 0 })).toBe(false);
-    expect(validSnapshot({ k: 's', l: 0, lat: 1, r: [300], sd: 0, t: 0, ph: 'play', st: 0 })).toBe(false);
+    expect(validSnapshot({ k: 's', l: 0, lat: 1, r: [300], sd: 0, t: 0, ph: 'play', st: 0 })).toBe(true); // a Sea water row (weft bit)
+    expect(validSnapshot({ k: 's', l: 0, lat: 1, r: [600], sd: 0, t: 0, ph: 'play', st: 0 })).toBe(false);
+    expect(validGuestMsg({ k: 'hi', who: 'caller' })).toBe(true);
+    expect(validGuestMsg({ k: 'hi', who: 'admin' })).toBe(false);
+    expect(validGuestMsg({ k: 'lev', i: 2, v: true })).toBe(true);
+    expect(validGuestMsg({ k: 'lev', i: 7, v: true })).toBe(false);
+    expect(validGuestMsg({ k: 'lev', i: 1.5, v: true })).toBe(false);
+  });
+
+  it('a phone caller works the host levers; the headset keeps Pip', () => {
+    const [a, b] = pipe();
+    const h = side(0);
+    const host = new CoopHost(h, a);
+    let heard = 0;
+    host.onCaller = () => heard++;
+    const flush = () => (a as unknown as { flush: () => void }).flush();
+    // a lever press before saying hello is ignored
+    b.send({ k: 'lev', i: 0, v: true });
+    flush();
+    expect(h.model.latched[0]).toBe(false);
+    b.send({ k: 'hi', who: 'caller' });
+    flush();
+    expect(heard).toBe(1);
+    expect(h.controller.allow).toEqual({ levers: true, shuttle: true });
+    b.send({ k: 'lev', i: 0, v: true });
+    flush();
+    expect(h.model.latched[0]).toBe(true);
+    // a phone never drives the shuttle
+    b.send({ k: 'req', what: 'throw' });
+    flush();
+    expect(h.model.rows.length).toBe(0);
   });
 
   it('roles: host may not grab the shuttle, guest may not grab levers', () => {

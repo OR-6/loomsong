@@ -7,7 +7,8 @@
  */
 import type { Transport } from './coop-protocol.js';
 
-export type CoopRole = 'host' | 'guest';
+/** host: the headset that owns the loom; guest: a second headset throwing the shuttle; caller: a phone working the levers. */
+export type CoopRole = 'host' | 'guest' | 'caller';
 export interface CoopStatus {
   state: 'idle' | 'hosting' | 'joining' | 'connected' | 'error' | 'closed';
   role?: CoopRole;
@@ -102,7 +103,8 @@ class CoopSession {
     }
   }
 
-  async join(raw: string): Promise<void> {
+  /** `as`: 'guest' (a second headset) or 'caller' (a phone: 2D card and lever buttons). */
+  async join(raw: string, as: 'guest' | 'caller' = 'guest'): Promise<void> {
     const code = normaliseCode(raw);
     if (!code) {
       this.set({ state: 'error', message: 'Codes are 4 letters' });
@@ -110,7 +112,7 @@ class CoopSession {
     }
     this.leave(true);
     const gen = this.gen;
-    this.set({ state: 'joining', role: 'guest', code, message: 'Connecting…' });
+    this.set({ state: 'joining', role: as, code, message: 'Connecting…' });
     try {
       const peer = await this.newPeer();
       if (gen !== this.gen) return peer.destroy();
@@ -118,7 +120,10 @@ class CoopSession {
       peer.on('open', () => {
         if (gen !== this.gen) return;
         const conn = peer.connect(PREFIX + code, { reliable: true, serialization: 'json' });
-        conn.on('open', () => this.attach(conn, 'guest', code, gen));
+        conn.on('open', () => {
+          this.attach(conn, as, code, gen);
+          if (as === 'caller') this.transport?.send({ k: 'hi', who: 'caller' }); // tell the loom a phone joined
+        });
       });
       peer.on('error', (e) => {
         if (gen !== this.gen) return;
