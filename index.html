@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <meta name="description" content="A tiny toy loom on your real desk, in mixed reality. Lift the levers, slide Pip the bird across, and every picture you weave sings and comes alive as a knitted plush. Hands only." />
+    <meta name="description" content="A tiny toy loom on your real desk, in mixed reality. Lift the levers, slide Pip the bird across, and every picture you weave sings and comes alive as a felt plush. Hands only." />
     <meta property="og:title" content="Loomsong" />
     <meta property="og:description" content="A tiny toy loom on your real desk. Hands only. Every picture you weave sings and comes alive." />
     <meta property="og:image" content="./site/og.jpg" />
@@ -65,6 +65,9 @@
       #landing .tape::before, #landing .tape::after { content: ''; position: absolute; top: 0; bottom: 0; width: 4px;
         background: repeating-linear-gradient(180deg, #0000 0 3px, var(--felt) 3px 5px); opacity: .35; }
       #landing .tape::before { left: 0; } #landing .tape::after { right: 0; }
+      /* photos hang from their yarn (src/ui/hang.ts sets --hang so each peg grips the string) and swing on the peg */
+      #landing [data-hang] { position: relative; top: var(--hang, 0px); }
+      #landing .photo { rotate: var(--swing, 0deg); }
       #landing .photo img, #landing .photo video { display: block; width: 100%; height: auto; border-radius: 2px; }
       #landing .photo figcaption { font: 600 12px/1.3 var(--serif); color: #6b5a4e; padding: 7px 2px 0; }
       #landing .photo .cap-tag { position: absolute; right: 14px; bottom: -16px; padding: 5px 12px 6px 20px; background: var(--mustard); color: var(--ink);
@@ -96,35 +99,9 @@
       #landing .pitch .nohead { background: #f1e3c6; box-shadow: none; transform: none; margin-top: 4px; }
       #landing .pitch .nohead .tape { display: none; }
       #landing .mark { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
-      #landing .weave { --cell: 15px; --gap: 1px; position: relative; flex: none;
-        width: calc(8 * var(--cell) + 7 * var(--gap) + 16px); padding: 18px 8px 8px; border-radius: 9px;
-        background: var(--felt-deep); box-shadow: inset 0 2px 6px #0007; }
-      #landing .weave .warps { position: absolute; inset: 0 8px; pointer-events: none;
-        background: repeating-linear-gradient(90deg, #0000 0 calc((var(--cell) + var(--gap)) / 2 - 1px), #f3e6cc88 calc((var(--cell) + var(--gap)) / 2 - 1px) calc((var(--cell) + var(--gap)) / 2 + 1px), #0000 calc((var(--cell) + var(--gap)) / 2 + 1px) calc(var(--cell) + var(--gap))); }
-      #landing .cloth { position: relative; display: grid; gap: var(--gap); }
-      #landing .cloth .row { display: grid; grid-template-columns: repeat(8, var(--cell)); gap: var(--gap); }
-      #landing .cloth i { height: calc(var(--cell) * 0.82); border-radius: 3px; opacity: 0; transform: scaleY(0.4);
-        box-shadow: inset 0 -2px 0 #0002, inset 0 1px 0 #ffffff55; }
-      #landing .cloth i.px { background: var(--pic); }
-      #landing .cloth i.gr { background: var(--cream); }
-      /* in the logo mark only the duck's own cells show: a clear little duck, not a bead grid */
-      #landing .mark .warps { display: none; }
-      #landing .mark .weave { background: none; box-shadow: none; padding-left: 0; padding-right: 0; }
-      #landing .mark .cloth i.gr { visibility: hidden; }
-      #landing .mark .cloth i { border-radius: 1px; }
-      #landing .mark .cloth i.beak { background: #f08a3c; }
-      #landing .mark .cloth i.eye { background: #2b2320; }
-      /* Pip sits on the duck's back, between its tail and its neck */
-      #landing .mark .pip.rest { left: calc(1 * (var(--cell) + var(--gap)) - 2px); top: calc(18px + 4 * (var(--cell) * 0.82 + var(--gap)) - 21px); transform: none; }
-      #landing .cloth .row.in i { animation: beat .3s cubic-bezier(.3, 1.6, .5, 1) forwards; }
-      @keyframes beat { to { opacity: 1; transform: none; } }
-      #landing .pip { position: absolute; left: 0; width: 26px; height: 23px; opacity: 0;
-        top: calc(18px + var(--y, 0) * (var(--cell) * 0.82 + var(--gap)) - 15px); }
-      #landing .pip.fly-r { animation: fly-r .45s ease-in-out forwards; }
-      #landing .pip.fly-l { animation: fly-l .45s ease-in-out forwards; }
-      @keyframes fly-r { from { opacity: 1; left: -20px; } to { opacity: 1; left: calc(100% - 6px); } }
-      @keyframes fly-l { from { opacity: 1; left: calc(100% - 6px); transform: scaleX(-1); } to { opacity: 1; left: -20px; transform: scaleX(-1); } }
-      #landing .pip.rest { animation: none; opacity: 1; left: calc(100% - 14px); top: -12px; transform: scaleX(-1) rotate(-4deg); }
+      /* the living mark: a little loom weaving on the nameplate (canvas, src/ui/weave-mark.ts) */
+      #landing .weave-mark { flex: none; width: 150px; height: 132px; margin: -8px 0 -10px; }
+      #landing .weave-canvas { display: block; }
 
       #landing h1 { font-family: var(--display); font-weight: 400; font-size: clamp(46px, 5vw, 70px); line-height: .95; margin: 0;
         color: var(--mustard); text-shadow: 0 5px 0 var(--walnut); }
@@ -284,13 +261,12 @@
         #landing .frame { padding: 14px; }
         #landing .spool { transform: scale(.72); }
         #landing .tl, #landing .tr { top: -16px; } #landing .tl { left: 10px; } #landing .tr { right: 10px; }
-        #landing .mark .pip { display: none; }
         #landing .mark { gap: 10px; }
         #landing h1 { font-size: clamp(34px, 10.5vw, 52px); }
         #enter-xr { font-size: 19px; padding: 15px 20px 16px; white-space: nowrap; }
         #landing .plate { padding: 10px 32px 12px; }
         #landing .plate::before { left: 9px; } #landing .plate::after { right: 9px; }
-        #landing .weave { --cell: 8px; }
+        #landing .weave-mark { transform: scale(.62); transform-origin: left center; width: 94px; margin-right: -4px; }
         #landing .more { grid-template-columns: 1fr; }
         #settings { display: grid; grid-template-columns: 1fr 1fr; }
         #hand-pick { grid-column: 1 / -1; justify-self: center; }
@@ -304,7 +280,6 @@
         #coop-leave { grid-column: 1 / -1; }
       }
       @media (prefers-reduced-motion: reduce) {
-        #landing .cloth i { opacity: 1; transform: none; animation: none !important; }
         #enter-xr { transition: none; }
       }
     </style>

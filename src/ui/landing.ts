@@ -2,6 +2,8 @@
  * 2D landing page shown outside XR: title, one Enter button, judge hint.
  * (Zero floating menus in XR; this is the browser page only.)
  */
+import { mountWeaveMark } from './weave-mark.js';
+import { hangPhotos } from './hang.js';
 import { VisibilityState, type World } from '@iwsdk/core';
 import { audio } from '../audio/synth.js';
 import { loadProgress, workshopUnlocked } from '../persistence/progress.js';
@@ -10,7 +12,6 @@ import { clothDataUrl } from './cloth-image.js';
 import { clothFromHash, shareUrl } from '../net/share.js';
 import { loadSettings, saveSettings, type HandPref } from '../persistence/settings.js';
 import { coop, type CoopStatus } from '../net/coop.js';
-import { PICTURES } from '../puzzle/pictures.gen.js';
 import { mountCaller, shouldCall, unmountCaller } from './caller.js';
 
 export function mountLanding(world: World): void {
@@ -21,19 +22,7 @@ export function mountLanding(world: World): void {
     <div class="frame">
       <i class="spool tl"></i><i class="spool tr"></i><i class="spool bl"></i><i class="spool br"></i>
         <header class="rail"><div class="mark plate">
-              <div class="weave" aria-hidden="true">
-                <div class="warps"></div>
-                <div class="cloth"></div>
-                <svg class="pip" viewBox="0 0 46 40" width="46" height="40">
-                  <path d="M6 30 q16 9 34 0 l-3 6 q-14 5 -28 0z" fill="#b5703f"/>
-                  <ellipse cx="22" cy="22" rx="15" ry="11" fill="#f7c948"/>
-                  <circle cx="31" cy="13" r="9" fill="#f7c948"/>
-                  <path d="M39 12 l7 3 -7 3z" fill="#f08a3c"/>
-                  <circle cx="34" cy="11" r="2" fill="#2b2320"/>
-                  <ellipse cx="18" cy="21" rx="7" ry="4.5" fill="#f2b632" transform="rotate(-15 18 21)"/>
-                  <circle cx="11" cy="27" r="4.5" fill="#fbf1dc"/>
-                </svg>
-              </div>
+              <div class="weave-mark" aria-hidden="true"></div>
               <h1>Loomsong</h1>
             </div></header>
       <main class="felt">
@@ -57,38 +46,38 @@ export function mountLanding(world: World): void {
           <figure class="photo hero-photo">
             <i class="peg" aria-hidden="true"></i>
             <video class="clip" muted loop playsinline preload="metadata" poster="${sitePhoto('loom-clip-poster.jpg')}" width="960" height="540"
-              aria-label="Gameplay: the levers lift, Pip flies across to weave the last rows of a duck, and the finished duck pops off the loom as a knitted plush">
+              aria-label="Gameplay: the levers lift, Pip flies across to weave the last rows of a duck, and the finished duck pops off the loom as a felt plush">
               <source src="${sitePhoto('loom-clip.mp4')}" type="video/mp4" />
             </video>
             <figcaption class="cap-tag">Recorded in the game</figcaption>
           </figure>
         </section>
 
-        <section class="line" aria-label="How it plays">
+        <section class="line" data-yarn aria-label="How it plays">
           <svg class="yarn" viewBox="0 0 1000 90" preserveAspectRatio="none" aria-hidden="true">
             <defs><pattern id="ply-red" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(55)"><rect width="7" height="7" fill="#c43c28"/><rect width="3.2" height="7" fill="#ee6a4f"/></pattern></defs>
             <path d="M-10 6 Q 230 80 480 52 T 1010 14" fill="none" stroke="#8f2a1c" stroke-width="7" stroke-linecap="round" opacity=".35"/>
-            <path d="M-10 6 Q 230 80 480 52 T 1010 14" fill="none" stroke="url(#ply-red)" stroke-width="5.5" stroke-linecap="round"/>
+            <path data-line d="M-10 6 Q 230 80 480 52 T 1010 14" fill="none" stroke="url(#ply-red)" stroke-width="5.5" stroke-linecap="round"/>
           </svg>
           <ol class="steps">
-            <li class="s1"><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('levers-close.jpg')}" alt="The red lever lifts its threads" width="800" height="600" /></figure>
+            <li class="s1" data-hang><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('levers-close.jpg')}" alt="The red lever lifts its threads" width="800" height="600" /></figure>
               <div class="hang"><b><span class="num" aria-hidden="true">1</span><span class="visually-hidden">Step 1: </span>Lift the levers</b>Each lever lifts its own threads. Pick the ones that make the next row on the card.</div></li>
-            <li class="s2"><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('pip-pinch.jpg')}" alt="A ghost hand shows how to pinch Pip" width="800" height="600" /></figure>
+            <li class="s2" data-hang><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('pip-pinch.jpg')}" alt="A ghost hand shows how to pinch Pip" width="800" height="600" /></figure>
               <div class="hang"><b><span class="num" aria-hidden="true">2</span><span class="visually-hidden">Step 2: </span>Slide Pip across</b>Pinch the little bird and slide it through. The row is woven, and its threads ring out.</div></li>
-            <li class="s3"><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('plush-dance.jpg')}" alt="The finished duck pops off the loom as a felt plush" width="800" height="600" /></figure>
+            <li class="s3" data-hang><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('plush-dance.jpg')}" alt="The finished duck pops off the loom as a felt plush" width="800" height="600" /></figure>
               <div class="hang"><b><span class="num" aria-hidden="true">3</span><span class="visually-hidden">Step 3: </span>Watch it come alive</b>A finished picture pops off the loom as a plush and hops onto your shelf.</div></li>
           </ol>
         </section>
 
-        <section class="more" aria-label="What else is on the desk">
+        <section class="more" data-yarn aria-label="What else is on the desk">
           <svg class="yarn small-yarn" viewBox="0 0 1000 60" preserveAspectRatio="none" aria-hidden="true">
             <defs><pattern id="ply-teal" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(55)"><rect width="6" height="6" fill="#178a7b"/><rect width="2.8" height="6" fill="#4fc2b1"/></pattern></defs>
             <path d="M-10 30 Q 300 4 520 22 T 1010 10" fill="none" stroke="#0d5d53" stroke-width="6" stroke-linecap="round" opacity=".35"/>
-            <path d="M-10 30 Q 300 4 520 22 T 1010 10" fill="none" stroke="url(#ply-teal)" stroke-width="4.5" stroke-linecap="round"/>
+            <path data-line d="M-10 30 Q 300 4 520 22 T 1010 10" fill="none" stroke="url(#ply-teal)" stroke-width="4.5" stroke-linecap="round"/>
           </svg>
-          <figure class="photo small"><i class="peg"></i><span class="label">Your shelf, your desk</span><img loading="lazy" src="${sitePhoto('shelf.jpg')}" alt="Finished plushes on the shelf and on the desk, beside the wrapped present of the day" width="800" height="500" /></figure>
+          <figure class="photo small" data-hang><i class="peg"></i><span class="label">Your shelf, your desk</span><img loading="lazy" src="${sitePhoto('shelf.jpg')}" alt="Finished plushes on the shelf and on the desk, beside the wrapped present of the day" width="800" height="500" /></figure>
           <div class="note-card"><i class="tape"></i><b>Four chapters, and a new picture every day</b><p>Garden teaches your hands, Home combines levers, Night hides what they lift, and Sea weaves in two colours. Carry your plushes anywhere on your desk and they stay there; finish a chapter and its quilt hangs on your wall. Wind the key and every plush sings in turn.</p></div>
-          <figure class="photo small"><i class="peg"></i><span class="label">Sea: two colours</span><img loading="lazy" src="${sitePhoto('sea-boat.jpg')}" alt="A red boat woven on blue water rows" width="800" height="500" /></figure>
+          <figure class="photo small" data-hang><i class="peg"></i><span class="label">Sea: two colours</span><img loading="lazy" src="${sitePhoto('sea-boat.jpg')}" alt="A red boat woven on blue water rows" width="800" height="500" /></figure>
         </section>
 
         <div class="drawer">
@@ -146,7 +135,8 @@ export function mountLanding(world: World): void {
       </main>
     </div>`;
   document.body.appendChild(el);
-  weaveHero(el.querySelector<HTMLElement>('.weave')!);
+  mountWeaveMark(el.querySelector<HTMLElement>('.weave-mark')!);
+  requestAnimationFrame(() => hangPhotos(el));
   feltTexture(el);
   // the gameplay clip loops (muted); with reduced motion it stays on its poster frame
   const clip = el.querySelector<HTMLVideoElement>('video.clip')!;
@@ -329,55 +319,6 @@ export function mountLanding(world: World): void {
  * The hero: the Duck woven row by row from the bottom, Pip flying across before
  * each row lands (the page's one orchestrated motion; instant with reduced motion).
  */
-function weaveHero(box: HTMLElement): void {
-  // a little duck drawn for the mark: '#' body, 'b' beak, 'e' eye (top → bottom)
-  const rows = ['....##..', '...##eb.', '....##..', '#...###.', '#######.', '.#####..', '..###...'];
-  const pic = PICTURES.find((p) => p.id === 'duck') ?? PICTURES[0];
-  const color = '#' + pic.color.toString(16).padStart(6, '0');
-  const cloth = box.querySelector<HTMLElement>('.cloth')!;
-  const pip = box.querySelector<SVGElement>('.pip')!;
-  box.style.setProperty('--rows', String(rows.length));
-  box.style.setProperty('--pic', color);
-  const rowEls: HTMLElement[] = [];
-  for (const r of rows) {
-    const row = document.createElement('div');
-    row.className = 'row';
-    for (const ch of r) {
-      const c = document.createElement('i');
-      c.className = ch === '#' ? 'px' : ch === 'b' ? 'px beak' : ch === 'e' ? 'px eye' : 'gr';
-      row.appendChild(c);
-    }
-    cloth.appendChild(row);
-    rowEls.push(row);
-  }
-  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  if (reduce) {
-    rowEls.forEach((r) => r.classList.add('in'));
-    pip.classList.add('rest');
-    return;
-  }
-  // weave from the bottom row up, Pip crossing the shed each time (alternating sides)
-  let i = rowEls.length - 1;
-  let fromLeft = true;
-  const next = () => {
-    if (i < 0) {
-      pip.classList.add('rest');
-      return;
-    }
-    const row = rowEls[i];
-    pip.style.setProperty('--y', String(i));
-    pip.classList.toggle('flip', !fromLeft);
-    pip.classList.remove('fly-l', 'fly-r');
-    void pip.getBoundingClientRect();
-    pip.classList.add(fromLeft ? 'fly-r' : 'fly-l');
-    window.setTimeout(() => row.classList.add('in'), 330);
-    fromLeft = !fromLeft;
-    i--;
-    window.setTimeout(next, 560);
-  };
-  window.setTimeout(next, 500);
-}
-
 /** Soft felt fibre noise for the bed (a small canvas tile, made once). */
 function feltTexture(el: HTMLElement): void {
   try {
