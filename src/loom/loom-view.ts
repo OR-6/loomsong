@@ -45,6 +45,7 @@ import { PLUSH, Plushes, puffGeometry } from './plush.js';
 import { DAILY_BALL } from './daily-ball.js';
 import { Basket } from './basket.js';
 import { DailyBall } from './daily-ball.js';
+import { RoomMood } from './room-mood.js';
 import { GhostHand } from './ghost-hand.js';
 import { Fx } from './fx.js';
 import { makeMat, MAT } from './mat.js';
@@ -258,6 +259,8 @@ export class LoomView {
   readonly plushes = new Plushes();
   readonly basket = new Basket();
   readonly daily = new DailyBall();
+  /** The chapter reaching into the real room (Night's dusk, the Sea's ripples). */
+  readonly roomMood = new RoomMood();
   readonly ghost = new GhostHand();
   readonly fx = new Fx();
 
@@ -323,7 +326,7 @@ export class LoomView {
     this.catcher.renderOrder = -1;
     this.root.add(this.catcher);
     // No mat: the player's real desk shows around the toy (it's mixed reality).
-    this.root.add(this.plushes.root, this.basket.root, this.daily.root, this.ghost.root, this.fx.root);
+    this.root.add(this.plushes.root, this.basket.root, this.daily.root, this.roomMood.root, this.ghost.root, this.fx.root);
     // Sea's swap spools (hidden unless the level has a second weft)
     {
       const flangeMat = new MeshStandardMaterial({ color: 0xf3e6cf, roughness: 0.7 });
@@ -1396,6 +1399,7 @@ export class LoomView {
     this.plushes.update(dt);
     this.basket.update(dt);
     this.daily.update(dt);
+    this.roomMood.update(dt);
     // a contact shadow only where its object is on the desk
     if (this.blobs.length === 4) {
       this.blobs[0].visible = this.plushes.shelfShown;

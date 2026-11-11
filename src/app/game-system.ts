@@ -455,6 +455,7 @@ export class GameSystem extends createSystem({
         this.view.setGlowRow(-1);
         audio.setRoot(keyFor(level.chapter, level.rootMidi)); // the threads play in the chapter track's key
         audio.setMood(level.chapter ?? 'garden');
+        this.view.roomMood.set(this.photoMode ? undefined : level.chapter);
         if (this.debug) {
           this.debug.level = level.id;
           this.debug.levelIndex = this.flow?.index ?? 0;
@@ -677,6 +678,7 @@ export class GameSystem extends createSystem({
     this.debug.degrade = lvl;
     audio.setReverb(lvl < 1);
     this.view.setShadow(lvl < 1 && !NO_SHADOWS);
+    this.view.roomMood.enabled = lvl < 1; // the room veil and ripples cost fill: first to go
     occluderState.enabled = lvl < 2; // spec §6: drop occluders under load
     try {
       this.renderer.xr.setFoveation(lvl >= 2 ? 1 : 0.5);
