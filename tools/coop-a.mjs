@@ -7,6 +7,6 @@ export default async function run({ page, frame }) {
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     if (action === 'host') { await L.coop.host(); for (let i = 0; i < 50 && L.coop.status.message !== 'Waiting for a friend'; i++) await sleep(200); }
     if (action === 'lever0') L.game.controller.toggleLever(0);
-    return { status: L.coop.status, coop: L.debug.coop, level: L.debug.level, latched: L.debug.latched, rows: [...L.debug.rows], notice: L.debug.notice };
+    return { status: L.coop.status, coop: L.debug.coop, level: L.debug.level, latched: L.debug.latched, rows: [...L.debug.rows], notice: L.debug.notice, secret: L.game.view.card.secret, ghostHidden: L.game.view.hideTarget };
   }, action);
 }

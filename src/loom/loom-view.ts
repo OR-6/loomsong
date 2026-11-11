@@ -1097,6 +1097,12 @@ export class LoomView {
     this.writeWarps();
   }
 
+  /** Hide or show the ghost picture (caller co-op). */
+  setTargetHidden(h: boolean): void {
+    this.hideTarget = h;
+    this.writeTarget();
+  }
+
   /** The whole picture, faint, on the rows still to weave: you watch it fill in. */
   setTarget(target: readonly Mask8[]): void {
     this.target = target;
@@ -1104,11 +1110,14 @@ export class LoomView {
   }
   private target: readonly Mask8[] = [];
 
+  /** Caller co-op: no ghost picture on the loom (only the phone knows it). */
+  hideTarget = false;
+
   private writeTarget(): void {
     if (!this.ghostCloth) return;
     let idx = 0;
     const done = this.rowsCache.length;
-    if (this.rowsCache.length < LOOM.maxRows) {
+    if (this.rowsCache.length < LOOM.maxRows && !this.hideTarget) {
       for (let r = done; r < this.target.length && r < LOOM.maxRows; r++) {
         const z = this.rowZ(r, done);
         const water = this.target[r] & WEFT_B && this.weftColor !== null;
@@ -1131,7 +1140,7 @@ export class LoomView {
     this.ghostCloth.count = idx;
     // a small arrow on the left of the bed points at the row to weave next (like the card's arrow)
     const next = done < this.target.length && done < LOOM.maxRows;
-    this.rowArrow.visible = next;
+    this.rowArrow.visible = next; // the arrow still says which row is next
     if (next) {
       this.rowArrow.position.set(warpX(0) - WARP_PITCH * 1.05, 0.008, this.rowZ(done, done));
       this.rowArrowMat.color.setHex(this.liftColor);

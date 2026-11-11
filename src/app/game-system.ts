@@ -602,7 +602,8 @@ export class GameSystem extends createSystem({
       if (this.coopLink instanceof CoopHost) {
         this.coopLink.onCaller = () => {
           this.debug.coop = 'host+caller';
-          this.showNotice('A caller joined: they can work the levers', 6, 'centre');
+          this.setCallerGap(true);
+          this.showNotice('Your caller has the picture: ask them!', 6, 'centre');
         };
       }
       if (this.placement.phase === 'placed') {
@@ -611,9 +612,19 @@ export class GameSystem extends createSystem({
     }
   }
 
+  /** Caller co-op information gap: the picture leaves the headset (card and ghost); the phone has it. */
+  private setCallerGap(on: boolean): void {
+    this.view.card.secret = on;
+    this.view.setTargetHidden(on);
+    this.flow.quiet = on;
+    if (on) this.flow.tutorial = false;
+    this.flow.refresh();
+  }
+
   private endCoop(announce: boolean): void {
     const link = this.coopLink;
     if (!link) return;
+    if (link instanceof CoopHost && link.caller) this.setCallerGap(false);
     const wasGuest = link instanceof CoopGuest;
     if (link instanceof CoopHost) link.dispose();
     this.coopLink = null;

@@ -23,6 +23,7 @@ check('the caller sees the card and lever buttons', p.view && p.levers.length >=
 await wait(800);
 a = A('state');
 check('the headset knows a caller joined', a.coop === 'host+caller', a.coop);
+check('the picture leaves the headset (card secret, no ghost): the caller must describe it', a.secret === true && a.ghostHidden === true, JSON.stringify({ secret: a.secret, ghost: a.ghostHidden }));
 p = P('press0');
 await wait(500);
 a = A('state');

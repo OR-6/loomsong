@@ -31,6 +31,8 @@ export class TargetCard {
 
   /** Second weft colour for '~' rows (Sea), or null. */
   weft: number | null = null;
+  /** Caller co-op: the picture is secret here; only woven rows show. */
+  secret = false;
   /** Night: little stars twinkle in the margins. */
   sparkles = false;
   /** Optional paper tint for the chapter (e.g. a cool dusk for Night). */
@@ -169,10 +171,14 @@ export class TargetCard {
       const y = gridTop + (rows - 1 - r) * cell;
       const row = r < target.length ? target[r] : 0;
       const st = status[r];
+      // caller co-op: rows still to weave are hidden here (only the phone sees the picture)
+      const hidden = this.secret && st === 'todo';
       for (let i = 0; i < WARPS; i++) {
         const x = gridX + i * cell;
-        const lifted = isLifted(row, i);
-        if (r >= target.length) {
+        const lifted = !hidden && isLifted(row, i);
+        if (hidden) {
+          g.fillStyle = (i + r) % 2 === 0 ? '#e6dcc6' : '#ddd1b8'; // a blank, checked swatch: ask your caller
+        } else if (r >= target.length) {
           g.fillStyle = '#d8ccb8'; // extra row beyond target
         } else if (highContrast) {
           g.fillStyle = lifted ? '#000000' : '#ffffff';

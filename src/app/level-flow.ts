@@ -59,6 +59,8 @@ export class LevelFlow {
   private timer = 0;
   private playRow = 0;
   private hintTimer = 0;
+  /** Caller co-op: no hints that would give the picture away (the caller is the guide). */
+  quiet = false;
   /** Extra seconds to linger before the next level (a chapter finale is playing). */
   extraBetween = 0;
   /** Level 1 on a first run: every step is shown until the picture is woven. */
@@ -84,7 +86,7 @@ export class LevelFlow {
     this.challenge = false;
     this.index = Math.max(0, Math.floor(index));
     this.load(this.levelAt(this.index));
-    this.tutorial = this.index === 0 && !this.progress.tutorialDone;
+    this.tutorial = this.index === 0 && !this.progress.tutorialDone && !this.quiet;
     this.goalShown = false;
     this.comboShown = false;
     this.idle = 0;
@@ -129,7 +131,7 @@ export class LevelFlow {
         else this.setHint('none');
       }
     }
-    if (this.phase === 'play' && !this.tutorial && !this.mirror && !this.challenge) {
+    if (this.phase === 'play' && !this.tutorial && !this.mirror && !this.challenge && !this.quiet) {
       this.idle += dt;
       if (this.idle > TIMING.idleHint && !this.idleShown) {
         this.idleShown = true;
