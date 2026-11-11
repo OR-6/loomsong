@@ -39,6 +39,8 @@ export async function freshSession({ clear = true } = {}) {
   // Seated player: eyes 1.2 m above the floor (desk ~0.4 m below the eyes).
   xr('set-transform', { device: 'headset', position: { x: 0, y: 1.2, z: 0 }, orientation: { pitch: 0, yaw: 0, roll: 0 } });
   xr('set-transform', { device: 'hand-left', position: { x: -0.35, y: 1.45, z: -0.25 }, orientation: { pitch: 0, yaw: 0, roll: 90 } });
+  // the right hand up and on its side too: a flat palm left at desk height would place the loom at once
+  xr('set-transform', { device: HAND, position: { x: 0.35, y: 1.45, z: -0.25 }, orientation: { pitch: 0, yaw: 0, roll: -90 } });
   xr('set-select-value', { device: HAND, value: 0 });
 }
 
