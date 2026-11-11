@@ -38,6 +38,8 @@ export class DailyBall {
   private hoverA = 0;
   private hoverOn = false;
   private pop = 1;
+  /** Seconds left of the opening: the lid pops off and the box sinks away before it hides. */
+  private opening = 0;
   /** A paper tag in front: "Today" while it waits. */
   private tag = new Label(0.07, 0.022);
 
@@ -89,8 +91,19 @@ export class DailyBall {
     this.root.rotation.y = side * 0.18; // turned a little toward the seat
   }
 
+  /** Poked: the ribbon snaps, the lid pops off and the box sinks away (today's picture is on the loom). */
+  open(): void {
+    this.opening = 0.75;
+    this.ribbon.visible = false;
+    this.tag.mesh.visible = false;
+  }
+
   /** Today's colour, whether it is still to do, and (once done) tomorrow's picture to peek out. */
   set(state: DailyState, color: number, tomorrow?: { key: string; rows: readonly Mask8[] }): void {
+    if (state === 'hidden' && this.opening > 0) {
+      this.state = 'hidden'; // hide once the opening has played
+      return;
+    }
     if (state === 'new' && this.state !== 'new') this.pop = 0;
     this.state = state;
     this.root.visible = state !== 'hidden';
@@ -136,6 +149,19 @@ export class DailyBall {
   update(dt: number): void {
     if (!this.root.visible) return;
     this.t += dt;
+    if (this.opening > 0) {
+      this.opening -= dt;
+      const k = 1 - Math.max(0, this.opening) / 0.75; // 0 → 1
+      const { w, h } = DAILY_BALL;
+      this.lid.position.set(w * 0.3 * k, h * 0.91 + 0.06 * Math.sin(Math.min(1, k * 1.6) * Math.PI * 0.5) - 0.03 * k * k, 0);
+      this.lid.rotation.set(0.6 * k, 0, -1.4 * k);
+      this.box.scale.setScalar(Math.max(0.001, 1 - Math.max(0, k - 0.45) / 0.55));
+      if (this.opening <= 0) {
+        this.root.visible = this.state !== 'hidden';
+        this.box.scale.setScalar(1);
+      }
+      return;
+    }
     this.pop = Math.min(1, this.pop + dt / 0.5);
     this.hoverA += ((this.hoverOn ? 1 : 0) - this.hoverA) * Math.min(1, dt * 12);
     const b = this.pop - 1;

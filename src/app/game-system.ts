@@ -1127,6 +1127,11 @@ export class GameSystem extends createSystem({
     }
     const lv = dailyLevel(this.today);
     audio.restyle();
+    // the present opens: the lid pops off with a little burst
+    this.view.daily.open();
+    const side = this.controller.bankSide;
+    this.view.fx.confetti(-side * DAILY_BALL.x, 0.04, DAILY_BALL.z, 28, 0.45);
+    audio.swapYarn();
     this.flow.startChallenge(lv, this.today);
     this.showNotice(`Today: ${lv.name}`, 3, 'centre');
   }
@@ -1703,6 +1708,7 @@ export class GameSystem extends createSystem({
     }
     this.view.undoHint = 0;
     this.swapGlow = 0;
+    this.view.pipBeckon = step === 'shuttle' && this.controller.hover.left === null && this.controller.hover.right === null;
     if (step === 'none') return;
     const side = this.controller.bankSide;
     const pulse = 0.5 + 0.5 * Math.sin(this.time * 4); // a smooth breath, not an error blink

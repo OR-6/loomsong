@@ -995,6 +995,16 @@ export class LoomView {
         this.pipWings.forEach((w, i) => (w.rotation.x = (i === 0 ? 1 : -1) * flutter));
         if (t > 1.5) this.mood = 'none';
       }
+    } else if (speed < 0.05 && this.pipBeckon) {
+      // waiting to be thrown: a little double hop and a flap every couple of seconds, looking across the loom
+      this.beckonT += dt;
+      const t = this.beckonT % 1.9;
+      if (t < 0.55) {
+        y = hop(t, 0.27, 0.011);
+        const flutter = Math.sin(t * 36) * 0.6;
+        this.pipWings.forEach((w, i) => (w.rotation.x = (i === 0 ? 1 : -1) * flutter));
+      }
+      look = 0.25 * Math.sin(this.beckonT * 1.3);
     } else if (speed < 0.05) {
       // idle on the perch: now and then look around, or a tiny hop
       this.idleIn -= dt;
@@ -1104,6 +1114,10 @@ export class LoomView {
       this.fx.puff(x - Math.sign(x - xPrev) * 0.012, shuttleY(x) + 0.004, SHUTTLE.z, this.weftNowColor, 1);
     }
   }
+
+  /** Pip is the next thing to move: it beckons from its perch. */
+  pipBeckon = false;
+  private beckonT = 0;
 
   setShuttleHighlight(level: 0 | 1 | 2, glow = 0): void {
     this.shuttleMat.emissive.copy(this.shuttleMat.color).multiplyScalar((level === 2 ? 0.6 : level === 1 ? 0.3 : 0) + glow * 0.32);
