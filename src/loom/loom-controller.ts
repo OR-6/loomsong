@@ -38,6 +38,7 @@ export type Target =
   | { kind: 'plush'; i: number }
   | { kind: 'windKey' }
   | { kind: 'daily' }
+  | { kind: 'cardRow'; i: number }
   | { kind: 'swap' }
   | { kind: 'nudge'; dir: 1 | -1 }
   | null;
@@ -68,6 +69,8 @@ export interface ControllerHooks {
   windKey?(): void;
   /** The picture-of-the-day ball was poked or pinched. */
   daily?(): void;
+  /** A row of the picture card was poked: it plays its tune. */
+  cardRow?(i: number): void;
   /** Sea: a swap spool by a perch was touched: Pip changes yarn. */
   swap?(): void;
 }
@@ -111,6 +114,8 @@ export class LoomController {
   keySpot: { x: number; y: number; z: number } | null = null;
   /** The picture-of-the-day ball (null: not offered). */
   dailySpot: { x: number; y: number; z: number } | null = null;
+  /** The picture card's rows (loom space; null: not pokeable now). */
+  cardRows: ({ x: number; y: number; z: number } | null)[] = [];
   /** Sea's swap spools by each perch (null: this level has one weft). */
   swapSpot: { x: number; y: number; z: number } | null = null;
   /** Nudge arrows present (default placement)? */
@@ -211,6 +216,8 @@ export class LoomController {
         this.hooks.windKey?.();
       } else if (t?.kind === 'daily') {
         this.hooks.daily?.();
+      } else if (t?.kind === 'cardRow') {
+        this.hooks.cardRow?.(t.i);
       } else if (t?.kind === 'swap') {
         if (!this.shuttle.held) this.hooks.swap?.();
       } else if (t?.kind === 'nudge') {
@@ -258,7 +265,9 @@ export class LoomController {
       if (this.nearest(h.index, POKE.rearmM * this.radiusMul) === null) this.pokeArmed[side] = true;
       return;
     }
-    if (!this.pokeArmed[side] || h.indexVel.y > -POKE.minDownSpeed) return;
+    // a press: down onto things on the desk, or forward into the upright picture card
+    const press = h.indexVel.y < -POKE.minDownSpeed || (t.kind === 'cardRow' && h.indexVel.z < -POKE.minDownSpeed);
+    if (!this.pokeArmed[side] || !press) return;
     if (h.aperture !== undefined && h.aperture < POKE.minAperture) return; // reaching to pinch
     this.pokeArmed[side] = false;
     if (t.kind === 'lever') {
@@ -279,6 +288,8 @@ export class LoomController {
       this.hooks.windKey?.();
     } else if (t.kind === 'daily') {
       this.hooks.daily?.();
+    } else if (t.kind === 'cardRow') {
+      this.hooks.cardRow?.(t.i);
     } else if (t.kind === 'swap') {
       if (!this.shuttle.held) this.hooks.swap?.();
     } else if (t.kind === 'nudge') {
@@ -457,7 +468,7 @@ export class LoomController {
   }
 
   private sliderOf(t: Exclude<Target, null>): Slider {
-    if (t.kind === 'token' || t.kind === 'nudge' || t.kind === 'skein' || t.kind === 'plush' || t.kind === 'windKey' || t.kind === 'daily' || t.kind === 'swap') return this.bobbin; // never held
+    if (t.kind === 'token' || t.kind === 'nudge' || t.kind === 'skein' || t.kind === 'plush' || t.kind === 'windKey' || t.kind === 'daily' || t.kind === 'cardRow' || t.kind === 'swap') return this.bobbin; // never held
     if (t.kind === 'shuttle') return this.shuttle;
     if (t.kind === 'bobbin') return this.bobbin;
     return this.levers[t.k];
@@ -541,6 +552,15 @@ export class LoomController {
       if (dk < bestD) {
         bestD = dk;
         best = KEY_TARGET;
+      }
+    }
+    for (let i = 0; i < this.cardRows.length; i++) {
+      const c = this.cardRows[i];
+      if (!c) continue;
+      const dr = Math.hypot(p.x - c.x, (p.y - c.y) * 1.6, p.z - c.z) - 0.008; // rows are close: the vertical counts more
+      if (dr < bestD) {
+        bestD = dr;
+        best = { kind: 'cardRow', i };
       }
     }
     if (this.dailySpot) {

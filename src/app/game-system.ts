@@ -87,6 +87,8 @@ export interface GameDebug {
   onBeat?: number;
   /** The celebration ribbon's text ('' when hidden). */
   banner?: string;
+  /** The last card row poked (debug/E2E). */
+  cardRow?: number;
   /** Where the quilts hang this session (debug/E2E). */
   wall?: number[];
   /** Where the last carried plush ended up (debug/E2E). */
@@ -189,6 +191,8 @@ export class GameSystem extends createSystem({
   private today = '';
   private dailyDone = false;
   private dailyVec = new Vector3();
+  private cardRowVecs = Array.from({ length: 8 }, () => new Vector3());
+  private cardRowUntil = 0;
   /** Lever clicks during a programmatic drop make no sound. */
   private quietLevers = false;
   private undoNotch = 0;
@@ -300,6 +304,7 @@ export class GameSystem extends createSystem({
       drop: (i, p) => this.dropPlush(i, p),
       windKey: () => this.playShelf(),
       daily: () => this.startDaily(),
+      cardRow: (i) => this.playCardRow(i),
       swap: () => {
         this.model.setWeft(this.model.weft ? 0 : 1);
         audio.swapYarn();
@@ -1130,6 +1135,23 @@ export class GameSystem extends createSystem({
     return best;
   }
 
+  /** A poked card row plays its tune (left to right, like a pass), with notes rising off the card. */
+  private playCardRow(r: number): void {
+    const lv = this.flow?.level;
+    const row = lv?.target[r];
+    if (!lv || row === undefined || this.time < this.cardRowUntil) return;
+    audio.resume();
+    this.cardRowUntil = this.time + 0.45;
+    let k = 0;
+    for (let w = 0; w < WARPS; w++) if (isLifted(row, w)) audio.pluck(w, 0.35, k++ * 0.07, 0.26);
+    const at = this.view.cardRowPos(r, this.tmp2);
+    if (at) {
+      this.view.fx.note(at.x - 0.02, at.y + 0.01, at.z + 0.01, lv.color ?? 0xe2563b);
+      if (k > 3) this.view.fx.note(at.x + 0.02, at.y + 0.015, at.z + 0.01, lv.color ?? 0xe2563b);
+    }
+    this.debug.cardRow = r;
+  }
+
   /** Remember that the player was here (Pip naps after a long while away). */
   private markSeen(): void {
     this.seenIn = 60;
@@ -1292,6 +1314,9 @@ export class GameSystem extends createSystem({
     const key = (t: unknown) => (t as { kind?: string } | null)?.kind === 'windKey';
     this.view.plushes.hoverKey(key(c.hover.left) || key(c.hover.right));
     c.dailySpot = this.view.daily.root.visible && this.flow?.phase === 'play' ? this.dailyVec : null;
+    // the card's rows can be poked to hear them (not while a caller holds the picture: that would give it away)
+    const rowsOk = this.flow?.phase === 'play' && !this.view.card.secret && !this.coopLink;
+    for (let r = 0; r < 8; r++) c.cardRows[r] = rowsOk ? this.view.cardRowPos(r, this.cardRowVecs[r]) : null;
     const dy = (t: unknown) => (t as { kind?: string } | null)?.kind === 'daily';
     this.view.daily.hover(dy(c.hover.left) || dy(c.hover.right));
   }
@@ -1330,6 +1355,13 @@ export class GameSystem extends createSystem({
         at.y = TOKEN.y;
         at.z = TOKEN.z;
         break;
+      case 'cardRow': {
+        const p = c.cardRows[t.i ?? 0];
+        if (p) Object.assign(at, p);
+        text = 'Poke a row to hear it';
+        lift = 0.03;
+        break;
+      }
       case 'daily': {
         if (c.dailySpot) Object.assign(at, c.dailySpot);
         const n = streakOf(this.progress.days ?? [], this.today);
@@ -2009,6 +2041,8 @@ function targetCode(t: unknown): number {
       return 100 + ((x as { i?: number }).i ?? 0);
     case 'daily':
       return 42;
+    case 'cardRow':
+      return 60 + ((x as { i?: number }).i ?? 0);
     case 'windKey':
       return 40;
     case 'swap':

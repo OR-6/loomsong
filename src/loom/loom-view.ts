@@ -906,6 +906,14 @@ export class LoomView {
     m.rotation.set(-tilt, 0, 0);
   }
 
+  /** Where card row r sits (loom space), for a poke to play it; null past the last row. */
+  cardRowPos(r: number, out: Vector3): Vector3 | null {
+    if (!this.card.rowLocal(r, out)) return null;
+    const m = this.card.mesh;
+    m.updateMatrix();
+    return out.applyMatrix4(m.matrix);
+  }
+
   /** Ghost cells for the row the next pass would weave. */
   setPreview(mask: Mask8, visible: boolean): void {
     this.preview.visible = visible;

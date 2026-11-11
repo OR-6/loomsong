@@ -165,6 +165,7 @@ export class TargetCard {
 
     const gridX = pad + markW;
     const gridTop = pad + titleH;
+    this.layout = { gridX, gridTop, cell, rows, wM, hM };
     const nextRow = status.indexOf('todo');
     for (let r = 0; r < rows; r++) {
       // row 0 at the bottom
@@ -235,6 +236,17 @@ export class TargetCard {
     this.sizeW = wM;
     this.sizeH = hM;
     this.mesh.scale.set(wM * this.pop, hM * this.pop, 1);
+  }
+
+  private layout = { gridX: 0, gridTop: 0, cell: 0, rows: 0, wM: 1, hM: 1 };
+
+  /** Row r's middle in the card mesh's own (unit-plane) space, a hair in front of the paper; null past the last row. */
+  rowLocal(r: number, out: { x: number; y: number; z: number; set(x: number, y: number, z: number): unknown }): boolean {
+    const L = this.layout;
+    if (r < 0 || r >= L.rows) return false;
+    const y = L.gridTop + (L.rows - 1 - r) * L.cell + L.cell / 2;
+    out.set((L.gridX + (WARPS * L.cell) / 2) / L.wM - 0.5, 0.5 - y / L.hM, 0.004);
+    return true;
   }
 
   /** Card size in metres (its mesh is a unit plane scaled to this). */
