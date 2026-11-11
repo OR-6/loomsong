@@ -41,7 +41,7 @@ Hand tracking has no touch, so Loomsong puts every interaction on a real surface
 - **Levers by count, not just colour:** the lever box marks each slot with 1–4 inlaid dots (and red, teal, mustard and plum also differ in lightness), so colour-blind players and Night's undyed mystery levers never depend on hue.
 - **Fit to my hands** (on the 2D page): three pinches and a 2 s hold tune pinch thresholds, smoothing and target size (1.0–1.8×).
 - **High contrast:** pure white/black yarn, a black-and-white card and opaque labels. Row status never relies on hue: ticks, crosses, arrows and hatching carry it.
-- **No timers, no fail states, undo always available.** Levers are named by colour in the hints ("Lift the red lever").
+- **No timers, no fail states, undo always available.** Hints name levers by number and colour ("Lift lever 1 (red)"), matching the dots on the lever box.
 - In-world text has a cap height of at least 1.5 cm, with at most 5 words per label.
 
 **Honest caveat:** these features have **not** been validated with disabled players. Calibration's tremor handling is unit-tested with synthetic jitter only, because the emulator's hand is perfectly steady. Feedback is very welcome.
