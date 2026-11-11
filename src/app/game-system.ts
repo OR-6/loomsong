@@ -32,7 +32,7 @@ import { Label } from '../ui/label.js';
 import { audio } from '../audio/synth.js';
 import { keyFor } from '../audio/soundtrack.js';
 import { LevelFlow, TIMING, type HintStep } from './level-flow.js';
-import { CHAPTERS, DAILY_LEVELS, LEVELS, chapterStates, dailyLevel, dayKey, levelAt, pictureById, streakOf } from '../puzzle/catalog.js';
+import { CHAPTERS, DAILY_LEVELS, LEVELS, THANKS_LEVEL, chapterStates, dailyLevel, dayKey, levelAt, pictureById, streakOf } from '../puzzle/catalog.js';
 import type { Level } from '../puzzle/levels.js';
 import { PLUSH, ROW_BEAT, SPOTS, type DeskItem, type ShelfItem } from '../loom/plush.js';
 import { DAILY_BALL } from '../loom/daily-ball.js';
@@ -62,6 +62,8 @@ import { loadFont } from '../ui/fonts.js';
 
 const params = new URLSearchParams(location.search);
 const FIXED_DESK = params.get('desk');
+/** ?finale=1: play the grand finale shortly after the loom is placed (for filming). */
+const FORCE_FINALE = params.get('finale') === '1';
 
 const KNOB_NAMES: Record<number, string> = { 0xe8553e: 'red', 0x1fb3a0: 'teal', 0xf2b632: 'yellow', 0x7b5bb8: 'purple' };
 
@@ -122,6 +124,8 @@ export interface GameDebug {
   degrade: number;
   calibrating: string;
   coop: string;
+  /** Grand finale: '' | 'weaving' | 'medley' | 'done'. */
+  grand?: string;
 }
 
 export class GameSystem extends createSystem({
@@ -155,6 +159,13 @@ export class GameSystem extends createSystem({
   /** A just-finished chapter's quilt flies from the shelf to the wall once its finale has played. */
   private quiltFly: { id: string; t: number; from: Vector3; to: Vector3; q0: Quaternion; q1: Quaternion; g: Group } | null = null;
   private quiltFlyIn = -1;
+  /**
+   * The grand finale (every chapter woven, or ?finale=1): the loom weaves a rose
+   * heart by itself, levers and Pip moving on their own, then every plush sings
+   * and the credits go by on the ribbon. Counts down once the desk is quiet.
+   */
+  private grandIn = FORCE_FINALE ? 2.5 : -1;
+  private grand: { t: number; next: number; throwAt: number; won: number; round: number; roundAt: number; singAt: number } | null = null;
   private quiltFlyId = '';
   /** Capture-only photo set is up. */
   private photoMode = false;
@@ -447,7 +458,7 @@ export class GameSystem extends createSystem({
         this.view.plaque.set(level.name);
         if (this.debug) this.debug.plaque = level.name;
         this.shelf = shelfItems(level, this.progress);
-        this.view.plushes.setShelf(this.shelf, CHAPTERS.find((c) => c.id === level.chapter)?.name ?? '');
+        this.view.plushes.setShelf(this.shelf, shelfChapter(level, this.progress)?.name ?? '');
         this.view.plushes.setDesk(deskItems(this.progress));
         this.syncDaily();
         this.syncBasket(level);
@@ -480,12 +491,19 @@ export class GameSystem extends createSystem({
         audio.chirp('cheer');
         // It comes alive: the woven picture pops out as a plush.
         const lv = this.flow.level;
-        this.view.plushes.celebrate(lv.id, lv.target, lv.color ?? this.shown().palette.weft, this.heroSpot(lv), (this.progress.best[lv.id] ?? 0) >= 3);
-        if (!this.view.plushes.shelfShown) this.view.plushes.showShelf(true, true); // the shelf springs up for the first plush
-        // the next picture waits for the whole show: pop, dance (at least PLUSH.minDance), bow, hop
         const songEnd = TIMING.winPause + lv.target.length * TIMING.rowTime;
-        const showEnd = Math.max(songEnd, 0.95 + PLUSH.minDance) + 0.8 + 0.75;
-        this.flow.extraBetween = Math.max(0, showEnd + 0.3 - (songEnd + TIMING.afterPlayback));
+        if (this.grand) {
+          // the thank-you heart stays on the loom: after its song, every plush sings in turn
+          this.grand.won = this.grand.t;
+          this.grand.roundAt = this.grand.t + songEnd + 0.6;
+          this.flow.extraBetween = this.grandMedleySecs() + 1.5;
+        } else {
+          this.view.plushes.celebrate(lv.id, lv.target, lv.color ?? this.shown().palette.weft, this.heroSpot(lv), (this.progress.best[lv.id] ?? 0) >= 3);
+          if (!this.view.plushes.shelfShown) this.view.plushes.showShelf(true, true); // the shelf springs up for the first plush
+          // the next picture waits for the whole show: pop, dance (at least PLUSH.minDance), bow, hop
+          const showEnd = Math.max(songEnd, 0.95 + PLUSH.minDance) + 0.8 + 0.75;
+          this.flow.extraBetween = Math.max(0, showEnd + 0.3 - (songEnd + TIMING.afterPlayback));
+        }
         // the very first gold bow: say what it's for, once the plush has landed
         if (stars >= 3 && Object.values(this.progress.best).filter((b) => b >= 3).length === 1) {
           this.laterNotice = 'Fewest moves: a gold bow!';
@@ -982,10 +1000,127 @@ export class GameSystem extends createSystem({
       this.quiltFlyId = f.level.chapter;
       this.quiltFlyIn = Math.max(0, this.singUntil - this.time) + 0.4;
     }
+    // that was the last chapter: once the quilt is up, the loom says thank you
+    if (LEVELS.every((l) => (this.progress.best[l.id] ?? 0) > 0)) this.grandIn = 2;
+  }
+
+  /** The loom's thank-you: it weaves a rose heart by itself. */
+  private startGrand(): void {
+    this.grandIn = -1;
+    this.grand = { t: 0, next: 1.6, throwAt: -1, won: -1, round: 0, roundAt: -1, singAt: -1 };
+    this.controller.releaseAll();
+    this.controller.allow = { levers: false, shuttle: false }; // hands rest: the loom plays itself
+    this.flow.startChallenge(THANKS_LEVEL);
+    this.view.plaque.set('Thank you');
+    if (this.debug) {
+      this.debug.plaque = 'Thank you';
+      this.debug.grand = 'weaving';
+    }
+    this.view.setPipMood('happy');
+    audio.chapterJingle();
+    this.bannerAt('Every picture woven!', 0, 0.2, LOOM.heddleZ - 0.02, 5);
+  }
+
+  /** How long the grand medley runs: every finished plush, chapter by chapter, plus the desk. */
+  private grandMedleySecs(): number {
+    let secs = 0;
+    for (const ch of CHAPTERS) {
+      secs += 0.6 + 0.55 + 0.5;
+      for (const it of chapterShelf(ch, this.progress)) if (it.done && !it.placed) secs += it.rows.length * ROW_BEAT + 0.2;
+    }
+    for (const it of deskItems(this.progress)) if (it) secs += it.rows.length * ROW_BEAT + 0.2;
+    return secs;
+  }
+
+  /** A felt ribbon with `text` at (x, y, z) in loom space, for `secs`. */
+  private bannerAt(text: string, x: number, y: number, z: number, secs: number): void {
+    this.banner.set(text);
+    this.banner.mesh.position.set(x, y, z);
+    this.banner.mesh.visible = true;
+    this.bannerLeft = this.bannerDur = secs;
+    this.bannerY = y;
+    this.debug.banner = text;
+  }
+
+  private static readonly CREDITS = ['Thank you for weaving', 'Music by Scott Buckley', 'Every plush is yours to keep', 'See you tomorrow'];
+
+  private updateGrand(dt: number): void {
+    if (this.grandIn > 0 && !this.grand) {
+      // wait for a quiet desk: a fresh picture up, nothing flying or singing
+      const quiet = this.flow.phase === 'play' && !this.finale && !this.quiltFly && this.quiltFlyIn < 0 && !this.view.plushes.busy && this.time >= this.singUntil && !this.coopLink;
+      if (quiet) {
+        this.grandIn -= dt;
+        if (this.grandIn <= 0) this.startGrand();
+      }
+      return;
+    }
+    const g = this.grand;
+    if (!g) return;
+    g.t += dt;
+    const c = this.controller;
+    if (this.flow.phase === 'play' && g.won < 0) {
+      if (g.throwAt >= 0 && g.t >= g.throwAt) {
+        g.throwAt = -1;
+        c.throwShuttle();
+        g.next = g.t + 1.3;
+      } else if (g.throwAt < 0 && g.t >= g.next && !c.autoThrow && !c.shuttle.held) {
+        // the levers for the next row move by themselves, then Pip flies
+        const lv = this.flow.level;
+        const want = (lv.target[this.model.rows.length] ?? 0) & 255;
+        const n = lv.tieUp.length;
+        let pick = 0;
+        for (let m = 0; m < 1 << n; m++) {
+          let sh = 0;
+          for (let k = 0; k < n; k++) if ((m >> k) & 1) sh |= lv.tieUp[k];
+          if ((sh & 255) === want) {
+            pick = m;
+            break;
+          }
+        }
+        for (let k = 0; k < n; k++) c.applyLatched(k, ((pick >> k) & 1) === 1);
+        g.throwAt = g.t + 0.6;
+      }
+      return;
+    }
+    if (g.won < 0) return;
+    // the heart is woven and sung: then each chapter's shelf in turn springs up and sings
+    // (the key winds each time), a credit on the ribbon and felt confetti with each
+    if (g.roundAt >= 0 && g.t >= g.roundAt) {
+      g.roundAt = -1;
+      const r = g.round;
+      const ch = CHAPTERS[r];
+      if (ch) {
+        const items = chapterShelf(ch, this.progress);
+        this.view.plushes.showShelf(false);
+        this.view.plushes.setShelf(items, ch.name);
+        this.view.plushes.showShelf(true, true);
+        const side = -this.controller.bankSide;
+        this.bannerAt(GameSystem.CREDITS[r] ?? '', side * PLUSH.shelfX, 0.15, PLUSH.shelfZ, 3.4);
+        this.view.fx.confetti(side * PLUSH.shelfX, PLUSH.shelfTopY + 0.05, PLUSH.shelfZ, 50, 0.8);
+        this.view.setPipMood('cheer');
+        audio.chirp('cheer');
+        g.singAt = g.t + 0.6;
+        if (this.debug) this.debug.grand = `medley ${ch.id}`;
+      }
+    }
+    if (g.singAt >= 0 && g.t >= g.singAt) {
+      g.singAt = -1;
+      this.singUntil = 0;
+      const last = g.round >= CHAPTERS.length - 1;
+      this.playShelf(!last); // the last round brings in the desk plushes too
+      g.round++;
+      if (!last) g.roundAt = g.t + Math.max(0, this.singUntil - this.time) + 0.5;
+    }
+    // done once the next picture is up
+    if (this.flow.phase === 'play' && !this.flow.challenge) {
+      this.grand = null;
+      c.allow = { levers: true, shuttle: true };
+      if (this.debug) this.debug.grand = 'done';
+    }
   }
 
   /** The wind-up key: every finished plush on the shelf sings in turn, left to right (the shelf is a music box). */
-  private playShelf(): void {
+  private playShelf(shelfOnly = false): void {
     if (this.time < this.singUntil) return;
     audio.resume();
     audio.windUp();
@@ -993,7 +1128,7 @@ export class GameSystem extends createSystem({
     // every plush plays, shelf and desk alike, left to right as they stand: arranging them composes the tune
     const order = this.medleyOrder;
     order.length = 0;
-    for (let i = 0; i < SPOTS; i++) if (this.view.plushes.idAt(i) && this.view.plushes.plushCentre(i, this.plushVecs[i])) order.push(i);
+    for (let i = 0; i < (shelfOnly ? PLUSH.slots : SPOTS); i++) if (this.view.plushes.idAt(i) && this.view.plushes.plushCentre(i, this.plushVecs[i])) order.push(i);
     order.sort((a, b) => this.plushVecs[a].x - this.plushVecs[b].x);
     for (const i of order) {
       const lv = pictureById(this.view.plushes.idAt(i) ?? '');
@@ -1919,6 +2054,7 @@ export class GameSystem extends createSystem({
     }
     // the finale starts once the last plush has hopped onto the shelf
     if (this.finale && this.flow.phase === 'between' && !this.view.plushes.busy) this.playFinale();
+    this.updateGrand(dt);
     // while the plush dances on its stage, the plate and token step aside
     const staged = this.view.plushes.staged;
     this.view.plaque.mesh.visible = !staged;
@@ -2008,8 +2144,19 @@ export function insidePolygon(
 const CHAPTER_COLORS: Record<string, number> = { garden: 0x4f9a3a, home: 0xe2563b, night: 0x6b6fb3, sea: 0x2a9d8f };
 
 /** The current chapter's pictures, for the shelf (finished ones become plushes). */
+/**
+ * The chapter whose shelf stands by the loom: the picture's own, or, for a picture
+ * of the day, a bonus pattern or the thank-you, the chapter you've reached.
+ */
+function shelfChapter(level: Level, progress: Progress): (typeof CHAPTERS)[number] | undefined {
+  return CHAPTERS.find((c) => c.id === level.chapter) ?? CHAPTERS.find((c) => c.id === levelAt(Math.min(progress.level, LEVELS.length - 1)).chapter);
+}
+
 function shelfItems(level: Level, progress: Progress): ShelfItem[] {
-  const ch = CHAPTERS.find((c) => c.id === level.chapter);
+  return chapterShelf(shelfChapter(level, progress), progress);
+}
+
+function chapterShelf(ch: (typeof CHAPTERS)[number] | undefined, progress: Progress): ShelfItem[] {
   if (!ch) return [];
   return ch.levels.map((id) => {
     const l = LEVELS.find((x) => x.id === id);

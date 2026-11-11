@@ -21,6 +21,13 @@ export const LEVELS: Level[] = PICTURES.map((p) => ({
   weft: p.weft,
 }));
 
+/**
+ * The grand finale's picture: once every chapter is woven, the loom weaves a
+ * rose heart by itself to say thank you (the Heart's own levers, so it's always weavable).
+ */
+const heart = LEVELS.find((l) => l.id === 'heart')!;
+export const THANKS_LEVEL: Level = { ...heart, id: 'thanks', name: 'Thank you', color: 0xd4537e, chapter: undefined, mystery: false };
+
 const cache = new Map<number, Level>();
 
 /** Level at 0-based index i: pictures first, then bonus patterns forever. */
