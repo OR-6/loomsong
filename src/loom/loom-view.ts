@@ -389,7 +389,7 @@ export class LoomView {
       if (name === 'Beech' && theme.id === 'workshop') sm.color.setHex(0xc9905e);
       // painted wood is matte: no plastic-pipe highlight on the frame (brass and the like keep their shine)
       if (theme.id === 'toy' && sm.isMeshStandardMaterial && sm.metalness < 0.3) {
-        sm.roughness = Math.max(sm.roughness, 0.86);
+        sm.roughness = 0.97; // painted wood: matte, so the key light makes a soft sheen, not a plastic streak
         sm.envMapIntensity = 0.3; // no plastic glints from the environment light
       }
       // the toy loom's frame is painted mustard (art direction): a made toy, not bare plastic-looking pipe

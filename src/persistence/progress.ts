@@ -15,6 +15,8 @@ export interface Progress {
   loom?: SavedLoom;
   /** Days the picture of the day was woven (local-date keys, newest last). */
   days?: string[];
+  /** When the player was last at the loom (ms since 1970): a long while away and Pip is asleep. */
+  lastSeen?: number;
 }
 
 export interface SavedLoom {
@@ -48,6 +50,7 @@ export function loadProgress(): Progress {
     lastCloth: validCloth(p.lastCloth) ? p.lastCloth : undefined,
     placed: validPlaced(p.placed),
     loom: validLoom(p.loom),
+    lastSeen: typeof p.lastSeen === 'number' && Number.isFinite(p.lastSeen) ? p.lastSeen : undefined,
     days: Array.isArray(p.days) ? p.days.filter((d) => typeof d === 'string' && /^\d{4}-\d\d-\d\d$/.test(d)).slice(-400) : undefined,
   };
 }

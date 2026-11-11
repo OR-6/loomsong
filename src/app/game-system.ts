@@ -39,6 +39,9 @@ import { DAILY_BALL } from '../loom/daily-ball.js';
 import { QUILT_W, buildQuilt } from '../loom/quilt.js';
 import { isLifted } from '../puzzle/tieup.js';
 const PLUSH_SLOTS = SPOTS;
+/** Away this long (ms) and Pip is asleep on the perch when you come back; `?sleep=1` forces it (filming). */
+const SLEEP_AFTER = 3 * 3600 * 1000;
+const FORCE_SLEEP = new URLSearchParams(location.search).get('sleep') === '1';
 /** `?debug=1`: show frame rate and draw calls on a tag behind the card. */
 const DEBUG_HUD = new URLSearchParams(location.search).get('debug') === '1';
 /** `?shadows=0`: no real-time shadows (contact shadows stay), for frame-time comparisons on a headset. */
@@ -178,6 +181,10 @@ export class GameSystem extends createSystem({
   /** A notice that waits for the moment to pass (e.g. the streak, after the plush lands). */
   private laterNotice = '';
   private laterNoticeIn = 0;
+  /** Seconds Pip has been asleep this session; when the visit was last saved. */
+  private asleepFor = 0;
+  private napArmed = false;
+  private seenIn = 60;
   /** Today's key and whether its picture is woven (refreshed on each level load). */
   private today = '';
   private dailyDone = false;
@@ -1118,6 +1125,13 @@ export class GameSystem extends createSystem({
     return best;
   }
 
+  /** Remember that the player was here (Pip naps after a long while away). */
+  private markSeen(): void {
+    this.seenIn = 60;
+    this.progress.lastSeen = Date.now();
+    saveProgress(this.progress);
+  }
+
   /** The picture-of-the-day ball: offered once the first picture is woven, hidden while today's is on the loom. */
   private syncDaily(): void {
     this.today = dayKey();
@@ -1465,6 +1479,20 @@ export class GameSystem extends createSystem({
     this.debug.anchored = this.loomEntity.hasComponent(XRAnchor) && this.loomEntity.getValue(XRAnchor, 'attached') === true;
     if (this.debug.anchored) this.saveLoomPose();
     this.updateQuilts(dt);
+    // Pip wakes when a hand comes near the loom's controls (or after a while on its own)
+    if (this.view.pipAsleep) {
+      this.asleepFor += dt;
+      // the hand that placed the loom is right beside it: wake on a reach in, once the hands have moved off
+      const dist = (h: HandInput) => (h.tracked ? Math.hypot(h.index.x, h.index.y - 0.05, h.index.z) : 9);
+      const d = Math.min(dist(this.handInputs.left), dist(this.handInputs.right));
+      if (d > 0.36) this.napArmed = true;
+      if ((this.napArmed && d < 0.28) || this.asleepFor > 25) {
+        this.view.wakePip();
+        audio.chirp('happy');
+      }
+    }
+    this.seenIn -= dt;
+    if (this.seenIn <= 0) this.markSeen();
     this.debug.levelIndex = this.flow.index;
   }
 
@@ -1692,6 +1720,12 @@ export class GameSystem extends createSystem({
     } catch {
       /* not available: shaders compile on first use */
     }
+    // welcome back: after a long while away, Pip is asleep on the perch until a hand comes near
+    const away = this.progress.lastSeen ? Date.now() - this.progress.lastSeen : 0;
+    this.view.pipAsleep = FORCE_SLEEP || (away > SLEEP_AFTER && this.progress.tutorialDone);
+    this.asleepFor = 0;
+    this.napArmed = false;
+    this.markSeen();
     const fallback = this.placement.source === 'default';
     this.controller.nudgeEnabled = fallback;
     this.view.nudges.visible = fallback;
