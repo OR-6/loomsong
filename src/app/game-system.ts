@@ -479,7 +479,8 @@ export class GameSystem extends createSystem({
         }
       },
       status: (level, statuses, stars) => {
-        this.view.card.draw(level.name, level.target, statuses, stars, this.settings.highContrast);
+        // the loom's own thank-you isn't scored
+        this.view.card.draw(level.name, level.target, statuses, level.id === 'thanks' ? 0 : stars, this.settings.highContrast);
         this.view.placeCard();
       },
       win: (stars) => {
@@ -778,7 +779,8 @@ export class GameSystem extends createSystem({
         };
       }
       if (this.placement.phase === 'placed') {
-        this.showNotice(st.role === 'host' ? 'You work the levers' : 'You throw the shuttle', 6, 'centre');
+        // a host learns who joined from their hello (a phone caller says so at once)
+        if (st.role !== 'host') this.showNotice('You throw the shuttle', 6, 'centre');
       }
     }
   }
@@ -1018,7 +1020,7 @@ export class GameSystem extends createSystem({
     }
     this.view.setPipMood('happy');
     audio.chapterJingle();
-    this.bannerAt('Every picture woven!', 0, 0.2, LOOM.heddleZ - 0.02, 5);
+    this.bannerAt('Every picture woven!', 0, CARD.baseY + this.view.card.heightM + 0.075, CARD.z + 0.01, 5);
   }
 
   /** How long the grand medley runs: every finished plush, chapter by chapter, plus the desk. */
@@ -1042,7 +1044,7 @@ export class GameSystem extends createSystem({
     this.debug.banner = text;
   }
 
-  private static readonly CREDITS = ['Thank you for weaving', 'Music by Scott Buckley', 'Every plush is yours to keep', 'See you tomorrow'];
+  private static readonly CREDITS = ['Woven by you', 'Music by Scott Buckley', 'Every plush is yours to keep', 'See you tomorrow'];
 
   private updateGrand(dt: number): void {
     if (this.grandIn > 0 && !this.grand) {
@@ -1068,13 +1070,16 @@ export class GameSystem extends createSystem({
         const lv = this.flow.level;
         const want = (lv.target[this.model.rows.length] ?? 0) & 255;
         const n = lv.tieUp.length;
+        // the fewest levers that make the row (the loom shows off a clean weave)
         let pick = 0;
+        let best = 99;
         for (let m = 0; m < 1 << n; m++) {
           let sh = 0;
-          for (let k = 0; k < n; k++) if ((m >> k) & 1) sh |= lv.tieUp[k];
-          if ((sh & 255) === want) {
+          let cnt = 0;
+          for (let k = 0; k < n; k++) if ((m >> k) & 1) (sh |= lv.tieUp[k]), cnt++;
+          if ((sh & 255) === want && cnt < best) {
             pick = m;
-            break;
+            best = cnt;
           }
         }
         for (let k = 0; k < n; k++) c.applyLatched(k, ((pick >> k) & 1) === 1);
@@ -1095,7 +1100,7 @@ export class GameSystem extends createSystem({
         this.view.plushes.setShelf(items, ch.name);
         this.view.plushes.showShelf(true, true);
         const side = -this.controller.bankSide;
-        this.bannerAt(GameSystem.CREDITS[r] ?? '', side * PLUSH.shelfX, 0.15, PLUSH.shelfZ, 3.4);
+        this.bannerAt(GameSystem.CREDITS[r] ?? '', 0, CARD.baseY + this.view.card.heightM + 0.075, CARD.z + 0.01, 3.4); // one at a time, above the card
         this.view.fx.confetti(side * PLUSH.shelfX, PLUSH.shelfTopY + 0.05, PLUSH.shelfZ, 50, 0.8);
         this.view.setPipMood('cheer');
         audio.chirp('cheer');
@@ -1922,7 +1927,10 @@ export class GameSystem extends createSystem({
     this.view.nudges.visible = fallback;
     if (resume) {
       // resumed: the notice comes from tryResume
-    } else if (this.coopLink) this.showNotice(this.coopLink instanceof CoopHost ? 'You work the levers' : 'You throw the shuttle', 6, 'centre');
+    } else if (this.coopLink) {
+      const host = this.coopLink instanceof CoopHost ? this.coopLink : null;
+      this.showNotice(host ? (host.caller ? 'Your caller has the picture: ask them!' : 'Your friend can join on their phone') : 'You throw the shuttle', 6, 'centre');
+    }
     else if (this.settings.calibrateNext) this.startCalibration(hand);
     else if (fallback) this.showNotice('Nudge to your desk', 7, 'nudge');
     else if (this.flow.challenge) this.showNotice('Weave this cloth', 6);

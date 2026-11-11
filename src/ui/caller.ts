@@ -13,6 +13,8 @@ import { rowStatuses } from '../puzzle/session.js';
 import { isLifted } from '../puzzle/tieup.js';
 import { WARPS } from '../config.js';
 import { THEMES } from './theme.js';
+import { audio } from '../audio/synth.js';
+import { keyFor } from '../audio/soundtrack.js';
 import { TargetCard } from './target-card.js';
 
 const hex = (n: number) => '#' + n.toString(16).padStart(6, '0');
@@ -92,20 +94,20 @@ export function mountCaller(link: Transport, code: string, onLeave: () => void):
       </svg>
       <h1>You're the caller</h1>
     </header>
-    <p class="lead">Only you can see the picture. Tell your weaver which squares are filled on the yellow row. Tap a square to pin its thread on their loom.</p>
+    <p class="lead">Only you can see the picture. Read the yellow row to your weaver, and tap a square to put a pin on their loom. You'll hear each row as it's woven.</p>
     <div class="cardwrap"></div>
     <div class="tools">
       <button type="button" class="patch ring">Ring Pip</button>
       <button type="button" class="patch soft clear" disabled>Take pins out</button>
     </div>
     <div class="status" role="status" aria-live="polite">Connecting to loom ${code}…</div>
-    <div class="album" hidden><h2>Postcards from your weaver</h2><div class="strip"></div></div>
+    <div class="album" hidden><h2>Postcards from the loom</h2><div class="strip"></div></div>
     <button type="button" class="leave">Leave</button>
     <div class="post" hidden role="dialog" aria-label="Postcard">
       <div class="pcwrap"></div>
       <div class="tools">
         <button type="button" class="patch keep">Save postcard</button>
-        <button type="button" class="patch soft close">Next picture</button>
+        <button type="button" class="patch soft close">Back to the picture</button>
       </div>
     </div>`;
   el.querySelector('.cardwrap')!.appendChild(card.element);
@@ -140,6 +142,7 @@ export function mountCaller(link: Transport, code: string, onLeave: () => void):
 
   // tap a square: pin (or unpin) its thread in the headset
   card.element.addEventListener('click', (e) => {
+    audio.resume(); // a tap is a gesture: the phone may play sound from now on
     if (!last || last.ph !== 'play') return;
     const b = card.element.getBoundingClientRect();
     const hit = card.cellAt((e.clientX - b.left) / b.width, (e.clientY - b.top) / b.height);
@@ -154,6 +157,7 @@ export function mountCaller(link: Transport, code: string, onLeave: () => void):
   });
   let ringAt = 0;
   ringBtn.addEventListener('click', () => {
+    audio.resume();
     const now = performance.now();
     if (now - ringAt < 1500) return; // one wave at a time
     ringAt = now;
@@ -194,6 +198,18 @@ export function mountCaller(link: Transport, code: string, onLeave: () => void):
   };
   drawAlbum();
 
+  // the woven row's tune, then a soft right/wrong (the weaver hears it in the headset too)
+  const playRow = (lv: ReturnType<typeof levelAt>, rows: readonly number[]) => {
+    const r = rows.length - 1;
+    const row = rows[r];
+    audio.setRoot(keyFor(lv.chapter, lv.rootMidi));
+    let k = 0;
+    for (let j = 0; j < WARPS; j++) {
+      const i = r % 2 === 0 ? j : WARPS - 1 - j;
+      if (isLifted(row, i)) audio.pluck(i, 0.35, 0.05 + k++ * 0.09, 0.3);
+    }
+    audio.verdict(rowStatuses(lv, rows)[r] === 'match');
+  };
   const apply = (s: Snapshot) => {
     last = s;
     const lv = levelAt(s.l);
@@ -204,10 +220,12 @@ export function mountCaller(link: Transport, code: string, onLeave: () => void):
       card.weft = lv.weft ?? null;
       card.setPicture(lv.color ?? null, lv.par);
     }
-    // the headset takes pins out once their row is woven: so does the phone
+    // the headset takes pins out once their row is woven: so does the phone, and it plays the new row
     if (s.r.length !== rowsDone) {
+      const grew = rowsDone >= 0 && s.r.length === rowsDone + 1;
       rowsDone = s.r.length;
       clearPins(false);
+      if (grew) playRow(lv, s.r);
     }
     const playing = s.ph === 'play';
     if (wasPlaying && !playing && s.st > 0) {
@@ -226,8 +244,9 @@ export function mountCaller(link: Transport, code: string, onLeave: () => void):
     const row = lv.target[next - 1] ?? 0;
     let filled = 0;
     for (let i = 0; i < WARPS; i++) if (isLifted(row, i)) filled++;
-    statusEl.textContent = playing ? `${lv.name}: row ${next} of ${lv.target.length}, ${filled} filled` : `${lv.name} woven! ${'★'.repeat(s.st)}`;
-    card.element.setAttribute('aria-label', `The picture card: ${lv.name}. Row ${next} has ${filled} filled squares.`);
+    const sq = `${filled} coloured square${filled === 1 ? '' : 's'}`;
+    statusEl.textContent = playing ? `${lv.name}, row ${next} of ${lv.target.length}: ${sq}` : `${lv.name} woven! ${'★'.repeat(s.st)}`;
+    card.element.setAttribute('aria-label', `The picture card: ${lv.name}. Row ${next} has ${sq}.`);
   };
   // repaint at most ~10×/s (snapshots come at 20 Hz)
   let pending: Snapshot | null = null;
@@ -318,7 +337,9 @@ function drawPostcard(p: Postcard, w: number, h: number, font: string, small = f
   }
   g.fillStyle = '#8a6a50';
   g.font = `600 ${22 * s}px system-ui, sans-serif`;
-  g.fillText(p.day, mx + 36 * s, (430 + 2 * 58 - 12) * s);
+  const [yy, mm, dd] = p.day.split('-').map(Number);
+  const when = new Date(yy, (mm || 1) - 1, dd || 1).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  g.fillText(when, mx + 36 * s, (430 + 2 * 58 - 12) * s);
   // the stamp: Pip on a scalloped square
   const sx = w - 200 * s;
   const sy = 50 * s;

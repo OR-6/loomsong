@@ -116,7 +116,7 @@ export function mountLanding(world: World): void {
           <figure class="photo phone"><i class="peg"></i><img loading="lazy" src="${sitePhoto('caller-phone.jpg')}" alt="The caller's phone: the picture card with a pin on one square, and a Ring Pip button" width="520" height="787" /></figure>
           <div class="coop-text">
             <h2 id="coop-title">No headset? Be the caller on your phone.</h2>
-            <p>The weaver hosts a loom in their headset and reads out the code. Open this page on your phone and join. Only you can see the picture, and only they can see which threads each lever lifts, so you have to talk it through. Tap a square to pin its thread on their loom; ring Pip to wave hello. Every picture you finish together leaves a postcard on your phone.</p>
+            <p>The weaver hosts a loom in their headset and reads out the code. Open this page on your phone and join. Only you can see the picture, and only they can see which threads each lever lifts, so you have to talk it through. Tap a square to pin its thread on their loom, or ring Pip to make it wave. Every picture you finish together leaves a postcard on your phone.</p>
             <div class="row">
               <button type="button" id="coop-host" class="patch">Host a loom</button>
               <span class="or">or</span>
@@ -125,7 +125,7 @@ export function mountLanding(world: World): void {
               <button type="button" id="coop-leave" hidden>Leave</button>
             </div>
             <p id="coop-status" role="status"></p>
-            <p class="fine">A direct link between your two devices. No accounts, no voice.</p>
+            <p class="fine">Your devices link directly, with no accounts. Sound doesn't travel between them, so sit together or call each other.</p>
           </div>
         </section>
 
@@ -158,7 +158,7 @@ export function mountLanding(world: World): void {
   if (!world.xrEnabled) noHeadset();
   else void shouldCall().then((call) => call && noHeadset());
   const callCode = el.querySelector<HTMLInputElement>('#call-code')!;
-  const callJoin = () => void coop.join(callCode.value, 'caller');
+  const callJoin = () => (audio.resume(), void coop.join(callCode.value, 'caller'));
   el.querySelector('#call-join')!.addEventListener('click', callJoin);
   callCode.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') callJoin();
@@ -219,7 +219,7 @@ export function mountLanding(world: World): void {
   const leaveBtn = el.querySelector<HTMLButtonElement>('#coop-leave')!;
   el.querySelector('#coop-host')!.addEventListener('click', () => void coop.host());
   // whoever joins is the caller (a phone, a laptop, or a second headset's browser): the picture, pins and Pip's bell
-  const join = async () => void coop.join(codeIn.value, 'caller');
+  const join = async () => (audio.resume(), void coop.join(codeIn.value, 'caller'));
   el.querySelector('#coop-join')!.addEventListener('click', () => void join());
   codeIn.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') void join();

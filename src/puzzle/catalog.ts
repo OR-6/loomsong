@@ -26,7 +26,7 @@ export const LEVELS: Level[] = PICTURES.map((p) => ({
  * rose heart by itself to say thank you (the Heart's own levers, so it's always weavable).
  */
 const heart = LEVELS.find((l) => l.id === 'heart')!;
-export const THANKS_LEVEL: Level = { ...heart, id: 'thanks', name: 'Thank you', color: 0xd4537e, chapter: undefined, mystery: false };
+export const THANKS_LEVEL: Level = { ...heart, id: 'thanks', name: 'Thank you', color: 0xd4537e, chapter: undefined, mystery: false, par: 0 }; // par 0: no move knots on its card
 
 const cache = new Map<number, Level>();
 

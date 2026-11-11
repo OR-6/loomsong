@@ -1008,9 +1008,10 @@ export class LoomView {
         // turns to face you, hops once, and waves a wing (your caller says hello)
         const env = Math.min(1, t / 0.3) * Math.min(1, Math.max(0, (3.2 - t) / 0.35));
         look = -this.pipFacing * (Math.PI / 2) * env;
-        if (t < 0.4) y = hop(t, 0.4, 0.014);
-        // both wings up and waving (one wing alone hides behind Pip from half the angles)
-        this.pipWings.forEach((w, i) => (w.rotation.x = (i === 0 ? 1 : -1) * (1.15 + 0.4 * Math.sin(t * 14)) * env));
+        y = hop(t, 0.5, 0.013) * (t < 2.5 ? 1 : 0); // little hops while it waves
+        squash = 1 + 0.06 * env;
+        // both wings high over its head, waving (one wing alone hides behind Pip from half the angles)
+        this.pipWings.forEach((w, i) => (w.rotation.x = (i === 0 ? 1 : -1) * (1.7 + 0.5 * Math.sin(t * 13 + i * 1.6)) * env));
         if (t > 3.2) this.mood = 'none';
       } else if (this.mood === 'sad') {
         const env = Math.min(1, t / 0.25) * Math.min(1, Math.max(0, (1.6 - t) / 0.4));
@@ -1102,14 +1103,16 @@ export class LoomView {
   private pinT = new Float32Array(WARPS).fill(-1);
   private pinOn = new Uint8Array(WARPS);
   private buildPins(): void {
-    const head = new SphereGeometry(0.0062, 14, 10);
-    const shaft = new CylinderGeometry(0.0007, 0.0004, 0.026, 6);
-    const felt = new MeshStandardMaterial({ color: 0xe2563b, roughness: 0.95, map: feltTexture() });
-    const steel = new MeshStandardMaterial({ color: 0xb8bcc2, roughness: 0.35, metalness: 0.8 });
+    // a fat felt pompom on a short pin: soft and matte, big enough to read from the seat
+    const head = new SphereGeometry(0.0092, 16, 12);
+    const shaft = new CylinderGeometry(0.0008, 0.0004, 0.026, 6);
+    const felt = new MeshStandardMaterial({ color: 0xe2563b, roughness: 1, metalness: 0, envMapIntensity: 0.25, map: feltTexture() });
+    const steel = new MeshStandardMaterial({ color: 0xb8bcc2, roughness: 0.5, metalness: 0.6, envMapIntensity: 0.5 });
     for (let i = 0; i < WARPS; i++) {
       const g = new Group();
       const h = new Mesh(head, felt);
-      h.position.y = 0.026;
+      h.position.y = 0.028;
+      h.scale.set(1, 0.9, 1); // a slightly squashed pompom
       const sh = new Mesh(shaft, steel);
       sh.position.y = 0.013;
       g.add(h, sh);

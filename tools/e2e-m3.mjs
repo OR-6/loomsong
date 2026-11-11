@@ -42,7 +42,7 @@ const code = Buffer.from([1, 2, 0x0f, 0xf0, 2, 0x0f, 0xff, 60]).toString('base64
 cli('browser', 'run', 'tools/clear-storage.mjs');
 await (async () => {
   const fs = await import('node:fs');
-  fs.writeFileSync('tools/.goto-share.mjs', `export default async function run({ page, frame }) { const t = frame ?? page; await t.evaluate(() => { localStorage.setItem('loomsong:progress.v1', JSON.stringify({ level: 2, best: { a1: 3, a2: 2 }, tutorialDone: true, theme: 'toy' })); location.hash = 'w=${code}'; location.reload(); }); await new Promise((r) => setTimeout(r, 3000)); return 'ok'; }`);
+  fs.writeFileSync('tools/.goto-share.mjs', `export default async function run({ page, frame }) { const t = frame ?? page; await t.evaluate(() => { (window.__realSetItem ?? Storage.prototype.setItem).call(localStorage, 'loomsong:progress.v1', JSON.stringify({ level: 2, best: { a1: 3, a2: 2 }, tutorialDone: true, theme: 'toy' })); location.hash = 'w=${code}'; location.reload(); }); await new Promise((r) => setTimeout(r, 3000)); return 'ok'; }`);
 })();
 run('tools/.goto-share.mjs');
 if (!xr('status').sessionActive) xr('enter');

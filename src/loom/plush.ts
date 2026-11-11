@@ -32,6 +32,7 @@ import { Label } from '../ui/label.js';
 import { LOOM, WARPS } from '../config.js';
 import { isLifted, type Mask8 } from '../puzzle/tieup.js';
 import { feltTexture, weaveTexture } from './textures.js';
+import { addFeltBody } from './plush-shape.js';
 import { cloneModel, loomModels, mergeStatic } from './models.js';
 
 /** A soft felt pennant: a subdivided triangle, top edge at y = 0, gently cupped. */
@@ -158,34 +159,34 @@ export function buildPlush(rows: readonly Mask8[], color: number, gold = false):
   const g = new Group();
   g.name = 'Plush';
   g.rotation.order = 'YXZ'; // turn first, then lean: a desk plush can face you and lean back
-  let n = 0;
-  for (const r of rows) for (let i = 0; i < WARPS; i++) if (isLifted(r, i)) n++;
   // matte felt (no sheen/gloss: it read as glassy), the loom's knitted stitch
   const mat = new MeshStandardMaterial({ color: new Color(color), roughness: 0.95, metalness: 0, map: feltTexture() });
-  const body = new InstancedMesh(plushPuffGeometry(), mat, Math.max(1, n));
-  // loose pixels (leaves, a cherry) become flat felt leaves, tilted out from the body
+  // the body is one soft sewn shape: the picture's outline, rounded and pillowed, with a running stitch
   const parts = pieces(rows);
-  body.name = 'PlushBody';
-  body.frustumCulled = false;
-  body.castShadow = true;
-  let k = 0;
-  for (let r = 0; r < rows.length; r++) {
-    for (let i = 0; i < WARPS; i++) {
-      if (!isLifted(rows[r], i)) continue;
-      _p.set((i - (WARPS - 1) / 2) * cell, LIFT + cell / 2 + r * cell, 0);
-      const c = parts.comp[r * WARPS + i];
-      if (parts.sizes.length > 1 && c !== parts.main) {
+  const H = rows.length;
+  const main = (r: number, i: number) => r >= 0 && r < H && i >= 0 && i < WARPS && isLifted(rows[r], i) && (parts.sizes.length < 2 || parts.comp[r * WARPS + i] === parts.main);
+  addFeltBody(g, main, H, mat, { cell, lift: LIFT, warps: WARPS, depth: cell * PLUSH.depth });
+  // loose pixels (leaves, a cherry) become flat felt leaves, tilted out from the body
+  let loose = 0;
+  for (let r = 0; r < H; r++) for (let i = 0; i < WARPS; i++) if (isLifted(rows[r], i) && !main(r, i)) loose++;
+  if (loose) {
+    const leaves = new InstancedMesh(plushPuffGeometry(), mat, loose);
+    leaves.name = 'PlushLeaves';
+    leaves.frustumCulled = false;
+    leaves.castShadow = true;
+    let k = 0;
+    for (let r = 0; r < H; r++) {
+      for (let i = 0; i < WARPS; i++) {
+        if (!isLifted(rows[r], i) || main(r, i)) continue;
+        _p.set((i - (WARPS - 1) / 2) * cell, LIFT + cell / 2 + r * cell, 0);
         const out = Math.sign(i - parts.mainX) || 1;
         _q.setFromAxisAngle(_z, -out * 0.55);
         _m.compose(_p, _q, _s.set(cell * 1.2, cell * 0.78, cell * PLUSH.depth * 0.3));
-      } else {
-        _m.compose(_p, _q.identity(), _s.set(cell * 1.16, cell * 1.14, cell * PLUSH.depth));
+        leaves.setMatrixAt(k++, _m);
       }
-      body.setMatrixAt(k++, _m);
     }
+    g.add(leaves);
   }
-  body.count = k;
-  g.add(body);
   addStalks(g, rows, color);
   addFace(g, rows, color);
   addFeetAndTag(g, rows, color);
