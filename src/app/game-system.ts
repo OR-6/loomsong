@@ -912,13 +912,15 @@ export class GameSystem extends createSystem({
   }
 
   /** Schedule a picture's song `delay` s from now (a row per hop, rows alternating like the weaving); returns its length. */
-  private schedulePictureSong(rows: readonly number[], delay: number): number {
+  private schedulePictureSong(rows: readonly number[], delay: number, pan?: number): number {
     for (let r = 0; r < rows.length; r++) {
       const ltr = r % 2 === 0;
       let k = 0;
       for (let j = 0; j < WARPS; j++) {
         const w = ltr ? j : WARPS - 1 - j;
-        if (isLifted(rows[r], w)) audio.pluck(w, 0.35, delay + r * ROW_BEAT + k++ * 0.045, 0.24);
+        // a plush sings from where it stands (a little spread around it)
+        const p = pan === undefined ? undefined : pan + ((w - (WARPS - 1) / 2) / (WARPS - 1)) * 0.15;
+        if (isLifted(rows[r], w)) audio.pluck(w, 0.35, delay + r * ROW_BEAT + k++ * 0.045, 0.24, p);
       }
     }
     return rows.length * ROW_BEAT + 0.15;
@@ -930,7 +932,8 @@ export class GameSystem extends createSystem({
     const lv = id ? pictureById(id) : undefined;
     if (!lv || this.time < this.singUntil) return;
     audio.resume();
-    const secs = this.schedulePictureSong(lv.target, 0);
+    const at = this.view.plushes.plushCentre(i, this.tmp2);
+    const secs = this.schedulePictureSong(lv.target, 0, at ? panOf(at.x) : undefined);
     this.singUntil = this.time + secs;
     audio.holdMusic(secs + 0.3);
     this.view.plushes.sing(i, secs);
@@ -977,7 +980,7 @@ export class GameSystem extends createSystem({
     for (const i of order) {
       const lv = pictureById(this.view.plushes.idAt(i) ?? '');
       if (!lv) continue;
-      const secs = this.schedulePictureSong(lv.target, t);
+      const secs = this.schedulePictureSong(lv.target, t, panOf(this.plushVecs[i].x));
       this.view.plushes.sing(i, secs, t);
       this.sparkleAt[i] = this.time + t; // a gold sparkle over each plush as its turn starts
       t += secs + 0.2;
@@ -2018,4 +2021,9 @@ function targetCode(t: unknown): number {
 function isTarget(t: unknown, k: number): boolean {
   const x = t as { kind?: string; k?: number } | null;
   return !!x && x.kind === 'lever' && x.k === k;
+}
+
+/** Stereo position for something at loom-space x (the loom is straight ahead of the seat). */
+function panOf(x: number): number {
+  return Math.max(-0.85, Math.min(0.85, x / 0.45));
 }

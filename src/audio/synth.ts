@@ -186,7 +186,7 @@ class Synth {
   }
 
   /** Play a decoded sample; false if it isn't available (caller falls back). */
-  private play(name: string, gain: number, when = 0, rate = 1, wet = true): boolean {
+  private play(name: string, gain: number, when = 0, rate = 1, wet = true, pan = 0): boolean {
     const ctx = this.ready();
     const buf = this.bufs.get(name);
     if (!ctx || !buf) return false;
@@ -196,8 +196,16 @@ class Synth {
     const g = ctx.createGain();
     g.gain.value = gain;
     src.connect(g);
-    if (wet) this.bus(g);
-    else g.connect(this.dry);
+    // placed left to right where it happens (a thread across the loom, a plush on the desk)
+    let out: AudioNode = g;
+    if (pan !== 0 && ctx.createStereoPanner) {
+      const p = ctx.createStereoPanner();
+      p.pan.value = Math.max(-1, Math.min(1, pan));
+      g.connect(p);
+      out = p;
+    }
+    if (wet) this.bus(out);
+    else out.connect(this.dry);
     src.start(ctx.currentTime + when);
     return true;
   }
@@ -230,10 +238,10 @@ class Synth {
   }
 
   /** Kalimba note at a MIDI pitch from the nearest recorded note. */
-  private kalimba(midi: number, gain: number, when = 0): boolean {
+  private kalimba(midi: number, gain: number, when = 0, pan = 0): boolean {
     let best = KALIMBA[0];
     for (const m of KALIMBA) if (Math.abs(m - midi) < Math.abs(best - midi)) best = m;
-    return this.play(`kalimba/k${best}.ogg`, gain, when, Math.pow(2, (midi - best) / 12));
+    return this.play(`kalimba/k${best}.ogg`, gain, when, Math.pow(2, (midi - best) / 12), true, pan);
   }
 
   private midiOf(warp: number): number {
@@ -343,14 +351,16 @@ class Synth {
   }
 
   /** Harp-like pluck for warp i; brighter with faster strums. */
-  pluck(warp: number, speed = 0.3, when = 0, gain = 0.32): void {
+  pluck(warp: number, speed = 0.3, when = 0, gain = 0.32, pan?: number): void {
     const ctx = this.ready();
     if (!ctx) return;
     this.duck(ctx, when);
     // Recorded kalimba; faster strums are a touch louder.
     // ±8% level and ±10 cents so repeated notes never sound copy-pasted
     const vary = 0.92 + Math.random() * 0.16;
-    if (this.kalimba(this.midiOf(warp) + (Math.random() - 0.5) * 0.2, gain * vary * (0.95 + 0.45 * Math.min(1, speed / 0.6)), when)) return;
+    // each thread from its own place across the loom (a harp in front of you), unless placed elsewhere
+    const p = pan ?? ((warp - (WARPS - 1) / 2) / ((WARPS - 1) / 2)) * 0.4;
+    if (this.kalimba(this.midiOf(warp) + (Math.random() - 0.5) * 0.2, gain * vary * (0.95 + 0.45 * Math.min(1, speed / 0.6)), when, p)) return;
     const t = ctx.currentTime + when;
     const f = this.freqs[warp] ?? 440;
     const env = ctx.createGain();
