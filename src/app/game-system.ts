@@ -36,6 +36,7 @@ import { CHAPTERS, DAILY_LEVELS, LEVELS, THANKS_LEVEL, chapterStates, dailyLevel
 import type { Level } from '../puzzle/levels.js';
 import { PLUSH, ROW_BEAT, SPOTS, type DeskItem, type ShelfItem } from '../loom/plush.js';
 import { DAILY_BALL } from '../loom/daily-ball.js';
+import { TOY_PHONE } from '../loom/toy-phone.js';
 import { QUILT_W, buildQuilt } from '../loom/quilt.js';
 import { isLifted } from '../puzzle/tieup.js';
 const PLUSH_SLOTS = SPOTS;
@@ -202,6 +203,7 @@ export class GameSystem extends createSystem({
   private today = '';
   private dailyDone = false;
   private dailyVec = new Vector3();
+  private phoneVec = new Vector3();
   private cardRowVecs = Array.from({ length: 8 }, () => new Vector3());
   private cardRowUntil = 0;
   /** Lever clicks during a programmatic drop make no sound. */
@@ -316,6 +318,7 @@ export class GameSystem extends createSystem({
       drop: (i, p) => this.dropPlush(i, p),
       windKey: () => this.playShelf(),
       daily: () => this.startDaily(),
+      phone: () => this.pokePhone(),
       cardRow: (i) => this.playCardRow(i),
       swap: () => {
         this.model.setWeft(this.model.weft ? 0 : 1);
@@ -448,6 +451,7 @@ export class GameSystem extends createSystem({
         this.view.setActiveLevers(level.tieUp.length);
         // Picture colour on the warps; mystery chapters hide the lever ties
         // until each lever has been tried once.
+        this.view.nightCloth = level.chapter === 'night';
         this.view.setPicture(level.color ?? null, level.tieUp, level.tieUp.map(() => !!level.mystery));
         this.view.setTarget(level.target);
         this.view.card.paper = level.chapter === 'night' ? '#b9beea' : null; // Sea stays cream so its blue water rows read
@@ -750,6 +754,10 @@ export class GameSystem extends createSystem({
   /** Co-op connected / left: switch roles and the authority model. */
   private onCoop(st: CoopStatus): void {
     const side = { model: this.model, controller: this.controller, flow: this.flow };
+    // the toy telephone's tag: the code while it waits for the caller
+    const hosting = st.role === 'host' && (st.state === 'hosting' || st.state === 'connected');
+    if (!hosting) this.view.phone.setState('idle');
+    else if (this.view.phone.phoneState !== 'connected' || st.state === 'hosting') this.view.phone.setState('calling', st.code ?? '');
     // Any state change other than a fresh connection ends the current link.
     if (this.coopLink && (st.state !== 'connected' || coop.transport !== this.coopTransport)) {
       this.endCoop(st.state === 'closed' || st.state === 'error');
@@ -763,6 +771,7 @@ export class GameSystem extends createSystem({
       if (this.coopLink instanceof CoopHost) {
         this.coopLink.onCaller = () => {
           this.debug.coop = 'host+caller';
+          this.view.phone.setState('connected');
           this.setCallerGap(true);
           this.showNotice('Your caller has the picture: ask them!', 6, 'centre');
         };
@@ -1472,6 +1481,29 @@ export class GameSystem extends createSystem({
     for (let r = 0; r < 8; r++) c.cardRows[r] = rowsOk ? this.view.cardRowPos(r, this.cardRowVecs[r]) : null;
     const dy = (t: unknown) => (t as { kind?: string } | null)?.kind === 'daily';
     this.view.daily.hover(dy(c.hover.left) || dy(c.hover.right));
+    // the toy telephone: once the first picture is done (never in the first minutes), not during the finale
+    const ph = this.view.phone;
+    ph.root.visible = this.progress.tutorialDone && !this.grand && !this.photoMode;
+    this.phoneVec.set(this.controller.bankSide * TOY_PHONE.x, TOY_PHONE.y, TOY_PHONE.z);
+    c.phoneSpot = ph.root.visible && this.flow?.phase === 'play' && !this.flow.challenge ? this.phoneVec : null;
+    const pt = (t: unknown) => (t as { kind?: string } | null)?.kind === 'phone';
+    ph.hover(pt(c.hover.left) || pt(c.hover.right));
+  }
+
+  /** The toy telephone: call a friend (host a loom and show its code), or hang up. */
+  private pokePhone(): void {
+    audio.resume();
+    const st = coop.status.state;
+    if (st === 'hosting' || st === 'connected' || st === 'joining') {
+      coop.leave();
+      this.view.phone.setState('idle');
+      audio.click(false);
+      return;
+    }
+    audio.chirp('happy');
+    this.view.phone.setState('calling', '…');
+    this.showNotice('Read the code to a friend: they open this game on a phone', 7, 'centre');
+    void coop.host();
   }
 
   /** Hover tooltips for the secondary controls (levers and Pip have their own hints). */

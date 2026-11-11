@@ -26,7 +26,7 @@ The `?debug=1` part shows a small tag behind the picture card with three numbers
    - Send: did the loom come back in the same place ("Right where you left it"), with the plushes where you left them?
 9. Optional: open the same link with `?debug=1&shadows=0` and repeat step 3 briefly.
    - Send: the frame rate with and without shadows.
-10. Optional, with a friend and a phone: on the 2D page (before entering), open "Play together", press **Host a loom** and read the four-letter code to your friend. They open the same link on their phone and join with the code. Then enter mixed reality.
+10. Optional, with a friend and a phone: after the first picture, poke the little red toy telephone on the desk and read the four-letter code on its tag to your friend. They open the same link on their phone and join with the code.
    - Send: did the picture disappear from the card in the headset? When your friend tapped a square, did a red felt pin appear on the right thread? Did "Ring Pip" make Pip wave? Did they get a postcard when the picture was finished?
 11. Optional: open the link with `?finale=1` and place the loom. After a few seconds the loom weaves a heart by itself and the shelves sing in turn.
    - Send: **(fps during the finale)**, and whether the credit ribbon was readable from the seat.

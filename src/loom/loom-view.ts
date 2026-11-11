@@ -45,6 +45,7 @@ import { PLUSH, Plushes, puffGeometry } from './plush.js';
 import { DAILY_BALL } from './daily-ball.js';
 import { Basket } from './basket.js';
 import { DailyBall } from './daily-ball.js';
+import { ToyPhone } from './toy-phone.js';
 import { RoomMood } from './room-mood.js';
 import { GhostHand } from './ghost-hand.js';
 import { Fx } from './fx.js';
@@ -259,6 +260,8 @@ export class LoomView {
   readonly plushes = new Plushes();
   readonly basket = new Basket();
   readonly daily = new DailyBall();
+  /** Call a friend from the headset: a toy telephone on the lever side. */
+  readonly phone = new ToyPhone();
   /** The chapter reaching into the real room (Night's dusk, the Sea's ripples). */
   readonly roomMood = new RoomMood();
   readonly ghost = new GhostHand();
@@ -326,7 +329,7 @@ export class LoomView {
     this.catcher.renderOrder = -1;
     this.root.add(this.catcher);
     // No mat: the player's real desk shows around the toy (it's mixed reality).
-    this.root.add(this.plushes.root, this.basket.root, this.daily.root, this.roomMood.root, this.ghost.root, this.fx.root);
+    this.root.add(this.plushes.root, this.basket.root, this.daily.root, this.phone.root, this.roomMood.root, this.ghost.root, this.fx.root);
     // Sea's swap spools (hidden unless the level has a second weft)
     {
       const flangeMat = new MeshStandardMaterial({ color: 0xf3e6cf, roughness: 0.7 });
@@ -747,6 +750,7 @@ export class LoomView {
     this.layUndoTail();
     this.basket.setSide(side);
     this.daily.setSide(side);
+    this.phone.setSide(side);
     this.mat.position.x = -side * MAT.offsetX;
   }
 
@@ -1488,6 +1492,7 @@ export class LoomView {
     this.plushes.update(dt);
     this.basket.update(dt);
     this.daily.update(dt);
+    if (this.phone.root.visible) this.phone.update(dt);
     this.roomMood.update(dt);
     // a contact shadow only where its object is on the desk
     if (this.blobs.length === 4) {
@@ -1580,6 +1585,9 @@ export class LoomView {
    * The level's colours and tie-up. `color` is the picture colour (lifted
    * threads); null falls back to the theme's weft colour.
    */
+  /** Night's cloth: dusk-blue ground yarn (set before setPicture, which repaints). */
+  nightCloth = false;
+
   setPicture(color: number | null, tieUp: readonly Mask8[], hidden: readonly boolean[] = []): void {
     this.pictureColor = color;
     this.tieUp = tieUp;
@@ -1737,7 +1745,9 @@ export class LoomView {
     const p = this.palette;
     this.liftColor = this.pictureColor ?? p.weft;
     this.liftWoven = _c.setHex(this.liftColor).offsetHSL(0, 0.08, 0.05).getHex(); // woven yarn: a touch richer than the ghost
-    this.groundColor = 0xe2d2b2; // oatmeal yarn: the picture colour is the brightest thing on the cloth: the picture colour reads against it, not white tile
+    // oatmeal yarn: the picture colour is the brightest thing on the cloth: it reads against it, not white tile.
+    // At Night the ground is dusk-blue wool, so the pictures (a moon, an owl) glow on it like a night sky.
+    this.groundColor = this.nightCloth ? 0x34407a : 0xe2d2b2;
     // warp colour comes per strand (instance colour × white), brighter when lifted
     (this.warps?.material as MeshStandardMaterial | undefined)?.color.setHex(0xffffff);
     const yarn = this.bobbin ? (materialOf(this.bobbin, 'Wound') as MeshStandardMaterial | null) : null;
