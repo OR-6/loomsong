@@ -631,7 +631,7 @@ export class Plushes {
 
   /** Resting lean: a desk plush sits back a little, looking up at the seated player. */
   restX(i: number): number {
-    return i < PLUSH.slots ? 0 : -0.32;
+    return i < PLUSH.slots ? 0 : -0.16; // gentle: a wide plush leaning further looked knocked over
   }
 
   /** Resting turn: a desk plush faces the player's seat (in front of the loom). */

@@ -11,7 +11,7 @@ import { THEMES, type ThemeId } from './theme.js';
 import { clothDataUrl } from './cloth-image.js';
 import { clothFromHash, shareUrl } from '../net/share.js';
 import { loadSettings, saveSettings, type HandPref } from '../persistence/settings.js';
-import { coop, type CoopStatus } from '../net/coop.js';
+import { normaliseCode, coop, type CoopStatus } from '../net/coop.js';
 import { mountCaller, shouldCall, unmountCaller } from './caller.js';
 
 export function mountLanding(world: World): void {
@@ -163,6 +163,12 @@ export function mountLanding(world: World): void {
   callCode.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') callJoin();
   });
+  // a join link (?join=ABCD): the code is filled in; a tap on Join and you're the caller
+  const joinCode = normaliseCode(new URLSearchParams(location.search).get('join') ?? '');
+  if (joinCode) {
+    callCode.value = joinCode;
+    el.querySelector<HTMLInputElement>('#coop-code')!.value = joinCode;
+  }
   const pick = el.querySelector<HTMLElement>('#style-pick')!;
   const sync = () => {
     const p = loadProgress();

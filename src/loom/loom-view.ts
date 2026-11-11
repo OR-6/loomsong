@@ -397,6 +397,12 @@ export class LoomView {
       if (theme.id === 'toy' && sm.isMeshStandardMaterial && sm.metalness < 0.3) {
         sm.roughness = 0.97; // painted wood: matte, so the key light makes a soft sheen, not a plastic streak
         sm.envMapIntensity = 0.3; // no plastic glints from the environment light
+        // the model's paints carry a clearcoat: that's the plastic-pipe streak. Chalk paint has none
+        const pm = sm as MeshPhysicalMaterial;
+        if (pm.isMeshPhysicalMaterial) {
+          pm.clearcoat = 0;
+          pm.specularIntensity = 0.5;
+        }
       }
       // the toy loom's frame is painted mustard (art direction): a made toy, not bare plastic-looking pipe
       if (theme.id === 'toy' && name === 'Beech') sm.color.setHex(0xe8ac3e);
@@ -531,7 +537,16 @@ export class LoomView {
         (dot?.material as MeshStandardMaterial | undefined)?.color.setHex(palette.knobs[k]);
         cap.roughness = theme.knobRoughness;
         cap.metalness = theme.knobMetalness;
-        if (theme.id === 'toy') cap.envMapIntensity = 0.25; // painted wood: no candy glint
+        if (theme.id === 'toy') {
+          // painted wood: no candy glint (no clearcoat, a soft satin at most)
+          cap.envMapIntensity = 0.25;
+          cap.roughness = Math.max(cap.roughness, 0.82);
+          const pc = cap as MeshPhysicalMaterial;
+          if (pc.isMeshPhysicalMaterial) {
+            pc.clearcoat = 0;
+            pc.specularIntensity = 0.5;
+          }
+        }
         this.leverMats.push(cap);
         knob.name = `Lever${k}`;
         this.levers.push(knob);
@@ -584,6 +599,9 @@ export class LoomView {
           if (m?.isMeshStandardMaterial && m.metalness < 0.3) {
             m.roughness = Math.max(m.roughness, 0.85);
             m.envMapIntensity = 0.3;
+            // felt has no clearcoat; the button eyes keep a little, so they still catch the light
+            const pm = m as MeshPhysicalMaterial;
+            if (pm.isMeshPhysicalMaterial) pm.clearcoat = m.name === 'PipEye' || m.name === 'PipShine' ? 0.25 : 0;
           }
         });
         this.shuttleMat.needsUpdate = true;

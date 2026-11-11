@@ -23,6 +23,6 @@ check('placed again without setting the table', s.debug.phase === 'placed' && s.
 const after = s.debug.loomOrigin ?? [9, 9, 9];
 const d = Math.hypot(after[0] - before[0], after[1] - before[1], after[2] - before[2]);
 check('right where it was', d < 0.01, `${JSON.stringify(before)} → ${JSON.stringify(after)} (${(d * 100).toFixed(1)} cm)`);
-check('it says so', s.debug.notice === 'Right where you left it', s.debug.notice);
+check('it says so', (s.debug.notices ?? []).includes('Right where you left it'), JSON.stringify(s.debug.notices));
 void first;
 done('resume');

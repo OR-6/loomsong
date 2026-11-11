@@ -16,8 +16,8 @@ export function weaveTexture(): CanvasTexture {
   // pillow shading: bright centre, darker edges where yarn dips under
   const grad = g.createRadialGradient(128, 128, 20, 128, 128, 170);
   grad.addColorStop(0, '#ffffff');
-  grad.addColorStop(0.7, '#e6e6e6');
-  grad.addColorStop(1, '#a8a8a8');
+  grad.addColorStop(0.7, '#f3f3f3');
+  grad.addColorStop(1, '#cdcdcd'); // a light dip at the edges: the woven picture stays bright from the seat
   g.fillStyle = grad;
   g.fillRect(0, 0, 256, 256);
   // fibre lines (slight twist) — deterministic

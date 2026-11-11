@@ -125,6 +125,8 @@ export interface GameDebug {
   degrade: number;
   calibrating: string;
   coop: string;
+  /** The last few notices shown (E2E: a notice can come and go between two checks). */
+  notices?: string[];
   /** Grand finale: '' | 'weaving' | 'medley' | 'done'. */
   grand?: string;
 }
@@ -1387,10 +1389,19 @@ export class GameSystem extends createSystem({
     const taken = Object.values(this.progress.placed ?? {});
     for (const [x, z] of spots) {
       if (taken.some(([tx, tz]) => Math.hypot(tx - x, tz - z) < 0.055)) continue;
+      if (this.onProp(x, z, 0.03)) continue; // never on the telephone or the present
       if (!this.onTable({ x, y: 0.01, z })) continue;
       return [x, z];
     }
     return null;
+  }
+
+  /** Is a plush at (x, z) on the toy telephone or the present (with `margin` more room)? */
+  private onProp(x: number, z: number, margin: number): boolean {
+    const side = this.controller.bankSide;
+    const phone = this.view.phone.root.visible && Math.hypot(x - side * TOY_PHONE.x, z - TOY_PHONE.z) < 0.06 + margin;
+    const gift = this.view.daily.root.visible && Math.hypot(x + side * DAILY_BALL.x, z - DAILY_BALL.z) < 0.045 + margin;
+    return phone || gift;
   }
 
   /**
@@ -1426,7 +1437,7 @@ export class GameSystem extends createSystem({
     const onPlaque = Math.abs(p.x) < 0.11 && p.z > 0.09 && p.z < 0.2; // the level plaque
     const tooHigh = p.y > 0.2;
     const d = deskIndex(id);
-    if (d < 0 || nearShelf || inLoom || inBank || inBasket || onPlaque || tooHigh || !this.onTable(p)) {
+    if (d < 0 || nearShelf || inLoom || inBank || inBasket || onPlaque || this.onProp(p.x, p.z, 0) || tooHigh || !this.onTable(p)) {
       plushes.putBack(i);
       audio.pluck(2, 0.35, 0, 0.05);
       this.debug.lastDrop = 'back';
@@ -1502,7 +1513,9 @@ export class GameSystem extends createSystem({
     }
     audio.chirp('happy');
     this.view.phone.setState('calling', '…');
-    this.showNotice('Read the code to a friend: they open this game on a phone', 7, 'centre');
+    // where the friend goes: this page's address, short (no https://, no trailing slash)
+    const where = (location.host + location.pathname).replace(/\/(index\.html)?$/, '');
+    this.showNotice(`Your friend opens ${where} on a phone and types the code`, 9, 'centre');
     void coop.host();
   }
 
@@ -1637,6 +1650,7 @@ export class GameSystem extends createSystem({
     this.noticeAt = at;
     this.noticeTimer = seconds;
     this.debug.notice = text;
+    if (text) (this.debug.notices ??= []).push(text) > 8 && this.debug.notices.shift(); // recent notices (tests)
     // Clearing a notice brings back the tutorial hint it covered.
     this.tutor.set(text || this.hintText(this.flow.hintStep));
   }

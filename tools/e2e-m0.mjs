@@ -30,7 +30,17 @@ const shot = (name, look) => {
 const HAND = 'hand-right';
 const FLAT = { pitch: 0, yaw: 0, roll: 0 };
 
-// Fresh page, enter XR with hands only.
+// Fresh page and fresh storage (a loom saved by the previous suite would resume), hands raised
+// first so neither palm reads as a desk during the reload. Then enter XR with hands only.
+try {
+  if (xr('status').sessionActive) {
+    xr('set-transform', { device: 'hand-right', position: { x: 0.35, y: 1.45, z: -0.25 }, orientation: { pitch: 0, yaw: 0, roll: -90 } });
+    xr('set-transform', { device: 'hand-left', position: { x: -0.35, y: 1.45, z: -0.25 }, orientation: { pitch: 0, yaw: 0, roll: 90 } });
+  }
+} catch {
+  /* no session yet */
+}
+execFileSync('npx', ['@iwsdk/cli', 'browser', 'run', 'tools/clear-storage.mjs'], { encoding: 'utf8' });
 cli('browser', 'reload');
 await wait(2500);
 if (!xr('status').sessionActive) xr('enter');

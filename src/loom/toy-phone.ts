@@ -1,5 +1,5 @@
 /**
- * Call a friend from inside the headset: a little felt toy telephone on the desk,
+ * Call a friend from inside the headset: a little teal felt toy telephone on the desk,
  * on the lever side in front of the bank. Poke it and the loom is hosted; its paper
  * tag shows the four-letter code to read out to a friend, who joins on a phone as
  * the caller. While it waits for them the handset rattles now and then, like a
@@ -31,15 +31,15 @@ export class ToyPhone {
   constructor() {
     this.root.name = 'ToyPhone';
     const felt = feltTexture();
-    const red = new MeshStandardMaterial({ color: 0xe2563b, roughness: 1, map: felt, envMapIntensity: 0.3 });
+    const shell = new MeshStandardMaterial({ color: 0x2a9d8f, roughness: 1, map: felt, envMapIntensity: 0.3 }); // teal felt: the desk already has red (spool, pins, a knob)
     const cream = new MeshStandardMaterial({ color: 0xfff1d6, roughness: 0.95, map: felt, envMapIntensity: 0.3 });
     const ink = new MeshStandardMaterial({ color: 0x3b2a20, roughness: 0.9 });
     const mustard = new MeshStandardMaterial({ color: 0xf2b632, roughness: 0.9, map: felt });
     // the body: a soft felt dome on a flat base
-    const body = new Mesh(new SphereGeometry(1, 28, 12, 0, Math.PI * 2, 0, Math.PI / 2), red);
+    const body = new Mesh(new SphereGeometry(1, 28, 12, 0, Math.PI * 2, 0, Math.PI / 2), shell);
     body.scale.set(0.027, 0.02, 0.023);
     body.castShadow = true;
-    const base = new Mesh(new CircleGeometry(1, 28), red);
+    const base = new Mesh(new CircleGeometry(1, 28), shell);
     base.rotation.x = Math.PI / 2;
     base.scale.set(0.027, 0.023, 1);
     // the dial on the sloping front: a cream disc, a ring of finger holes, a mustard button

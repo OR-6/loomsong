@@ -124,6 +124,14 @@ export class TargetCard {
     g.fillStyle = highContrast ? '#ffffff' : (this.paper ?? th.paper);
     roundRect(g, 0, 0, c.width, c.height, px(0.006));
     g.fill();
+    if (!highContrast) {
+      // paper grain: flecks and fibres, so it reads as card stock, not a screen
+      g.save();
+      g.clip();
+      g.fillStyle = g.createPattern(paperGrain(), 'repeat')!;
+      g.fillRect(0, 0, c.width, c.height);
+      g.restore();
+    }
     g.lineWidth = px(highContrast ? 0.0015 : 0.0008);
     g.strokeStyle = th.ink;
     g.stroke();
@@ -169,6 +177,25 @@ export class TargetCard {
     const gridTop = pad + titleH;
     this.layout = { gridX, gridTop, cell, rows, wM, hM };
     const nextRow = status.indexOf('todo');
+    if (!highContrast) {
+      // a pencil grid ruled by hand under the paint: it shows in the gaps, a hair off true
+      g.save();
+      g.strokeStyle = 'rgba(70,60,50,0.22)';
+      g.lineWidth = px(0.00035);
+      g.beginPath();
+      for (let i = 0; i <= WARPS; i++) {
+        const x = px(gridX + i * cell) + ((i * 37) % 5) - 2;
+        g.moveTo(x, px(gridTop) - 3);
+        g.lineTo(x + ((i * 13) % 3) - 1, px(gridTop + rows * cell) + 3);
+      }
+      for (let r = 0; r <= rows; r++) {
+        const y = px(gridTop + r * cell) + ((r * 29) % 5) - 2;
+        g.moveTo(px(gridX) - 3, y);
+        g.lineTo(px(gridX + WARPS * cell) + 3, y + ((r * 11) % 3) - 1);
+      }
+      g.stroke();
+      g.restore();
+    }
     for (let r = 0; r < rows; r++) {
       // row 0 at the bottom
       const y = gridTop + (rows - 1 - r) * cell;
@@ -336,6 +363,33 @@ function drawPin(g: CanvasRenderingContext2D, x: number, y: number, s: number) {
   g.arc(x - s * 0.78, y - s * 0.18, s * 0.16, 0, Math.PI * 2);
   g.fill();
   g.restore();
+}
+
+let grain: HTMLCanvasElement | null = null;
+/** A small tile of paper grain (flecks and short fibres), drawn once. */
+function paperGrain(): HTMLCanvasElement {
+  if (grain) return grain;
+  grain = document.createElement('canvas');
+  grain.width = grain.height = 128;
+  const g = grain.getContext('2d')!;
+  let seed = 11;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let k = 0; k < 520; k++) {
+    g.fillStyle = rnd() < 0.5 ? `rgba(90,70,50,${0.05 + rnd() * 0.07})` : `rgba(255,255,255,${0.08 + rnd() * 0.1})`;
+    g.fillRect(rnd() * 128, rnd() * 128, 1 + rnd() * 1.5, 1 + rnd() * 1.5);
+  }
+  g.lineWidth = 0.6;
+  for (let k = 0; k < 26; k++) {
+    const x = rnd() * 128;
+    const y = rnd() * 128;
+    const a = rnd() * Math.PI;
+    g.strokeStyle = `rgba(110,90,70,${0.06 + rnd() * 0.06})`;
+    g.beginPath();
+    g.moveTo(x, y);
+    g.quadraticCurveTo(x + Math.cos(a) * 4 + 2, y + Math.sin(a) * 4 - 2, x + Math.cos(a) * 9, y + Math.sin(a) * 9);
+    g.stroke();
+  }
+  return grain;
 }
 
 /** A dressmaker's pin seen from above: a felt ball head with a highlight (the caller's mark on a thread). */
