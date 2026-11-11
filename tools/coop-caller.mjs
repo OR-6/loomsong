@@ -12,7 +12,11 @@ export default async function run({ context }) {
   }
   if (action === 'shot' && shotPath) {
     await b.setViewportSize({ width: 390, height: 844 });
-    await b.screenshot({ path: shotPath });
+    // hide the desktop emulator's own overlay (not part of the page)
+    await b.evaluate(() => { for (const e of document.querySelectorAll('body *')) { if (e.id !== 'enter-xr' && !e.closest('#caller') && !e.closest('#landing') && /Enter XR/.test(e.textContent || '') && e.children.length < 6) e.style.display = 'none'; } });
+    await b.addStyleTag({ content: '#caller{padding-top:66px !important}' });
+    await b.waitForTimeout(250);
+    await b.screenshot({ path: shotPath, clip: { x: 0, y: 52, width: 390, height: 590 } });
     return { shot: shotPath };
   }
   return await b.evaluate(async ({ action, code }) => {

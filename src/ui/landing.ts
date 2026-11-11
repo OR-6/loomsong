@@ -46,6 +46,7 @@ export function mountLanding(world: World): void {
               <p class="note">Sit at a desk with your controllers down and hand tracking on.</p>
             </div>
             <div class="nohead" id="xr-unsupported" hidden>
+              <i class="peg" aria-hidden="true"></i>
               <p>This browser can't open mixed reality. Open this page in your headset's browser, or join a friend's loom as their caller:</p>
               <div class="row"><input id="call-code" maxlength="4" placeholder="CODE" aria-label="Friend's room code" autocomplete="off" /><button type="button" id="call-join">Join as caller</button></div>
             </div>
@@ -61,7 +62,7 @@ export function mountLanding(world: World): void {
               aria-label="Gameplay: the levers lift, Pip flies across to weave the last rows of a duck, and the finished duck pops off the loom as a knitted plush">
               <source src="${sitePhoto('loom-clip.mp4')}" type="video/mp4" />
             </video>
-            <figcaption>Real gameplay, recorded in the browser emulator</figcaption>
+            <figcaption class="cap-tag">Real gameplay, recorded in the emulator</figcaption>
           </figure>
         </section>
 
@@ -81,11 +82,12 @@ export function mountLanding(world: World): void {
         </section>
 
         <section class="more" aria-label="What else is on the desk">
-          <figure class="photo small"><img loading="lazy" src="${sitePhoto('shelf.jpg')}" alt="Finished plushes on a little shelf with a brass wind-up key" width="800" height="600" /></figure>
-          <p><b>Four chapters, eighteen pictures.</b> Garden teaches your hands, Home combines levers, Night hides what they lift, and Sea weaves in two colours. Wind the key on your shelf and your plushes sing their songs in turn.</p>
-          <figure class="photo small"><img loading="lazy" src="${sitePhoto('sea-boat.jpg')}" alt="A red boat woven on blue water rows" width="1100" height="619" /></figure>
+          <figure class="photo small"><i class="peg"></i><img loading="lazy" src="${sitePhoto('shelf.jpg')}" alt="Finished plushes on a little shelf with a brass wind-up key" width="800" height="600" /></figure>
+          <div class="note-card"><b>Four chapters, eighteen pictures</b><p>Garden teaches your hands, Home combines levers, Night hides what they lift, and Sea weaves in two colours. Wind the key on your shelf and your plushes sing their songs in turn.</p></div>
+          <figure class="photo small"><i class="peg"></i><img loading="lazy" src="${sitePhoto('sea-boat.jpg')}" alt="A red boat woven on blue water rows" width="1100" height="619" /></figure>
         </section>
 
+        <div class="drawer">
         <figure id="share-card" hidden>
           <span class="pegged"><i class="peg"></i><img id="cloth-img" alt="Your last woven cloth" /></span>
           <figcaption>
@@ -95,6 +97,7 @@ export function mountLanding(world: World): void {
           </figcaption>
         </figure>
 
+        <div class="prep">
         <h2 class="before">Before you start</h2>
         <div id="settings" aria-label="Settings">
           <button type="button" class="tag" id="hc" role="switch" aria-checked="false">High contrast</button>
@@ -107,9 +110,11 @@ export function mountLanding(world: World): void {
             <button type="button" data-hand="right" role="radio">Right</button>
           </div>
         </div>
+        </div>
+        </div>
 
         <section id="coop" aria-labelledby="coop-title">
-          <figure class="photo phone"><i class="peg"></i><img loading="lazy" src="${sitePhoto('caller-phone.jpg')}" alt="The caller's phone: the picture card and a big button for each lever" width="700" height="1516" /></figure>
+          <figure class="photo phone"><i class="peg"></i><img loading="lazy" src="${sitePhoto('caller-phone.jpg')}" alt="The caller's phone: the picture card and a big button for each lever" width="520" height="787" /></figure>
           <div class="coop-text">
             <h2 id="coop-title">No headset? Be the caller on your phone.</h2>
             <p>The weaver hosts a loom in their headset and reads out the code. Open this page on your phone and join: you see the card and press the levers while they slide Pip. A friend in a second headset can join as the shuttle thrower instead.</p>
