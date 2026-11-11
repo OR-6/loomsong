@@ -40,17 +40,21 @@ evalIn('tools/review-step.mjs');
 await wait(700);
 seat(); look();
 snap('03-lever-up-shuttle-hint');
-// two stem rows woven, then lever 1 joins: the aha
-process.env.STEP = 'aha';
+// two stem rows woven: the tutorial asks for more threads without pointing
 evalIn('tools/review-step.mjs');
-await wait(600);
 seat(); look();
-snap('04-two-levers-aha');
+snap('04a-more-threads');
+// lever 1 joins: the aha
+evalIn('tools/review-step.mjs');
+seat(); look();
+snap('04b-two-levers-aha');
 // the win: plush pops and dances
 run('tools/solve-nowait.mjs');
-await wait(2600);
+await wait(2200);
 seat(); look(0, 0.08, 0.1);
 snap('05-win-plush-dance');
+await wait(1800);
+snap('05b-plush-bow');
 await wait(9000);
 // desk plushes, Home loaded
 run('tools/seed-desk.mjs');

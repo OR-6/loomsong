@@ -185,6 +185,9 @@ export class GameSystem extends createSystem({
   private hudCalls = 0;
   private banner!: Label;
   private bannerLeft = 0;
+  /** The ribbon's own height and how long it shows (the finale's over the shelf, the aha's over the card). */
+  private bannerY = 0.13;
+  private bannerDur = 6;
   private tipCode = -1;
   private tipHover = 0;
   private tipReady = false;
@@ -503,9 +506,10 @@ export class GameSystem extends createSystem({
           this.view.fx.confetti(0, LOOM.liftedY, LOOM.heddleZ + 0.02, 60, 0.6, true);
           this.view.pulseWarp();
           this.banner.set('Two levers at once!');
-          this.banner.mesh.position.set(0, CARD.baseY + this.view.card.heightM + 0.045, CARD.z + 0.01);
+          this.banner.mesh.position.set(0, CARD.baseY + this.view.card.heightM + 0.075, CARD.z + 0.01); // above the card, never over the picture
           this.banner.mesh.visible = true;
-          this.bannerLeft = TIMING.comboHint + 0.4;
+          this.bannerLeft = this.bannerDur = TIMING.comboHint + 0.4;
+          this.bannerY = this.banner.mesh.position.y;
           this.debug.banner = 'Two levers at once!';
         }
         this.hintLever = lever;
@@ -899,7 +903,8 @@ export class GameSystem extends createSystem({
     this.banner.set(`${f.chapter} complete!`);
     this.banner.mesh.position.set(-this.controller.bankSide * PLUSH.shelfX, 0.13, PLUSH.shelfZ);
     this.banner.mesh.visible = true;
-    this.bannerLeft = 6;
+    this.bannerLeft = this.bannerDur = 6;
+    this.bannerY = 0.13;
     this.debug.banner = `${f.chapter} complete!`;
   }
 
@@ -1609,9 +1614,9 @@ export class GameSystem extends createSystem({
     if (this.bannerLeft > 0) {
       this.bannerLeft -= dt;
       // it pops in, then floats gently
-      const t = 6 - this.bannerLeft;
+      const t = this.bannerDur - this.bannerLeft;
       this.banner.mesh.scale.setScalar(t < 0.3 ? 0.4 + 0.6 * (1 - Math.pow(1 - t / 0.3, 3)) * 1.08 : 1);
-      this.banner.mesh.position.y = 0.13 + 0.004 * Math.sin(t * 2.5);
+      this.banner.mesh.position.y = this.bannerY + 0.004 * Math.sin(t * 2.5);
       if (this.bannerLeft <= 0) {
         this.banner.set('');
         this.debug.banner = '';

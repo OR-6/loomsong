@@ -1262,6 +1262,12 @@ export class LoomView {
     this.plushes.update(dt);
     this.basket.update(dt);
     this.daily.update(dt);
+    // a contact shadow only where its object is on the desk
+    if (this.blobs.length === 4) {
+      this.blobs[0].visible = this.plushes.shelfShown;
+      this.blobs[2].visible = this.basket.root.visible;
+      this.blobs[3].visible = this.daily.root.visible;
+    }
     this.fx.update(dt);
     // Twang decay.
     for (let i = 0; i < WARPS; i++) {
