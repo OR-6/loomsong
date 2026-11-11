@@ -12,6 +12,8 @@ export interface Settings {
   hand: HandPref;
   /** Run "Fit to my hands" on the next XR entry. */
   calibrateNext: boolean;
+  /** Set the table afresh on the next XR entry (instead of the loom coming back where it was). */
+  placeFresh: boolean;
   calibration?: CalResult;
 }
 
@@ -25,6 +27,7 @@ export function loadSettings(): Settings {
     music: s.music !== false,
     hand: s.hand === 'left' || s.hand === 'right' ? s.hand : 'auto',
     calibrateNext: s.calibrateNext === true,
+    placeFresh: s.placeFresh === true,
     calibration: validCal(s.calibration) ? s.calibration : undefined,
   };
 }

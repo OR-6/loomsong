@@ -107,6 +107,7 @@ export function mountLanding(world: World): void {
           <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="hc" role="switch" aria-checked="false">High contrast</button></span>
           <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="music" role="switch" aria-checked="true">Music</button></span>
           <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="fit" aria-pressed="false">Fit to my hands</button></span>
+          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="fresh" aria-pressed="false" title="Next time, rest your palm on the desk to set the loom somewhere new">Move the loom</button></span>
           <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><div role="radiogroup" aria-label="Lever side" id="hand-pick">
             <span class="lbl">Lever box</span>
             <button type="button" data-hand="auto" role="radio" title="On the side of the hand you place the loom with">auto</button>
@@ -267,6 +268,7 @@ export function mountLanding(world: World): void {
   const music = el.querySelector<HTMLButtonElement>('#music')!;
   const handPick = el.querySelector<HTMLElement>('#hand-pick')!;
   const fit = el.querySelector<HTMLButtonElement>('#fit')!;
+  const fresh = el.querySelector<HTMLButtonElement>('#fresh')!;
   const syncSettings = () => {
     const st = loadSettings();
     hc.setAttribute('aria-checked', String(st.highContrast));
@@ -277,6 +279,8 @@ export function mountLanding(world: World): void {
       : st.calibration
         ? 'Refit my hands'
         : 'Fit to my hands';
+    fresh.setAttribute('aria-pressed', String(st.placeFresh));
+    fresh.textContent = st.placeFresh ? 'New spot next time' : 'Move the loom';
     for (const b of handPick.querySelectorAll<HTMLButtonElement>('button')) {
       b.setAttribute('aria-checked', String(b.dataset.hand === st.hand));
     }
@@ -293,6 +297,11 @@ export function mountLanding(world: World): void {
     saveSettings({ ...st, music: !st.music });
     syncSettings();
     changed();
+  });
+  fresh.addEventListener('click', () => {
+    const st = loadSettings();
+    saveSettings({ ...st, placeFresh: !st.placeFresh });
+    syncSettings();
   });
   fit.addEventListener('click', () => {
     const st = loadSettings();

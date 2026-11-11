@@ -14,6 +14,8 @@ import {
   VisibilityState,
   XRAnchor,
   XRPlane,
+  SceneUnderstandingSystem,
+  type Object3D,
   type Entity,
   PCFSoftShadowMap,
 } from '@iwsdk/core';
@@ -32,7 +34,11 @@ import type { Level } from '../puzzle/levels.js';
 import { PLUSH, ROW_BEAT, SPOTS, type DeskItem, type ShelfItem } from '../loom/plush.js';
 import { isLifted } from '../puzzle/tieup.js';
 const PLUSH_SLOTS = SPOTS;
-import { loadProgress, saveProgress, workshopUnlocked, type Progress } from '../persistence/progress.js';
+/** IWSDK keeps its persistent room anchor's handle here. */
+const ANCHOR_KEY = 'iwsdk_scene_anchor_uuid';
+/** Seconds after entering in which last session's loom may come back. */
+const RESUME_WINDOW_S = 4;
+import { loadProgress, saveProgress, workshopUnlocked, type Progress, type SavedLoom } from '../persistence/progress.js';
 import { THEMES, highContrast, otherTheme, type Theme, type ThemeId } from '../ui/theme.js';
 import { loadSettings, saveSettings, type Settings } from '../persistence/settings.js';
 import { clothFromHash, clothLevel } from '../net/share.js';
@@ -116,6 +122,12 @@ export class GameSystem extends createSystem({
   private fwd = new Vector3();
   private tmp = new Vector3();
   private tmp2 = new Vector3();
+  /** The loom's pose is saved under the room anchor for this placement. */
+  private loomSaved = false;
+  /** The loom's own parent before the room anchor takes it. */
+  private loomHome: Object3D | null = null;
+  /** This session's loom came back from the last one. */
+  private resumed = false;
   private medleyOrder: number[] = [];
   private planeYs: number[] = [];
   private bloom = 0;
@@ -295,6 +307,7 @@ export class GameSystem extends createSystem({
     this.cleanupFuncs.push(() => window.removeEventListener('loomsong:settings', onSettings));
 
     this.loomEntity = this.world.createTransformEntity(this.view.root);
+    this.loomHome = this.view.root.parent;
     this.loomEntity.object3D!.visible = false;
     this.world.createTransformEntity(this.view.glows.left);
     this.world.createTransformEntity(this.view.glows.right);
@@ -730,6 +743,7 @@ export class GameSystem extends createSystem({
     // Parent may be IWSDK's anchor group (≈ identity), so move in local space.
     this.view.root.position.y += dir * NUDGE.step;
     this.view.root.updateMatrixWorld(true);
+    this.loomSaved = false;
     this.debug.deskY = y;
     this.debug.loomOrigin = this.view.root.position.toArray().map((n) => Math.round(n * 1e4) / 1e4);
     audio.click(dir > 0);
@@ -1111,6 +1125,7 @@ export class GameSystem extends createSystem({
     this.debug.flow = this.flow.phase;
     this.debug.challenge = this.flow.challenge;
     this.debug.anchored = this.loomEntity.hasComponent(XRAnchor) && this.loomEntity.getValue(XRAnchor, 'attached') === true;
+    if (this.debug.anchored) this.saveLoomPose();
     this.debug.levelIndex = this.flow.index;
   }
 
@@ -1164,6 +1179,9 @@ export class GameSystem extends createSystem({
       .addScaledVector(this.fwd, PLACE.forward + 0.05);
     this.hint.mesh.position.y = this.head.y - 0.28;
     this.hint.mesh.lookAt(this.head);
+
+    // The room remembers: the same persistent anchor came back, so the loom stands where it was left.
+    if (this.sessionTime < RESUME_WINDOW_S && this.tryResume()) return;
 
     let placed = false;
     for (const side of ['right', 'left'] as const) {
@@ -1226,15 +1244,88 @@ export class GameSystem extends createSystem({
     }
   }
 
+  /** IWSDK's room anchor (restored from its persistent handle when the room is the same). */
+  private roomAnchor(): { group: Object3D; uuid: string } | null {
+    if (!this.world.session?.enabledFeatures?.includes('anchors')) return null;
+    const su = this.world.getSystem(SceneUnderstandingSystem) as unknown as { xrAnchor?: unknown; anchoredGroup?: Object3D } | undefined;
+    if (!su?.xrAnchor || !su.anchoredGroup) return null;
+    let uuid: string | null = null;
+    try {
+      uuid = localStorage.getItem(ANCHOR_KEY);
+    } catch {
+      return null;
+    }
+    return uuid ? { group: su.anchoredGroup, uuid } : null;
+  }
+
+  /**
+   * Last session's loom, if the same persistent anchor is back and the spot is
+   * still a desk within seated reach (a different room or seat: place it afresh).
+   */
+  private tryResume(): boolean {
+    const saved = this.progress.loom;
+    if (!saved || this.coopLink || this.settings.placeFresh) return false;
+    const a = this.roomAnchor();
+    if (!a || a.uuid !== saved.uuid) return false;
+    a.group.updateMatrixWorld(true);
+    const at = this.tmp2.set(saved.x, saved.y, saved.z).applyMatrix4(a.group.matrixWorld);
+    const ahead = Math.hypot(at.x - this.head.x, at.z - this.head.z);
+    const drop = this.head.y - at.y;
+    if (ahead > 0.85 || drop < PLACE.minDrop || drop > PLACE.maxDropWithPlane) return false;
+    this.placement.place(at.y, saved.source);
+    this.placement.palmX = at.x;
+    this.placement.palmZ = at.z;
+    this.resumed = true;
+    this.placeLoom(saved.side === -1 ? 'left' : 'right', saved);
+    // under the anchor, at the saved local pose (IWSDK's attach keeps it there)
+    const root = this.view.root;
+    a.group.add(root);
+    root.position.set(saved.x, saved.y, saved.z);
+    root.rotation.set(0, saved.yaw, 0);
+    root.updateMatrixWorld(true);
+    this.debug.deskSource = 'resumed';
+    this.debug.loomOrigin = root.getWorldPosition(this.tmp2).toArray().map((n) => Math.round(n * 1e4) / 1e4);
+    this.showNotice('Right where you left it', 4, 'centre');
+    return true;
+  }
+
+  /** Once the loom is held by the room anchor, remember where (so the next session can resume). */
+  private saveLoomPose(): void {
+    if (this.loomSaved || this.coopLink) return;
+    const a = this.roomAnchor();
+    const root = this.view.root;
+    if (!a || root.parent !== a.group) return;
+    this.loomSaved = true;
+    const r = (n: number) => Math.round(n * 1e4) / 1e4;
+    this.progress.loom = {
+      uuid: a.uuid,
+      x: r(root.position.x),
+      y: r(root.position.y),
+      z: r(root.position.z),
+      yaw: r(root.rotation.y),
+      side: this.controller.bankSide,
+      source: this.placement.source ?? 'palm',
+    };
+    saveProgress(this.progress);
+  }
+
   /** Place the loom ~PLACE.forward ahead, centred with the lever bank. */
-  private placeLoom(hand: Side) {
+  private placeLoom(hand: Side, resume?: SavedLoom) {
     const pref = this.settings.hand;
-    const side: 1 | -1 = (pref === 'auto' ? hand : pref) === 'left' ? -1 : 1;
+    const side: 1 | -1 = resume && pref === 'auto' ? resume.side : (pref === 'auto' ? hand : pref) === 'left' ? -1 : 1;
+    if (!resume && this.settings.placeFresh) {
+      // the new spot is set: from now on the loom comes back here
+      this.settings = { ...this.settings, placeFresh: false };
+      saveSettings(this.settings);
+    }
+    this.loomSaved = false;
     this.controller.bankSide = side;
     this.debug.bankSide = side;
     this.view.setSide(side);
     this.forwardFlat(this.fwd);
     const root = this.view.root;
+    // a new placement is in world space: take the loom back from last session's anchor group first
+    if (this.loomHome && root.parent !== this.loomHome) this.loomHome.add(root);
     const palm = this.placement.source === 'palm' || this.placement.source === 'plane' ? { x: this.placement.palmX, z: this.placement.palmZ } : null;
     const pose = loomPose(this.head, this.fwd, side, this.placement.deskY!, palm);
     root.position.set(pose.x, pose.y, pose.z);
@@ -1258,7 +1349,9 @@ export class GameSystem extends createSystem({
     const fallback = this.placement.source === 'default';
     this.controller.nudgeEnabled = fallback;
     this.view.nudges.visible = fallback;
-    if (this.coopLink) this.showNotice(this.coopLink instanceof CoopHost ? 'You work the levers' : 'You throw the shuttle', 6, 'centre');
+    if (resume) {
+      // resumed: the notice comes from tryResume
+    } else if (this.coopLink) this.showNotice(this.coopLink instanceof CoopHost ? 'You work the levers' : 'You throw the shuttle', 6, 'centre');
     else if (this.settings.calibrateNext) this.startCalibration(hand);
     else if (fallback) this.showNotice('Nudge to your desk', 7, 'nudge');
     else if (this.flow.challenge) this.showNotice('Weave this cloth', 6);

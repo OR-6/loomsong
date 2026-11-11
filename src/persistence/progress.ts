@@ -11,6 +11,19 @@ export interface Progress {
   lastCloth?: { tieUp: number[]; rows: number[]; rootMidi: number };
   /** Plushes set down on the real desk: picture id → [x, z] in loom space (m). */
   placed?: Record<string, [number, number]>;
+  /** Where the loom stood, relative to the room's persistent anchor (resumed next session). */
+  loom?: SavedLoom;
+}
+
+export interface SavedLoom {
+  /** The persistent anchor's handle: only that same anchor can bring the loom back. */
+  uuid: string;
+  x: number;
+  y: number;
+  z: number;
+  yaw: number;
+  side: 1 | -1;
+  source: 'palm' | 'plane' | 'default' | 'fixed';
 }
 
 /** Workshop unlocks when the Garden chapter (the first four pictures) is done. */
@@ -32,6 +45,7 @@ export function loadProgress(): Progress {
     theme: p.theme === 'workshop' ? 'workshop' : 'toy',
     lastCloth: validCloth(p.lastCloth) ? p.lastCloth : undefined,
     placed: validPlaced(p.placed),
+    loom: validLoom(p.loom),
   };
 }
 
@@ -70,4 +84,13 @@ function validPlaced(v: unknown): Record<string, [number, number]> | undefined {
     if (Array.isArray(xz) && xz.length === 2 && xz.every((n) => typeof n === 'number' && Number.isFinite(n) && Math.abs(n) < 2)) out[k] = [xz[0], xz[1]];
   }
   return out;
+}
+
+function validLoom(v: unknown): SavedLoom | undefined {
+  const l = v as SavedLoom | undefined;
+  if (!l || typeof l !== 'object' || typeof l.uuid !== 'string' || !l.uuid) return undefined;
+  if (![l.x, l.y, l.z, l.yaw].every((n) => typeof n === 'number' && Number.isFinite(n) && Math.abs(n) < 50)) return undefined;
+  if (l.side !== 1 && l.side !== -1) return undefined;
+  if (!['palm', 'plane', 'default', 'fixed'].includes(l.source)) return undefined;
+  return l;
 }
