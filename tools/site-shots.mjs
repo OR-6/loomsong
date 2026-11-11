@@ -24,7 +24,7 @@ export default async function run({ context }) {
   let p = await open(1440, 900);
   await shot(p, 'd1-desktop-top');
   await scroll(p, 700); await p.waitForTimeout(200); await shot(p, 'd2-desktop-scrolled');
-  await p.click('#coop summary'); await p.waitForTimeout(200); await scroll(p, 2000); await p.waitForTimeout(200); await shot(p, 'd3-desktop-coop-open');
+  await scroll(p, 2000); await p.waitForTimeout(200); await shot(p, 'd3-desktop-coop-open');
   await scroll(p, 0); await p.keyboard.press('Tab'); await p.keyboard.press('Tab'); await p.waitForTimeout(150); await shot(p, 'd4-desktop-focus');
   const meta = await p.evaluate(() => ({
     title: document.title,

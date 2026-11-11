@@ -57,36 +57,45 @@ export function mountLanding(world: World): void {
           </div>
           <figure class="photo hero-photo">
             <i class="peg" aria-hidden="true"></i>
-            <img src="${sitePhoto('hero-34.jpg')}" alt="The toy loom on a desk: a duck half woven in yellow yarn, Pip the bird on its perch, lever knobs in red, teal, pink and green" width="1100" height="619" />
+            <video class="clip" muted loop playsinline preload="metadata" poster="${sitePhoto('loom-clip-poster.jpg')}" width="960" height="540"
+              aria-label="Gameplay: the levers lift, Pip flies across to weave the last rows of a duck, and the finished duck pops off the loom as a knitted plush">
+              <source src="${sitePhoto('loom-clip.mp4')}" type="video/mp4" />
+            </video>
+            <figcaption>Real gameplay, recorded in the browser emulator</figcaption>
           </figure>
         </section>
 
         <section class="line" aria-label="How it plays">
-          <svg class="yarn" viewBox="0 0 1000 60" preserveAspectRatio="none" aria-hidden="true"><path d="M0 8 Q 500 70 1000 8" fill="none" stroke="#e8553e" stroke-width="4" stroke-linecap="round"/></svg>
+          <svg class="yarn" viewBox="0 0 1000 90" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M-10 6 Q 230 80 480 52 T 1010 14" fill="none" stroke="#c43c28" stroke-width="5" stroke-linecap="round"/>
+            <path d="M-10 6 Q 230 80 480 52 T 1010 14" fill="none" stroke="#f07a62" stroke-width="2.2" stroke-dasharray="5 6" stroke-linecap="round"/>
+          </svg>
           <ol class="steps">
-            <li><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('levers-close.jpg')}" alt="Red threads lifted by the red lever" width="1100" height="619" /></figure>
-              <b>Lift the levers</b><span>Each lever lifts its own threads. Pick the ones that make the next row on the card.</span></li>
-            <li><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('pip-pinch.jpg')}" alt="A glowing ghost hand shows how to pinch Pip" width="1100" height="619" /></figure>
-              <b>Slide Pip across</b><span>Pinch the little bird and slide it through. The row is woven, and its threads ring out.</span></li>
-            <li><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('plush-dance.jpg')}" alt="The finished duck pops off the loom as a knitted plush" width="1100" height="619" /></figure>
-              <b>Watch it come alive</b><span>A finished picture pops off the loom as a plush and hops onto your shelf.</span></li>
+            <li class="s1"><figure class="photo"><i class="peg"></i><span class="hang">1 &nbsp;Lift the levers</span><img loading="lazy" src="${sitePhoto('levers-close.jpg')}" alt="The red lever lifts its threads" width="1100" height="619" /></figure>
+              <p>Each lever lifts its own threads. Pick the ones that make the next row on the card.</p></li>
+            <li class="s2"><figure class="photo"><i class="peg"></i><span class="hang">2 &nbsp;Slide Pip across</span><img loading="lazy" src="${sitePhoto('pip-pinch.jpg')}" alt="A glowing ghost hand shows how to pinch Pip" width="1100" height="619" /></figure>
+              <p>Pinch the little bird and slide it through. The row is woven, and its threads ring out.</p></li>
+            <li class="s3"><figure class="photo"><i class="peg"></i><span class="hang">3 &nbsp;Watch it come alive</span><img loading="lazy" src="${sitePhoto('plush-dance.jpg')}" alt="The finished duck pops off the loom as a knitted plush" width="1100" height="619" /></figure>
+              <p>A finished picture pops off the loom as a plush and hops onto your shelf.</p></li>
           </ol>
         </section>
 
         <section class="more" aria-label="What else is on the desk">
-          <figure class="photo small"><img loading="lazy" src="${sitePhoto('shelf.jpg')}" alt="Finished plushes on a little shelf with a brass wind-up key" width="1100" height="619" /></figure>
+          <figure class="photo small"><img loading="lazy" src="${sitePhoto('shelf.jpg')}" alt="Finished plushes on a little shelf with a brass wind-up key" width="800" height="600" /></figure>
           <p><b>Four chapters, eighteen pictures.</b> Garden teaches your hands, Home combines levers, Night hides what they lift, and Sea weaves in two colours. Wind the key on your shelf and your plushes sing their songs in turn.</p>
           <figure class="photo small"><img loading="lazy" src="${sitePhoto('sea-boat.jpg')}" alt="A red boat woven on blue water rows" width="1100" height="619" /></figure>
         </section>
 
         <figure id="share-card" hidden>
-          <img id="cloth-img" alt="Your last woven cloth" />
+          <span class="pegged"><i class="peg"></i><img id="cloth-img" alt="Your last woven cloth" /></span>
           <figcaption>
+            <b>Your last picture</b>
             <button type="button" id="share-btn">Share this cloth</button>
             <span id="share-note" role="status"></span>
           </figcaption>
         </figure>
 
+        <h2 class="before">Before you start</h2>
         <div id="settings" aria-label="Settings">
           <button type="button" class="tag" id="hc" role="switch" aria-checked="false">High contrast</button>
           <button type="button" class="tag" id="music" role="switch" aria-checked="true">Music</button>
@@ -99,22 +108,32 @@ export function mountLanding(world: World): void {
           </div>
         </div>
 
-        <details id="coop">
-          <summary>Play together</summary>
-          <p>Host a loom in your headset and read out the code. A friend on a <b>phone</b> joins as your caller: they see the card and press the levers while you slide Pip. A friend in a second headset joins as the shuttle thrower.</p>
-          <div class="row">
-            <button type="button" id="coop-host">Host a loom</button>
-            <input id="coop-code" maxlength="4" placeholder="CODE" aria-label="Room code" autocomplete="off" />
-            <button type="button" id="coop-join">Join</button>
-            <button type="button" id="coop-leave" hidden>Leave</button>
+        <section id="coop" aria-labelledby="coop-title">
+          <figure class="photo phone"><i class="peg"></i><img loading="lazy" src="${sitePhoto('caller-phone.jpg')}" alt="The caller's phone: the picture card and a big button for each lever" width="700" height="1516" /></figure>
+          <div class="coop-text">
+            <h2 id="coop-title">No headset? Be the caller on your phone.</h2>
+            <p>The weaver hosts a loom in their headset and reads out the code. Open this page on your phone and join: you see the card and press the levers while they slide Pip. A friend in a second headset can join as the shuttle thrower instead.</p>
+            <div class="row">
+              <button type="button" id="coop-host">Host a loom</button>
+              <input id="coop-code" maxlength="4" placeholder="CODE" aria-label="Room code" autocomplete="off" />
+              <button type="button" id="coop-join">Join</button>
+              <button type="button" id="coop-leave" hidden>Leave</button>
+            </div>
+            <p id="coop-status" role="status"></p>
+            <p class="fine">Connects you directly to the other player over WebRTC, through a public PeerJS server. No accounts, no voice.</p>
           </div>
-          <p id="coop-status" role="status"></p>
-          <p class="fine">Connects you directly to the other player over WebRTC, through a public PeerJS server. No accounts, no voice.</p>
-        </details>
+        </section>
       </main>
     </div>`;
   document.body.appendChild(el);
   weaveHero(el.querySelector<HTMLElement>('.weave')!);
+  feltTexture(el);
+  // the gameplay clip loops (muted); with reduced motion it stays on its poster frame
+  const clip = el.querySelector<HTMLVideoElement>('video.clip')!;
+  if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+    clip.autoplay = true;
+    void clip.play().catch(() => {});
+  } else clip.controls = true;
   const btn = el.querySelector<HTMLButtonElement>('#enter-xr')!;
   btn.addEventListener('click', () => {
     audio.resume(); // user gesture: unlock audio early
@@ -325,4 +344,23 @@ function weaveHero(box: HTMLElement): void {
     window.setTimeout(next, 560);
   };
   window.setTimeout(next, 500);
+}
+
+/** Soft felt fibre noise for the bed (a small canvas tile, made once). */
+function feltTexture(el: HTMLElement): void {
+  try {
+    const c = document.createElement('canvas');
+    c.width = c.height = 160;
+    const g = c.getContext('2d')!;
+    const img = g.createImageData(160, 160);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const v = Math.random();
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = 255;
+      img.data[i + 3] = v > 0.55 ? Math.round((v - 0.55) * 60) : 0; // sparse, faint light fibres
+    }
+    g.putImageData(img, 0, 0);
+    el.style.setProperty('--felt-noise', `url(${c.toDataURL()})`);
+  } catch {
+    /* plain felt */
+  }
 }

@@ -18,12 +18,10 @@ export default async function run({ page, frame }) {
   await t.click('#hand-pick button[data-hand="left"]');
   const hand = (await settings()).hand;
   await t.click('#hand-pick button[data-hand="auto"]');
-  await t.click('#coop summary');
-  const coopOpen = await t.evaluate(() => document.getElementById('coop').open && !!document.getElementById('coop-host').offsetParent);
+  const coopOpen = await t.evaluate(() => !!document.getElementById('coop-host').offsetParent); // always open now
   await t.fill('#coop-code', 'zz');
   await t.click('#coop-join');
   await page.waitForTimeout(300);
   const badCode = await t.evaluate(() => document.getElementById('coop-status').textContent);
-  await t.click('#coop summary');
   return { errors, missing, hcOn, hcOff, fit, hand, coopOpen, badCode };
 }
