@@ -86,7 +86,7 @@ export function mountLanding(world: World): void {
             <path d="M-10 30 Q 300 4 520 22 T 1010 10" fill="none" stroke="#0d5d53" stroke-width="6" stroke-linecap="round" opacity=".35"/>
             <path d="M-10 30 Q 300 4 520 22 T 1010 10" fill="none" stroke="url(#ply-teal)" stroke-width="4.5" stroke-linecap="round"/>
           </svg>
-          <figure class="photo small"><i class="peg"></i><span class="label">The shelf</span><img loading="lazy" src="${sitePhoto('shelf.jpg')}" alt="Finished plushes on a little shelf with a brass wind-up key" width="800" height="500" /></figure>
+          <figure class="photo small"><i class="peg"></i><span class="label">Garden, on your shelf</span><img loading="lazy" src="${sitePhoto('shelf.jpg')}" alt="Finished plushes on a little shelf with a brass wind-up key" width="800" height="500" /></figure>
           <div class="note-card"><i class="tape"></i><b>Four chapters, eighteen pictures</b><p>Garden teaches your hands, Home combines levers, Night hides what they lift, and Sea weaves in two colours. Wind the key on your shelf and your plushes sing their songs in turn.</p></div>
           <figure class="photo small"><i class="peg"></i><span class="label">Sea: two colours</span><img loading="lazy" src="${sitePhoto('sea-boat.jpg')}" alt="A red boat woven on blue water rows" width="800" height="500" /></figure>
         </section>
@@ -108,8 +108,8 @@ export function mountLanding(world: World): void {
           <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="music" role="switch" aria-checked="true">Music</button></span>
           <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="fit" aria-pressed="false">Fit to my hands</button></span>
           <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><div role="radiogroup" aria-label="Lever side" id="hand-pick">
-            <span class="lbl">Levers on the</span>
-            <button type="button" data-hand="auto" role="radio" title="On the side of the hand you place the loom with">placing hand</button>
+            <span class="lbl">Lever box</span>
+            <button type="button" data-hand="auto" role="radio" title="On the side of the hand you place the loom with">auto</button>
             <button type="button" data-hand="left" role="radio">left</button>
             <button type="button" data-hand="right" role="radio">right</button>
           </div></span>

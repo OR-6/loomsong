@@ -78,8 +78,8 @@
       #landing .rail { display: flex; justify-content: center; margin: -4px 0 18px; }
       #landing .plate { position: relative; display: inline-flex; padding: 12px 34px 14px; border-radius: 12px;
         background: var(--felt-noise, none), var(--felt-deep); box-shadow: inset 0 2px 5px #0008, 0 1px 0 #ffffff40; }
-      #landing .plate::before, #landing .plate::after { content: ''; position: absolute; top: 50%; width: 9px; height: 9px; margin-top: -4.5px; border-radius: 50%;
-        background: radial-gradient(circle at 35% 35%, #f6dca0, #b8892e); box-shadow: 0 1px 1px #0006; }
+      #landing .plate::before, #landing .plate::after { content: ''; position: absolute; top: 50%; width: 13px; height: 13px; margin-top: -6.5px; border-radius: 50%;
+        background: linear-gradient(35deg, #0000 44%, #6b4a14 44% 58%, #0000 58%), radial-gradient(circle at 35% 35%, #f6dca0, #b8892e); box-shadow: 0 1px 1px #0006; }
       #landing .plate::before { left: 12px; } #landing .plate::after { right: 12px; }
       .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
@@ -147,7 +147,7 @@
         padding: 9px 10px; border-radius: 12px; border: 2px solid var(--walnut); background: #fff; color: var(--ink); }
       #landing .row button, #coop .row button { font: 400 18px var(--display); padding: 10px 20px 11px; --patch: var(--walnut); }
       #call-join, #coop-join { --patch: var(--tomato) !important; }
-      #landing .row input, #coop-code { background: var(--paper) !important; border: 2px dashed var(--walnut) !important; border-radius: 10px !important; }
+      #landing .row input, #coop-code { background: #fffaf0 !important; border: 2px solid #6b3e2699 !important; border-radius: 8px !important; box-shadow: inset 0 2px 3px #0002; }
       #style-pick { position: relative; display: flex; gap: 6px; align-items: center; background: var(--paper); color: var(--ink); padding: 8px 14px 8px 30px;
         transform: rotate(-1.2deg); clip-path: polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 0 calc(100% - 12px), 0 12px); font: 600 15px var(--serif); }
       #style-pick::before { content: ''; position: absolute; left: 12px; top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; background: var(--felt); box-shadow: 0 0 0 2px var(--tomato); }
@@ -167,23 +167,23 @@
       #landing .steps .s3 { flex: 1.02; margin: 40px 0 0 18px; z-index: 1; }
       #landing .steps .s1 .photo { transform: rotate(-3.6deg); }
       #landing .steps .s2 .photo { transform: rotate(2.7deg); }
-      #landing .steps .s3 .photo { transform: rotate(-1.2deg); }
+      #landing .steps .s3 .photo { transform: none; }
       #landing .steps .s1 .peg { left: 22%; }
       #landing .steps .s2 .peg { left: 63%; transform: rotate(6deg); }
       #landing .steps .s3 .peg { left: 46%; transform: rotate(-4deg); }
       #landing .steps img { aspect-ratio: 4 / 3; object-fit: cover; }
       /* the step's note on a paper luggage tag tucked under its photo */
-      #landing .hang { position: relative; z-index: 4; width: min(100%, 280px); margin: -22px 0 0 16px; padding: 12px 16px 13px 30px;
+      #landing .hang { position: relative; z-index: 4; width: min(100%, 280px); margin: -22px 0 0 16px; padding: 12px 16px 13px 22px;
         font: 600 14.5px/1.5 var(--serif); color: var(--ink); background: var(--paper); box-shadow: 0 1px 2px #0004; transform: rotate(1.6deg);
         clip-path: polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 0 calc(100% - 12px), 0 12px); text-wrap: pretty; }
-      #landing .hang::before { content: ''; position: absolute; left: 11px; top: 18px; width: 7px; height: 7px; border-radius: 50%;
+      #landing .hang::before { display: none; content: ''; position: absolute; left: 11px; top: 18px; width: 7px; height: 7px; border-radius: 50%;
         background: var(--felt); box-shadow: inset 0 1px 1px #0006; }
       #landing .hang b { display: flex; align-items: center; gap: 8px; font: 400 19px/1.1 var(--display); color: var(--walnut); margin-bottom: 6px; }
       /* a stitched numeral, sewn on rather than typed */
       #landing .hang .num { display: inline-grid; place-items: center; width: 28px; height: 28px; flex: none; border-radius: 50%;
-        border: 2px dashed var(--tomato); color: var(--tomato); font: 400 16px var(--display); }
+        border: 2px solid var(--tomato); border-radius: 48% 52% 50% 46% / 52% 47% 53% 48%; transform: rotate(-8deg); color: var(--tomato); font: 400 16px var(--display); }
       #landing .s2 .hang { margin-left: auto; margin-right: 6px; transform: rotate(-2.2deg); }
-      #landing .s3 .hang { margin-left: 34px; transform: rotate(.8deg); }
+      #landing .s3 .hang { margin-left: 34px; transform: none; }
 
       /* more on the desk */
       #landing .more { position: relative; display: grid; grid-template-columns: 1fr 1.15fr 1fr; gap: clamp(18px, 3vw, 34px); align-items: start; padding-top: 34px; }
@@ -195,7 +195,7 @@
       #landing .more > .photo:last-of-type { transform: rotate(3.1deg); }
       #landing .more > .photo:first-of-type .peg { left: 28%; }
       #landing .more > .photo:last-of-type .peg { left: 66%; }
-      #landing .note-card { position: relative; background: var(--paper); color: var(--ink); padding: 20px 22px 18px; border-radius: 3px; box-shadow: 0 1px 2px #0003, 0 6px 12px -6px #0005; transform: rotate(.7deg); }
+      #landing .note-card { position: relative; background: var(--paper); color: var(--ink); padding: 20px 22px 18px; border-radius: 3px; box-shadow: 0 1px 2px #0003, 0 6px 12px -6px #0005; transform: none; }
       #landing .note-card b { display: block; font: 400 22px/1.15 var(--display); color: var(--walnut); margin-bottom: 8px; }
       #landing .note-card p { margin: 0; font: 600 15px/1.6 var(--serif); text-wrap: pretty; }
       #landing .note-card .peg { left: 22%; transform: rotate(-8deg); }
@@ -218,7 +218,7 @@
 
       /* settings: paper luggage tags with a yarn loop, like the hints in the game */
       #landing h2.before { position: relative; margin: 0 0 6px; padding: 10px 22px 9px; font: 400 21px var(--display); color: var(--walnut);
-        background: none; color: var(--mustard); border-radius: 0; box-shadow: none; transform: rotate(-1.5deg); }
+        background: #fff3d0c8; color: var(--walnut); border-radius: 0; box-shadow: 0 1px 1px #0002; transform: rotate(-2.5deg); padding: 6px 22px 7px; }
       #settings { display: flex; flex-wrap: wrap; gap: 16px 30px; justify-content: center; align-items: center; padding-left: 20px; }
       #landing .tagwrap { position: relative; display: inline-flex; }
       #landing .tagwrap:nth-child(1) { transform: rotate(-2deg); }
@@ -283,6 +283,8 @@
         #landing { padding: 14px 10px 30px; }
         #landing .frame { padding: 14px; }
         #landing .spool { transform: scale(.72); }
+        #landing .tl, #landing .tr { top: -16px; } #landing .tl { left: 10px; } #landing .tr { right: 10px; }
+        #landing .mark .pip { display: none; }
         #landing .mark { gap: 10px; }
         #landing h1 { font-size: clamp(34px, 10.5vw, 52px); }
         #enter-xr { font-size: 19px; padding: 15px 20px 16px; white-space: nowrap; }
