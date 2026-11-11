@@ -189,6 +189,7 @@ export class Basket {
       this.mats[i].color.set(colors[i]);
       if (locked) this.mats[i].color.lerp(new Color(UNDYED), 0.62);
       drawBadge(this.badgeTex[i], locked ? 'locked' : ICONS[i % ICONS.length], locked ? 0x9b8b74 : colors[i]);
+      this.badges[i].visible = !locked; // locked: plain undyed wool, no "?" (that sign belongs to Night's mystery levers)
     }
     this.place();
     this.showLabel();

@@ -93,11 +93,13 @@ export class Label {
     ctx.arc(hx, hy, th * 0.11, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
-    ctx.strokeStyle = '#e2563b';
-    ctx.lineWidth = h * 0.05;
+    // a short end of brown twine through the hole, trailing off the tag
+    ctx.strokeStyle = '#8b6a48';
+    ctx.lineWidth = h * 0.035;
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.arc(hx - th * 0.12, hy, th * 0.12, -Math.PI * 0.55, Math.PI * 0.55, true);
+    ctx.moveTo(hx, hy);
+    ctx.quadraticCurveTo(hx - th * 0.3, hy - th * 0.18, x0 - th * 0.35, hy - th * 0.32);
     ctx.stroke();
     ctx.fillStyle = this.theme.ink;
     ctx.textAlign = 'left';
@@ -106,19 +108,19 @@ export class Label {
     this.tex.needsUpdate = true;
   }
 
-  /** A gold ribbon banner with folded tails and a star at each end (celebrations). */
+  /** A strip of tomato felt with folded tails and a running stitch (celebrations). */
   private drawRibbon(text: string): void {
     const { ctx, canvas } = this;
     const h = canvas.height;
     ctx.font = `700 ${Math.round(h * 0.5)}px ${this.theme.font}`;
     const tw = Math.min(canvas.width * 0.7, ctx.measureText(text).width);
-    const w = tw + h * 1.5;
+    const w = tw + h * 0.8;
     const x0 = (canvas.width - w) / 2;
     const y0 = h * 0.14;
     const th = h * 0.7;
     const tail = h * 0.42;
-    // folded tails behind, darker
-    ctx.fillStyle = '#b9781f';
+    // folded tails behind, a darker felt
+    ctx.fillStyle = '#a8372a';
     for (const sx of [-1, 1]) {
       const ex = sx < 0 ? x0 : x0 + w;
       ctx.beginPath();
@@ -130,53 +132,33 @@ export class Label {
       ctx.closePath();
       ctx.fill();
     }
-    // the band
+    // the band: a strip of tomato felt
     ctx.fillStyle = 'rgba(60,35,20,0.3)';
     ctx.fillRect(x0 + h * 0.03, y0 + h * 0.05, w, th);
-    const grad = ctx.createLinearGradient(0, y0, 0, y0 + th);
-    grad.addColorStop(0, '#ffd56a');
-    grad.addColorStop(1, '#f2a92a');
-    ctx.fillStyle = grad;
+    ctx.fillStyle = '#d9533c';
     ctx.fillRect(x0, y0, w, th);
-    ctx.strokeStyle = '#8a5414';
-    ctx.lineWidth = h * 0.03;
-    ctx.strokeRect(x0, y0, w, th);
-    // stitched edges
-    ctx.setLineDash([h * 0.06, h * 0.05]);
-    ctx.strokeStyle = 'rgba(255,248,225,0.9)';
-    ctx.lineWidth = h * 0.02;
+    // felt fuzz
+    let seed = 5;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < 140; i++) {
+      ctx.fillStyle = rnd() < 0.5 ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.06)';
+      ctx.fillRect(x0 + rnd() * w, y0 + rnd() * th, h * 0.02, h * 0.008);
+    }
+    // a cream running stitch along both edges
+    ctx.setLineDash([h * 0.07, h * 0.06]);
+    ctx.strokeStyle = 'rgba(255,241,214,0.95)';
+    ctx.lineWidth = h * 0.022;
     ctx.beginPath();
-    ctx.moveTo(x0 + h * 0.08, y0 + h * 0.07);
-    ctx.lineTo(x0 + w - h * 0.08, y0 + h * 0.07);
-    ctx.moveTo(x0 + h * 0.08, y0 + th - h * 0.07);
-    ctx.lineTo(x0 + w - h * 0.08, y0 + th - h * 0.07);
+    ctx.moveTo(x0 + h * 0.08, y0 + h * 0.08);
+    ctx.lineTo(x0 + w - h * 0.08, y0 + h * 0.08);
+    ctx.moveTo(x0 + h * 0.08, y0 + th - h * 0.08);
+    ctx.lineTo(x0 + w - h * 0.08, y0 + th - h * 0.08);
     ctx.stroke();
     ctx.setLineDash([]);
-    // stars at both ends
-    const star = (cx: number, cy: number, r: number) => {
-      ctx.beginPath();
-      for (let i = 0; i < 10; i++) {
-        const a = -Math.PI / 2 + (i * Math.PI) / 5;
-        const rr = i % 2 === 0 ? r : r * 0.45;
-        ctx.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
-      }
-      ctx.closePath();
-      ctx.fillStyle = '#fff6d8';
-      ctx.fill();
-      ctx.strokeStyle = '#8a5414';
-      ctx.lineWidth = r * 0.18;
-      ctx.stroke();
-    };
-    star(x0 + h * 0.38, y0 + th / 2, th * 0.3);
-    star(x0 + w - h * 0.38, y0 + th / 2, th * 0.3);
-    // lettering: cream with a brown outline
+    // plain cream lettering, as if appliquéd
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.lineJoin = 'round';
-    ctx.lineWidth = h * 0.07;
-    ctx.strokeStyle = '#7a4512';
-    ctx.strokeText(text, canvas.width / 2, y0 + th * 0.55, tw);
-    ctx.fillStyle = '#fffaf0';
+    ctx.fillStyle = '#fff4de';
     ctx.fillText(text, canvas.width / 2, y0 + th * 0.55, tw);
     this.tex.needsUpdate = true;
   }

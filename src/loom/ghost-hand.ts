@@ -115,7 +115,7 @@ export class GhostHand {
       emissiveIntensity: 0.25,
       roughness: 0.6,
       transparent: true,
-      opacity: 0.32,
+      opacity: 0.5,
       depthWrite: false,
     });
     // a honey-gold rim (fresnel) so the fingers' outlines read, not a milky blob: warm like the set, not a hologram

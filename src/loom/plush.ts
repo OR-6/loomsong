@@ -70,17 +70,17 @@ export const PLUSH = {
   shelfZ: 0.03,
   /** The plush dances in the air right above the loom it was woven on (seen face-on from the seat). */
   stageX: 0,
-  stageZ: 0.19,
+  stageZ: 0.225,
   /** Hero size while it pops and dances (shelf size is shelfScale): about 13 cm across, the size of a real toy. */
   hero: 1.2,
   /** Even a short picture's plush dances at least this long before it bows and hops away (s). */
   minDance: 2.4,
   /** Hover height while it dances (it faces the seated player). */
-  danceY: 0.135,
+  danceY: 0.12,
   /** Width of the cream halo behind the dancing plush (m). */
   haloSize: 0.2,
   /** Radius of the felt stage disc under the dancing plush (m). */
-  stageR: 0.064,
+  stageR: 0.05,
   /** Plushes that can live on the real desk (one spot per picture: chapters, then pictures of the day). */
   desk: 40,
   /** Size on the desk: bigger than on the shelf, so taking one out is a reward. */
@@ -124,7 +124,6 @@ export function puffGeometry(): BufferGeometry {
 
 let eyeGeo: SphereGeometry | null = null;
 let eyeMat: MeshStandardMaterial | null = null;
-let shineMat: MeshStandardMaterial | null = null;
 
 const _m = new Matrix4();
 const _q = new Quaternion();
@@ -156,6 +155,7 @@ export function buildPlush(rows: readonly Mask8[], color: number): Group {
   }
   body.count = k;
   g.add(body);
+  addStalks(g, rows, color);
   addFace(g, rows, color);
   addFeetAndTag(g, rows, color);
   g.userData.height = rows.length * cell;
@@ -165,7 +165,6 @@ export function buildPlush(rows: readonly Mask8[], color: number): Group {
 
 /** Feet lift the body a little off the ground. */
 const LIFT = 0.003;
-let blushMat: MeshStandardMaterial | null = null;
 let smileGeo: TorusGeometry | null = null;
 let tagMat: MeshStandardMaterial | null = null;
 let tagStripeMat: MeshStandardMaterial | null = null;
@@ -241,8 +240,7 @@ function addFace(g: Group, rows: readonly Mask8[], color: number): void {
   const b = bestB;
   eyeGeo ??= new SphereGeometry(1, 14, 10);
   eyeGeo.userData.sharedGeometry = true;
-  eyeMat ??= new MeshStandardMaterial({ color: 0x1a1412, roughness: 0.15 });
-  shineMat ??= new MeshStandardMaterial({ color: 0xffffff, roughness: 0.3, emissive: 0x666666 });
+  eyeMat ??= new MeshStandardMaterial({ color: 0x1f1714, roughness: 0.65 }); // sewn-on buttons: matte, no glint
   const span = b - a;
   const y = LIFT + cell / 2 + best * cell + cell * 0.2;
   const z = (cell * PLUSH.depth) / 2 + 0.0006;
@@ -251,23 +249,11 @@ function addFace(g: Group, rows: readonly Mask8[], color: number): void {
     const x = (a + span * f - (WARPS - 1) / 2) * cell;
     xs.push(x);
     const eye = new Mesh(eyeGeo, eyeMat);
-    eye.scale.set(0.0048, 0.0058, 0.0024);
+    eye.scale.set(0.0045, 0.0045, 0.0014); // a flat button
     eye.position.set(x, y, z);
-    const shine = new Mesh(eyeGeo, shineMat);
-    shine.scale.set(0.3, 0.3, 0.3);
-    shine.position.set(0.35, 0.4, 0.8);
-    eye.add(shine);
     g.add(eye);
   }
-  // blush under and outside each eye
-  blushMat ??= new MeshStandardMaterial({ color: 0xff8f87, roughness: 0.9, transparent: true, opacity: 0.85 });
   const gap = Math.abs(xs[1] - xs[0]);
-  for (let i = 0; i < 2; i++) {
-    const c = new Mesh(eyeGeo, blushMat);
-    c.scale.set(0.0036, 0.0022, 0.001);
-    c.position.set(xs[i] + (i === 0 ? -1 : 1) * Math.min(cell * 0.35, gap * 0.25), y - cell * 0.62, z - 0.0002);
-    g.add(c);
-  }
   // a little stitched smile between the eyes
   smileGeo ??= new TorusGeometry(Math.max(0.0034, gap * 0.22), 0.001, 6, 16, Math.PI);
   smileGeo.userData.sharedGeometry = true;
@@ -282,7 +268,7 @@ function addFace(g: Group, rows: readonly Mask8[], color: number): void {
  * its pixels (soft blobs merged) with a darker stitched edge, upright on a peg.
  * Origin at the bottom centre; about 1.5x a shelf plush.
  */
-function cutout(rows: readonly Mask8[]): Group {
+export function cutout(rows: readonly Mask8[]): Group {
   const PX = 32;
   const n = rows.length;
   const c = document.createElement('canvas');
@@ -995,7 +981,7 @@ export class Plushes {
     const hm = this.halo.material as MeshBasicMaterial;
     hm.opacity = this.haloA * 0.32;
     this.halo.visible = this.haloA > 0.02 && !!h;
-    this.stage.visible = this.halo.visible && (this.phase === 'hopOut' || this.phase === 'dance' || this.phase === 'bow' || this.phase === 'hopShelf');
+    this.stage.visible = this.halo.visible && (this.phase === 'hopOut' || this.phase === 'dance' || this.phase === 'bow'); // it stays behind when the plush hops away
     if (h && this.stage.visible) {
       // the stage sits under the plush's feet and tilts with its lean toward the player
       this.stage.position.set(h.position.x, h.position.y - 0.004, h.position.z);
@@ -1113,4 +1099,76 @@ function blobTexture(): CanvasTexture {
   g.fillRect(0, 0, 64, 64);
   blobTex = new CanvasTexture(c);
   return blobTex;
+}
+
+let stalkGeo: CylinderGeometry | null = null;
+/**
+ * Pixels that don't touch the body (the Sprout's leaves, a cherry on its stem)
+ * would float as loose cubes in a plush. Each loose piece gets a felt stalk to
+ * the nearest cell of the biggest piece, a shade darker, like a sewn stem.
+ */
+function addStalks(g: Group, rows: readonly Mask8[], color: number): void {
+  const cell = PLUSH.cell;
+  const H = rows.length;
+  const on = (r: number, i: number) => r >= 0 && r < H && i >= 0 && i < WARPS && isLifted(rows[r], i);
+  const comp: number[] = new Array(H * WARPS).fill(-1);
+  const sizes: number[] = [];
+  for (let r = 0; r < H; r++) {
+    for (let i = 0; i < WARPS; i++) {
+      if (!on(r, i) || comp[r * WARPS + i] >= 0) continue;
+      const id = sizes.length;
+      let size = 0;
+      const stack = [[r, i]];
+      comp[r * WARPS + i] = id;
+      while (stack.length) {
+        const [cr, ci] = stack.pop()!;
+        size++;
+        for (const [dr, di] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nr = cr + dr;
+          const ni = ci + di;
+          if (on(nr, ni) && comp[nr * WARPS + ni] < 0) {
+            comp[nr * WARPS + ni] = id;
+            stack.push([nr, ni]);
+          }
+        }
+      }
+      sizes.push(size);
+    }
+  }
+  if (sizes.length < 2) return;
+  const main = sizes.indexOf(Math.max(...sizes));
+  stalkGeo ??= new CylinderGeometry(1, 1, 1, 8);
+  stalkGeo.userData.sharedGeometry = true;
+  const mat = new MeshStandardMaterial({ color: new Color(color).multiplyScalar(0.72), roughness: 0.95 });
+  mat.name = 'PlushStalk';
+  mat.userData.own = true;
+  const centre = (r: number, i: number, out: Vector3) => out.set((i - (WARPS - 1) / 2) * cell, LIFT + cell / 2 + r * cell, 0);
+  for (let c = 0; c < sizes.length; c++) {
+    if (c === main) continue;
+    // the closest pair of cells between this piece and the body
+    let best = Infinity;
+    let a: [number, number] = [0, 0];
+    let b: [number, number] = [0, 0];
+    for (let r = 0; r < H; r++) for (let i = 0; i < WARPS; i++) {
+      if (comp[r * WARPS + i] !== c) continue;
+      for (let r2 = 0; r2 < H; r2++) for (let i2 = 0; i2 < WARPS; i2++) {
+        if (comp[r2 * WARPS + i2] !== main) continue;
+        const d = Math.hypot(r - r2, i - i2);
+        if (d < best) {
+          best = d;
+          a = [r, i];
+          b = [r2, i2];
+        }
+      }
+    }
+    const pa = centre(a[0], a[1], new Vector3());
+    const pb = centre(b[0], b[1], new Vector3());
+    const stalk = new Mesh(stalkGeo, mat);
+    stalk.position.copy(pa).add(pb).multiplyScalar(0.5);
+    const len = pa.distanceTo(pb);
+    stalk.scale.set(cell * 0.13, len, cell * 0.13);
+    stalk.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), pb.sub(pa).normalize());
+    stalk.castShadow = true;
+    g.add(stalk);
+  }
 }

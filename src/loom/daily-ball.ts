@@ -1,12 +1,14 @@
 /**
- * The picture of the day: a little wrapped present beside the chapter basket,
- * in the day's colour (dotted wrapping paper, a cream ribbon and a bow), with
- * a paper "Today" tag. Poke it to weave today's picture. Once today's picture
- * is woven the ribbon is gone and the lid sits open on its side: empty until
- * tomorrow.
+ * The picture of the day: a little present beside the chapter basket, in
+ * brown kraft paper with a ribbon and bow in the day's colour, and a paper
+ * "Today" tag. Poke it to weave today's picture. Once it is woven the ribbon
+ * is gone, the lid leans against the box, and tomorrow's picture peeks out as
+ * a felt silhouette with a "Tomorrow" tag.
  */
 import { BoxGeometry, CanvasTexture, Color, Group, Mesh, MeshStandardMaterial, SphereGeometry, SRGBColorSpace, TorusGeometry } from '@iwsdk/core';
 import { Label } from '../ui/label.js';
+import { cutout, disposePlush } from './plush.js';
+import type { Mask8 } from '../puzzle/tieup.js';
 
 export const DAILY_BALL = {
   /** Beside the basket, on its outer side (x is multiplied by -side). */
@@ -26,6 +28,10 @@ export class DailyBall {
   private box = new Group();
   private lid = new Group();
   private paper: MeshStandardMaterial;
+  private rib: MeshStandardMaterial;
+  /** Tomorrow's picture, peeking out of the opened box. */
+  private peek: Group | null = null;
+  private peekKey = '';
   private ribbon = new Group();
   private state: DailyState = 'hidden';
   private t = 0;
@@ -38,7 +44,7 @@ export class DailyBall {
   constructor() {
     this.root.name = 'DailyGift';
     const { w, h } = DAILY_BALL;
-    this.paper = new MeshStandardMaterial({ color: 0xe2563b, roughness: 0.88, map: dotsTexture() });
+    this.paper = new MeshStandardMaterial({ color: 0xc9a57a, roughness: 0.92, map: dotsTexture() }); // kraft
     const body = new Mesh(new BoxGeometry(w, h * 0.78, w), this.paper);
     body.position.y = h * 0.39;
     body.castShadow = true;
@@ -50,7 +56,7 @@ export class DailyBall {
     this.lid.position.y = h * 0.78 + h * 0.13;
     this.box.add(this.lid);
     // cream ribbon both ways over body and lid, and a bow lying on the lid
-    const rib = new MeshStandardMaterial({ color: 0xfff1d6, roughness: 0.6 });
+    const rib = (this.rib = new MeshStandardMaterial({ color: 0xe2563b, roughness: 0.75 }));
     for (const ry of [0, Math.PI / 2]) {
       const band = new Mesh(new BoxGeometry(w * 1.1, h * 1.06, w * 0.16), rib);
       band.rotation.y = ry;
@@ -83,16 +89,32 @@ export class DailyBall {
     this.root.rotation.y = side * 0.18; // turned a little toward the seat
   }
 
-  /** Today's colour and whether it is still to do. */
-  set(state: DailyState, color: number): void {
+  /** Today's colour, whether it is still to do, and (once done) tomorrow's picture to peek out. */
+  set(state: DailyState, color: number, tomorrow?: { key: string; rows: readonly Mask8[] }): void {
     if (state === 'new' && this.state !== 'new') this.pop = 0;
     this.state = state;
     this.root.visible = state !== 'hidden';
-    this.paper.color.set(new Color(color));
+    this.rib.color.set(new Color(color));
     this.ribbon.visible = state === 'new';
-    this.tag.mesh.visible = state === 'new';
-    // opened: the lid leans against the box
+    this.tag.set(state === 'new' ? 'Today' : 'Tomorrow');
+    this.tag.mesh.visible = state !== 'hidden';
+    // opened: the tag hangs beside the box, so tomorrow's picture shows inside it
     const { w, h } = DAILY_BALL;
+    if (state === 'done') this.tag.mesh.position.set(-w * 1.25, h * 0.2, w * 0.35);
+    else this.tag.mesh.position.set(0, h * 0.42, w * 0.56 + 0.002);
+    const want = state === 'done' && tomorrow ? tomorrow.key : '';
+    if (want !== this.peekKey) {
+      if (this.peek) disposePlush(this.peek);
+      this.peek = null;
+      this.peekKey = want;
+      if (tomorrow && want) {
+        this.peek = cutout(tomorrow.rows);
+        this.peek.scale.setScalar(0.62);
+        this.peek.position.set(0, DAILY_BALL.h * 0.35, -DAILY_BALL.w * 0.1); // standing in the box, its top over the rim
+        this.box.add(this.peek);
+      }
+    }
+    // opened: the lid leans against the box
     if (state === 'done') {
       this.lid.position.set(w * 0.62, h * 0.5, 0);
       this.lid.rotation.set(0, 0, -1.25);
@@ -122,13 +144,13 @@ export class DailyBall {
 }
 
 let dots: CanvasTexture | null = null;
-/** Wrapping paper: lighter dots on the day's colour (the material colour tints it). */
+/** Kraft wrapping paper: faint lighter dots (the material colour tints it). */
 function dotsTexture(): CanvasTexture {
   if (dots) return dots;
   const c = document.createElement('canvas');
   c.width = c.height = 64;
   const g = c.getContext('2d')!;
-  g.fillStyle = '#cfcfcf';
+  g.fillStyle = '#e6e6e6';
   g.fillRect(0, 0, 64, 64);
   g.fillStyle = '#ffffff';
   for (const [x, y] of [[16, 16], [48, 48], [48, 16], [16, 48]] as const) {

@@ -49,11 +49,11 @@ export class Plaque {
     g.roundRect(4, 4, c.width - 8, h - 8, h * 0.3);
     g.fill();
     g.lineWidth = 7;
-    g.strokeStyle = '#34507a';
+    g.strokeStyle = '#6b4a2e'; // ink brown, like the wood it leans on
     g.stroke();
     g.textBaseline = 'middle';
     g.font = `400 ${Math.round(h * 0.66)}px ${th.font}`; // cap ≈ 1.6 cm
-    g.fillStyle = '#34507a';
+    g.fillStyle = '#3b2a1c';
     g.textAlign = 'center';
     g.fillText(this.name, c.width / 2, h * 0.54, c.width - h * 0.7);
     this.tex.needsUpdate = true;

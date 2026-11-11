@@ -227,6 +227,12 @@ export class LoomView {
   }
   /** Soft contact shadows under the shelf, the lever box, the basket and the gift (follow the lever side). */
   private blobs: Mesh[] = [];
+  /**
+   * 1–4 cream dots inlaid in the lever box's top, in front of each slot: levers
+   * are told apart by count as well as colour (colour-blind players, Night's
+   * undyed mystery knobs). One instanced draw.
+   */
+  private slotPips: InstancedMesh | null = null;
   /** Warm key light (moves with the loom) and a desk shadow catcher. */
   private key = new DirectionalLight(0xfff0dc, 1.6);
   /** Felt mat under everything; the chapter shelf and plush show. */
@@ -361,7 +367,10 @@ export class LoomView {
     // The rim paint ('Beech' in the model) stays sunny yellow in the toy theme;
     // the workshop theme repaints it honey oak.
     const tint = (m: Material, name: string) => {
-      if (name === 'Beech' && theme.id === 'workshop') (m as MeshStandardMaterial).color.setHex(0xc9905e);
+      const sm = m as MeshStandardMaterial;
+      if (name === 'Beech' && theme.id === 'workshop') sm.color.setHex(0xc9905e);
+      // painted wood is matte: no plastic-pipe highlight on the frame (brass and the like keep their shine)
+      if (theme.id === 'toy' && sm.isMeshStandardMaterial && sm.metalness < 0.3) sm.roughness = Math.max(sm.roughness, 0.86);
     };
     this.frameNode = null;
     if (models) {
@@ -478,7 +487,6 @@ export class LoomView {
         this.knobCaps[k] = knob.getObjectByName('Cap0') ?? null;
         const c0 = this.knobCaps[k];
         if (c0) c0.userData.baseScale = c0.scale.toArray();
-        if (c0) addPips(c0 as Mesh, k + 1);
         cap.color.setHex(palette.knobs[k]);
         // yarn wrap on the stem, a shade deeper than the cap
         const wrap = materialOf(knob, 'StemWrap') as MeshStandardMaterial | null;
@@ -656,6 +664,25 @@ export class LoomView {
 
   setSide(side: 1 | -1): void {
     this.side = side;
+    if (!this.slotPips) {
+      const geo = new CylinderGeometry(0.0026, 0.0026, 0.0012, 14);
+      this.slotPips = new InstancedMesh(geo, new MeshStandardMaterial({ color: 0xfff1d6, roughness: 0.8 }), 10);
+      this.slotPips.name = 'SlotPips';
+      this.slotPips.frustumCulled = false;
+      this.root.add(this.slotPips);
+    }
+    {
+      let n = 0;
+      const m = new Matrix4();
+      for (let k = 0; k < LEVERS; k++) {
+        for (let j = 0; j <= k; j++) {
+          m.makeTranslation(leverX(k, side) + (j - k / 2) * 0.0068, 0.0295, 0.0915);
+          this.slotPips.setMatrixAt(n++, m);
+        }
+      }
+      this.slotPips.count = n;
+      this.slotPips.instanceMatrix.needsUpdate = true;
+    }
     // contact shadows: shelf, lever box, basket, the gift [x, z, width, depth]
     const spots: [number, number, number, number][] = [
       [-side * PLUSH.shelfX, PLUSH.shelfZ + 0.004, 0.31, 0.085],
@@ -1679,36 +1706,4 @@ function mysteryMark(): Mesh {
   m.name = 'MysteryMark';
   m.rotation.x = -Math.PI / 2; // undo the ring's turn: dome up again
   return m;
-}
-
-const pipGeo = new SphereGeometry(1, 10, 6);
-const pipMat = new MeshStandardMaterial({ color: 0xfff4e0, roughness: 0.7 });
-/**
- * 1–4 cream pips pressed into the top of a lever cap, like a die: levers are
- * told apart by count as well as colour (colour-blind players, mystery levers).
- */
-function addPips(cap: Mesh, n: number): void {
-  const g = cap.geometry;
-  if (!g.boundingBox) g.computeBoundingBox();
-  const b = g.boundingBox!;
-  const r = (b.max.x - b.min.x) / 2;
-  const cx = (b.max.x + b.min.x) / 2;
-  const cy = (b.max.y + b.min.y) / 2;
-  const cz = (b.max.z + b.min.z) / 2;
-  const hr = b.max.y - cy; // vertical half-size (caps can be squashed domes)
-  const d = r * 0.36;
-  const layouts: [number, number][][] = [
-    [[0, 0]],
-    [[-d, 0], [d, 0]],
-    [[0, -d], [-d * 0.9, d * 0.55], [d * 0.9, d * 0.55]],
-    [[-d, -d], [d, -d], [-d, d], [d, d]].map(([x, z]) => [x * 0.8, z * 0.8] as [number, number]),
-  ];
-  for (const [x, z] of layouts[n - 1] ?? []) {
-    const p = new Mesh(pipGeo, pipMat);
-    p.name = 'KnobPip';
-    const t = Math.min(1, Math.hypot(x, z) / r);
-    p.position.set(cx + x, cy + hr * Math.sqrt(Math.max(0, 1 - t * t)) - r * 0.02, cz + z);
-    p.scale.set(r * 0.15, r * 0.08, r * 0.15);
-    cap.add(p);
-  }
 }

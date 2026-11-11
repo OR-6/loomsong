@@ -71,7 +71,7 @@ const HINT_TEXT: Record<HintStep, string> = {
   card: 'Match the next row',
   knots: 'Each lever move unties a knot',
   combo: '', // the aha is a gold ribbon over the card, not a tag
-  more: 'This row needs more threads',
+  more: 'Add another lever',
   none: '',
 };
 
@@ -940,7 +940,8 @@ export class GameSystem extends createSystem({
     this.dailyDone = (this.progress.days ?? []).includes(this.today);
     const offered = this.progress.tutorialDone && !this.coopLink && !this.flow?.daily;
     const lv = dailyLevel(this.today);
-    this.view.daily.set(offered ? (this.dailyDone ? 'done' : 'new') : 'hidden', lv.color ?? 0xe2563b);
+    const next = dayKey(new Date(Date.now() + 86400000));
+    this.view.daily.set(offered ? (this.dailyDone ? 'done' : 'new') : 'hidden', lv.color ?? 0xe2563b, { key: next, rows: dailyLevel(next).target });
     const side = this.controller.bankSide;
     this.dailyVec.set(-side * DAILY_BALL.x, DAILY_BALL.y, DAILY_BALL.z);
   }
