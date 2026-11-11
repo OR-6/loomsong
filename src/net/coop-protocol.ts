@@ -28,9 +28,14 @@ export interface Snapshot {
 export type GuestMsg =
   | { k: 'sh'; t: number; h: boolean }
   | { k: 'req'; what: 'throw' | 'undo' }
-  /** A phone caller says hello, then works levers by index. */
+  /** A phone caller says hello; it holds the picture, and talks the weaver through it. */
   | { k: 'hi'; who: 'caller' }
-  | { k: 'lev'; i: number; v: boolean };
+  /** (older callers) work a lever by index: ignored now, the phone only describes. */
+  | { k: 'lev'; i: number; v: boolean }
+  /** The caller pins a thread (0..7) on the headset's loom, or takes the pin out. */
+  | { k: 'pin'; i: number; on: boolean }
+  /** The caller rings Pip: it waves at the weaver. */
+  | { k: 'ring' };
 
 export interface Side {
   model: LoomModel;
@@ -68,6 +73,8 @@ export function validGuestMsg(m: unknown): m is GuestMsg {
   if (g.k === 'req') return g.what === 'throw' || g.what === 'undo';
   if (g.k === 'hi') return g.who === 'caller';
   if (g.k === 'lev') return Number.isInteger(g.i) && isNum(g.i, 0, LEVERS - 1) && typeof g.v === 'boolean';
+  if (g.k === 'pin') return Number.isInteger(g.i) && isNum(g.i, 0, 7) && typeof g.on === 'boolean';
+  if (g.k === 'ring') return true;
   return false;
 }
 
@@ -90,9 +97,13 @@ export class CoopHost {
     link.onMessage((m) => this.receive(m));
   }
 
-  /** A phone caller joined: the headset keeps Pip too, and the phone can work the levers. */
+  /** A phone caller joined: the headset keeps levers and Pip; the phone has the picture. */
   caller = false;
   onCaller: (() => void) | null = null;
+  /** The caller pinned (or unpinned) a thread. */
+  onPin: ((i: number, on: boolean) => void) | null = null;
+  /** The caller rang Pip. */
+  onRing: (() => void) | null = null;
 
   receive(m: unknown): void {
     if (!validGuestMsg(m)) return;
@@ -103,10 +114,15 @@ export class CoopHost {
       this.onCaller?.();
       return;
     }
+    if (m.k === 'ring') {
+      if (this.caller) this.onRing?.();
+      return;
+    }
     if (!c.enabled || this.side.flow.phase !== 'play') return; // ignore during wins
-    if (m.k === 'lev') {
-      if (this.caller && m.i < c.activeLevers) c.applyLatched(m.i, m.v);
-    } else if (this.caller) return; // a phone never drives the shuttle
+    if (m.k === 'pin') {
+      if (this.caller) this.onPin?.(m.i, m.on);
+    } else if (m.k === 'lev') return; // the phone describes; the hands in the headset do the weaving
+    else if (this.caller) return; // a phone never drives the shuttle
     else if (m.k === 'sh') c.remoteShuttle(m.t, m.h);
     else if (m.what === 'throw') c.throwShuttle();
     else c.doUndo();

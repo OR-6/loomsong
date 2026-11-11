@@ -72,27 +72,43 @@ describe('co-op protocol', () => {
     expect(validGuestMsg({ k: 'lev', i: 2, v: true })).toBe(true);
     expect(validGuestMsg({ k: 'lev', i: 7, v: true })).toBe(false);
     expect(validGuestMsg({ k: 'lev', i: 1.5, v: true })).toBe(false);
+    expect(validGuestMsg({ k: 'pin', i: 7, on: true })).toBe(true);
+    expect(validGuestMsg({ k: 'pin', i: 8, on: true })).toBe(false);
+    expect(validGuestMsg({ k: 'pin', i: 2 })).toBe(false);
+    expect(validGuestMsg({ k: 'ring' })).toBe(true);
   });
 
-  it('a phone caller works the host levers; the headset keeps Pip', () => {
+  it('a phone caller describes the picture: pins and rings reach the headset, levers stay in the headset', () => {
     const [a, b] = pipe();
     const h = side(0);
     const host = new CoopHost(h, a);
     let heard = 0;
+    const pins: string[] = [];
+    let rings = 0;
     host.onCaller = () => heard++;
+    host.onPin = (i, on) => pins.push(`${i}:${on}`);
+    host.onRing = () => rings++;
     const flush = () => (a as unknown as { flush: () => void }).flush();
-    // a lever press before saying hello is ignored
-    b.send({ k: 'lev', i: 0, v: true });
+    // nothing counts before saying hello
+    b.send({ k: 'pin', i: 3, on: true });
+    b.send({ k: 'ring' });
     flush();
-    expect(h.model.latched[0]).toBe(false);
+    expect(pins).toEqual([]);
+    expect(rings).toBe(0);
     b.send({ k: 'hi', who: 'caller' });
     flush();
     expect(heard).toBe(1);
     expect(h.controller.allow).toEqual({ levers: true, shuttle: true });
+    b.send({ k: 'pin', i: 3, on: true });
+    b.send({ k: 'ring' });
+    flush();
+    expect(pins).toEqual(['3:true']);
+    expect(rings).toBe(1);
+    // the phone can't work a lever (it would solve the picture alone)
     b.send({ k: 'lev', i: 0, v: true });
     flush();
-    expect(h.model.latched[0]).toBe(true);
-    // a phone never drives the shuttle
+    expect(h.model.latched[0]).toBe(false);
+    // nor drive the shuttle
     b.send({ k: 'req', what: 'throw' });
     flush();
     expect(h.model.rows.length).toBe(0);

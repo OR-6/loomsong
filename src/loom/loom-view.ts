@@ -126,7 +126,7 @@ export class LoomView {
   /** Sea: a little yarn spool on a peg beside each perch; touch one to swap Pip's yarn. */
   readonly weftSpools = new Group();
   private swapYarnMat = new MeshStandardMaterial({ color: 0x7fc4e8, roughness: 0.85 });
-  private mood: 'none' | 'happy' | 'sad' | 'cheer' = 'none';
+  private mood: 'none' | 'happy' | 'sad' | 'cheer' | 'wave' = 'none';
   private moodT = 0;
   private idleIn = 3;
   private idleKind = 0;
@@ -958,8 +958,8 @@ export class LoomView {
     this.levers[k]?.position.set(leverX(k, this.side), y, LEVER.restZ - LEVER.travel * this.leverX[k]);
   }
 
-  /** Pip reacts: 'happy' (good row), 'sad' (wrong row), 'cheer' (picture finished). */
-  setPipMood(m: 'happy' | 'sad' | 'cheer'): void {
+  /** Pip reacts: 'happy' (good row), 'sad' (wrong row), 'cheer' (picture finished), 'wave' (the phone caller rang). */
+  setPipMood(m: 'happy' | 'sad' | 'cheer' | 'wave'): void {
     this.mood = m;
     this.moodT = 0;
   }
@@ -1004,6 +1004,14 @@ export class LoomView {
         this.pipWings.forEach((w, i) => (w.rotation.x = (i === 0 ? 1 : -1) * flutter));
         if (t > 0.2 && t < 0.6 && this.pipEyes[1]) this.pipEyes[1].scale.y = 0.15; // wink
         if (t > 1.0) this.mood = 'none';
+      } else if (this.mood === 'wave') {
+        // turns to face you, hops once, and waves a wing (your caller says hello)
+        const env = Math.min(1, t / 0.3) * Math.min(1, Math.max(0, (3.2 - t) / 0.35));
+        look = -this.pipFacing * (Math.PI / 2) * env;
+        if (t < 0.4) y = hop(t, 0.4, 0.014);
+        // both wings up and waving (one wing alone hides behind Pip from half the angles)
+        this.pipWings.forEach((w, i) => (w.rotation.x = (i === 0 ? 1 : -1) * (1.15 + 0.4 * Math.sin(t * 14)) * env));
+        if (t > 3.2) this.mood = 'none';
       } else if (this.mood === 'sad') {
         const env = Math.min(1, t / 0.25) * Math.min(1, Math.max(0, (1.6 - t) / 0.4));
         pitch = -0.38 * env;
@@ -1084,6 +1092,75 @@ export class LoomView {
     p.position.y = y;
     p.rotation.set(0, spin + look, pitch + this.pipLean);
     p.scale.set(0.95 * sx, 0.95 * squash, 0.95 * sx);
+  }
+
+  /**
+   * The phone caller's pins: a felt-headed pin over a thread, bobbing just above
+   * the heddle bar, so the weaver knows which threads their caller means.
+   */
+  private pins: Group[] = [];
+  private pinT = new Float32Array(WARPS).fill(-1);
+  private pinOn = new Uint8Array(WARPS);
+  private buildPins(): void {
+    const head = new SphereGeometry(0.0062, 14, 10);
+    const shaft = new CylinderGeometry(0.0007, 0.0004, 0.026, 6);
+    const felt = new MeshStandardMaterial({ color: 0xe2563b, roughness: 0.95, map: feltTexture() });
+    const steel = new MeshStandardMaterial({ color: 0xb8bcc2, roughness: 0.35, metalness: 0.8 });
+    for (let i = 0; i < WARPS; i++) {
+      const g = new Group();
+      const h = new Mesh(head, felt);
+      h.position.y = 0.026;
+      const sh = new Mesh(shaft, steel);
+      sh.position.y = 0.013;
+      g.add(h, sh);
+      g.visible = false;
+      g.name = `CallerPin${i}`;
+      this.root.add(g);
+      this.pins.push(g);
+    }
+  }
+  /** Pin (or unpin) thread i. */
+  pinThread(i: number, on: boolean): void {
+    if (!this.pins.length) this.buildPins();
+    if (i < 0 || i >= WARPS || (this.pinOn[i] === 1) === on) return;
+    this.pinOn[i] = on ? 1 : 0;
+    this.pinT[i] = 0;
+    if (on) {
+      this.pins[i].visible = true;
+      this.fx.ring(warpX(i), 0.03, LOOM.heddleZ + (this.fellZ - LOOM.heddleZ) * 0.32, 0xe2563b, 0.03);
+      this.pluckWarp(i);
+    }
+  }
+  clearPins(): void {
+    for (let i = 0; i < WARPS; i++) this.pinThread(i, false);
+  }
+  /** Threads pinned now (diagnostics). */
+  get pinned(): number {
+    let m = 0;
+    for (let i = 0; i < WARPS; i++) if (this.pinOn[i]) m |= 1 << i;
+    return m;
+  }
+  private animatePins(dt: number): void {
+    for (let i = 0; i < this.pins.length; i++) {
+      const g = this.pins[i];
+      if (!g.visible) continue;
+      this.pinT[i] += dt;
+      const t = this.pinT[i];
+      // drops in from above with a little bounce; lifts out and shrinks when taken out
+      const k = this.pinOn[i] ? Math.min(1, t / 0.28) : Math.max(0, 1 - t / 0.2);
+      if (!this.pinOn[i] && k <= 0) {
+        g.visible = false;
+        continue;
+      }
+      const drop = this.pinOn[i] ? (1 - k) * 0.05 - Math.sin(k * Math.PI) * 0.004 : 0;
+      const bob = this.pinOn[i] && k >= 1 ? 0.0025 * Math.sin(t * 3.4 + i) : 0;
+      // stuck into the thread itself, a third of the way from the heddle to the cloth (it rides the thread up and down)
+      const hy = LOOM.loweredY + (LOOM.liftedY - LOOM.loweredY) * this.warpLift[i];
+      const f = 0.32;
+      g.position.set(warpX(i), hy + (0.006 - hy) * f - 0.002 + drop + bob, LOOM.heddleZ + (this.fellZ - LOOM.heddleZ) * f);
+      g.rotation.set(0.32, 0, 0.1 * Math.sin(t * 1.7 + i * 0.8)); // leaning toward you, swaying a touch
+      g.scale.setScalar(this.pinOn[i] ? 0.6 + 0.4 * k : k);
+    }
   }
 
   /** Visual twin for one plucked warp: it twangs. */
@@ -1343,6 +1420,7 @@ export class LoomView {
   update(dt: number): void {
     let dirty = false;
     this.clock += dt;
+    if (this.pins.length) this.animatePins(dt);
     const h = Math.min(dt, 1 / 60);
     // Lever springs: ω≈30 rad/s, ζ≈0.45 → one visible overshoot.
     for (let k = 0; k < LEVERS; k++) {

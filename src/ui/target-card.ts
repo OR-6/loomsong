@@ -33,6 +33,8 @@ export class TargetCard {
   weft: number | null = null;
   /** Caller co-op: the picture is secret here; only woven rows show. */
   secret = false;
+  /** Phone caller: threads they've pinned show a pin on the next row. */
+  pinned = 0;
   /** Night: little stars twinkle in the margins. */
   sparkles = false;
   /** Optional paper tint for the chapter (e.g. a cool dusk for Night). */
@@ -231,6 +233,9 @@ export class TargetCard {
         g.restore();
       }
       if (r === nextRow && stars === 0) drawPin(g, px(pad + markW / 2), cy, px(0.0075));
+      if (r === nextRow && stars === 0 && this.pinned) {
+        for (let i = 0; i < WARPS; i++) if ((this.pinned >> i) & 1) drawPinHead(g, px(gridX + i * cell + cell / 2), cy, px(cell * 0.36));
+      }
     }
     this.tex.needsUpdate = true;
     this.sizeW = wM;
@@ -247,6 +252,17 @@ export class TargetCard {
     const y = L.gridTop + (L.rows - 1 - r) * L.cell + L.cell / 2;
     out.set((L.gridX + (WARPS * L.cell) / 2) / L.wM - 0.5, 0.5 - y / L.hM, 0.004);
     return true;
+  }
+
+  /** The cell under a point on the card's canvas (0..1 across, 0..1 down), or null. */
+  cellAt(u: number, v: number): { r: number; i: number } | null {
+    const L = this.layout;
+    const x = u * L.wM - L.gridX;
+    const y = v * L.hM - L.gridTop;
+    const i = Math.floor(x / L.cell);
+    const rr = Math.floor(y / L.cell);
+    if (i < 0 || i >= WARPS || rr < 0 || rr >= L.rows) return null;
+    return { r: L.rows - 1 - rr, i };
   }
 
   /** Card size in metres (its mesh is a unit plane scaled to this). */
@@ -318,6 +334,27 @@ function drawPin(g: CanvasRenderingContext2D, x: number, y: number, s: number) {
   g.fillStyle = 'rgba(255,255,255,0.55)';
   g.beginPath();
   g.arc(x - s * 0.78, y - s * 0.18, s * 0.16, 0, Math.PI * 2);
+  g.fill();
+  g.restore();
+}
+
+/** A dressmaker's pin seen from above: a felt ball head with a highlight (the caller's mark on a thread). */
+function drawPinHead(g: CanvasRenderingContext2D, x: number, y: number, r: number) {
+  g.save();
+  g.fillStyle = 'rgba(40,20,10,0.35)';
+  g.beginPath();
+  g.arc(x + r * 0.15, y + r * 0.2, r, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = '#e2563b';
+  g.beginPath();
+  g.arc(x, y, r, 0, Math.PI * 2);
+  g.fill();
+  g.strokeStyle = '#7a2a1c';
+  g.lineWidth = r * 0.16;
+  g.stroke();
+  g.fillStyle = 'rgba(255,255,255,0.6)';
+  g.beginPath();
+  g.arc(x - r * 0.35, y - r * 0.35, r * 0.28, 0, Math.PI * 2);
   g.fill();
   g.restore();
 }

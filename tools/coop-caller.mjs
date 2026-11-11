@@ -23,14 +23,32 @@ export default async function run({ context }) {
     const L = window.__loom;
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     if (action === 'call') { await L.coop.join(code, 'caller'); for (let i = 0; i < 60 && L.coop.status.state !== 'connected'; i++) await sleep(200); await sleep(1200); }
-    if (action === 'press0') { document.querySelector('#caller .lever')?.click(); await sleep(900); }
+    if (action === 'tap') {
+      // tap thread 3's square on the next (yellow) row of the phone's card
+      const c = document.querySelector('#caller .card');
+      const b = c.getBoundingClientRect();
+      let hit = null;
+      for (let v = 0.98; v > 0.02 && !hit; v -= 0.01) for (let u = 0.02; u < 0.98; u += 0.01) {
+        const h = document.querySelector('#caller').card?.cellAt(u, v);
+        if (h && h.i === 3) { hit = [u, v]; break; }
+      }
+      const [u, v] = hit ?? [0.4, 0.9];
+      c.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: b.left + u * b.width, clientY: b.top + v * b.height }));
+      await sleep(900);
+    }
+    if (action === 'ring') { document.querySelector('#caller .ring')?.click(); await sleep(900); }
+    if (action === 'closecard') { document.querySelector('#caller .post .close')?.click(); await sleep(300); }
     if (action === 'leave') { L.coop.leave(); await sleep(800); }
     const view = document.querySelector('#caller');
     return {
       status: L.coop.status,
       view: !!view,
       text: view?.querySelector('.status')?.textContent ?? null,
-      levers: [...(view?.querySelectorAll('.lever') ?? [])].map((b) => `${b.textContent}:${b.getAttribute('aria-pressed')}`),
+      levers: view?.querySelectorAll('.lever').length ?? 0,
+      card: !!view?.querySelector('.card'),
+      ring: !!view?.querySelector('.ring'),
+      postcard: !!view && !view.querySelector('.post').hidden && !!view.querySelector('.post canvas'),
+      album: view?.querySelectorAll('.album canvas').length ?? 0,
     };
   }, { action, code });
 }

@@ -21,7 +21,7 @@ import {
   type Entity,
   PCFShadowMap,
 } from '@iwsdk/core';
-import { BASKET, BOBBIN, CARD, LEVER, LEVERS, LOOM, NUDGE, PLACE, SHUTTLE, TOKEN, WARPS, bobbinX, leverX, nudgeX, skeinPos, tokenX, shuttleY } from '../config.js';
+import { BASKET, BOBBIN, CARD, LEVER, LEVERS, LOOM, NUDGE, PLACE, SHUTTLE, TOKEN, WARPS, bobbinX, leverX, nudgeX, skeinPos, tokenX, shuttleY, warpX } from '../config.js';
 import { applyCalibration, hands, calibration, type Side } from '../input/hands.js';
 import { Calibrator } from '../input/calibration.js';
 import { LoomController, type HandInput } from '../loom/loom-controller.js';
@@ -236,6 +236,7 @@ export class GameSystem extends createSystem({
   private calibrator: Calibrator | null = null;
   private coopLink: CoopHost | CoopGuest | null = null;
   private coopTransport: unknown = null;
+  private pinKey = -1;
   private calSide: Side = 'right';
   /** `?degrade=n` forces a quality level (testing). */
   private forcedDegrade = Number(new URLSearchParams(location.search).get('degrade') ?? NaN);
@@ -746,6 +747,17 @@ export class GameSystem extends createSystem({
           this.setCallerGap(true);
           this.showNotice('Your caller has the picture: ask them!', 6, 'centre');
         };
+        // the caller pins threads (a tap on a square) and rings Pip
+        this.coopLink.onPin = (i, on) => {
+          this.view.pinThread(i, on);
+          if (on) audio.pluck(i, 0.5, 0, 0.26, panOf(warpX(i)));
+        };
+        this.coopLink.onRing = () => {
+          if (this.view.pipAsleep) this.view.wakePip();
+          this.view.setPipMood('wave');
+          audio.chirp('happy');
+          this.showNotice('Your caller says hello', 3, 'centre');
+        };
       }
       if (this.placement.phase === 'placed') {
         this.showNotice(st.role === 'host' ? 'You work the levers' : 'You throw the shuttle', 6, 'centre');
@@ -766,6 +778,7 @@ export class GameSystem extends createSystem({
     const link = this.coopLink;
     if (!link) return;
     if (link instanceof CoopHost && link.caller) this.setCallerGap(false);
+    this.view.clearPins();
     const wasGuest = link instanceof CoopGuest;
     if (link instanceof CoopHost) link.dispose();
     this.coopLink = null;
@@ -1509,6 +1522,12 @@ export class GameSystem extends createSystem({
     this.controller.update(this.handInputs, dt);
     this.flow.update(dt);
     this.coopLink?.tick(dt);
+    // a caller's pins mark one row's threads: they come out once that row is woven, or the picture changes
+    const pinKey = this.flow.index * 1000 + this.model.rows.length;
+    if (pinKey !== this.pinKey) {
+      this.pinKey = pinKey;
+      this.view.clearPins();
+    }
     this.time += dt;
     this.syncView(dt);
     this.debug.flow = this.flow.phase;
