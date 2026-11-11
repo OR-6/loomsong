@@ -120,16 +120,16 @@ export function knitTexture(): CanvasTexture {
   const c = document.createElement('canvas');
   c.width = c.height = 128;
   const g = c.getContext('2d')!;
-  g.fillStyle = '#ad9a84'; // warm gaps: cream yarn stays wool, not silver
+  g.fillStyle = '#c4b4a0'; // warm, soft gaps: wool, not silver, and the picture colour stays loud
   g.fillRect(0, 0, 128, 128);
   const loop = (sx: number) => {
     g.save();
     g.translate(64 + sx * 22, 64);
     g.rotate(sx * 0.62);
     const grad = g.createLinearGradient(-20, 0, 20, 0);
-    grad.addColorStop(0, '#e6dccc');
-    grad.addColorStop(0.45, '#f6efe4'); // matte: no near-white glint
-    grad.addColorStop(1, '#d6c8b2');
+    grad.addColorStop(0, '#ede6da');
+    grad.addColorStop(0.45, '#f8f2e8'); // matte: no near-white glint
+    grad.addColorStop(1, '#e2d7c6');
     g.fillStyle = grad;
     g.beginPath();
     g.ellipse(0, 0, 21, 62, 0, 0, Math.PI * 2);

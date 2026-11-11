@@ -66,6 +66,8 @@ export interface GameDebug {
   phase: string;
   /** Right rows thrown on the music's beat (debug/E2E). */
   onBeat?: number;
+  /** The celebration ribbon's text ('' when hidden). */
+  banner?: string;
   deskY: number | null;
   deskSource: string | null;
   loomOrigin: number[] | null;
@@ -144,6 +146,8 @@ export class GameSystem extends createSystem({
   /** Tutorial/idle breath on the swap spools (0–1). */
   private swapGlow = 0;
   private tip!: Label;
+  private banner!: Label;
+  private bannerLeft = 0;
   private tipCode = -1;
   private tipHover = 0;
   private tipReady = false;
@@ -247,6 +251,15 @@ export class GameSystem extends createSystem({
     this.view.root.add(this.tip.mesh);
     this.tip.setTheme(this.shown());
     this.tip.set('');
+    // a gold ribbon for celebrations (a chapter finished): never mistaken for a hint
+    this.banner = new Label(0.3, 0.06);
+    this.banner.style = 'ribbon';
+    this.banner.mesh.rotation.x = -0.3;
+    (this.banner.mesh.material as import('@iwsdk/core').MeshBasicMaterial).depthTest = false;
+    this.banner.mesh.renderOrder = 22;
+    this.view.root.add(this.banner.mesh);
+    this.banner.setTheme(this.shown());
+    this.banner.set('');
 
     const onTheme = (e: Event) => {
       const id = (e as CustomEvent<ThemeId>).detail;
@@ -526,6 +539,7 @@ export class GameSystem extends createSystem({
     this.view.setTheme(theme);
     this.tutor.setTheme(theme);
     this.tip?.setTheme(theme);
+    this.banner?.setTheme(theme);
     audio.tone = theme.tone;
   }
 
@@ -538,6 +552,7 @@ export class GameSystem extends createSystem({
       this.view.plaque.setTheme(theme);
       this.tutor.setTheme(theme);
     this.tip?.setTheme(theme);
+    this.banner?.setTheme(theme);
     });
   }
 
@@ -762,7 +777,11 @@ export class GameSystem extends createSystem({
     const side = this.controller.bankSide;
     this.view.fx.confetti(-side * PLUSH.shelfX, PLUSH.shelfTopY + 0.03, PLUSH.shelfZ, 140, 0.8);
     audio.chirp('cheer');
-    this.showNotice(`${f.chapter} complete!`, 5, 'shelf');
+    this.banner.set(`${f.chapter} complete!`);
+    this.banner.mesh.position.set(-this.controller.bankSide * PLUSH.shelfX, 0.13, PLUSH.shelfZ);
+    this.banner.mesh.visible = true;
+    this.bannerLeft = 6;
+    this.debug.banner = `${f.chapter} complete!`;
   }
 
   /** The wind-up key: every finished plush on the shelf sings in turn, left to right (the shelf is a music box). */
@@ -1166,7 +1185,7 @@ export class GameSystem extends createSystem({
     } else if (step === 'weft') {
       // the swap spool on Pip's side breathes, with the tag above it
       this.view.swapSpoolPos(this.tagAt);
-      m.position.set(this.tagAt.x, this.tagAt.y + 0.05, this.tagAt.z + 0.01);
+      m.position.set(this.tagAt.x + this.controller.bankSide * 0.02, 0.03, this.tagAt.z + 0.06); // on the desk in front of the spool, off the perch
       this.swapGlow = pulse;
     } else if (step === 'undo') {
       // the red spool breathes, with the tag above it
@@ -1233,6 +1252,17 @@ export class GameSystem extends createSystem({
     this.view.basket.hover(Math.max(sk(c.hover.left), sk(c.hover.right)));
     this.syncPlushSpots();
     this.syncTip(dt);
+    if (this.bannerLeft > 0) {
+      this.bannerLeft -= dt;
+      // it pops in, then floats gently
+      const t = 6 - this.bannerLeft;
+      this.banner.mesh.scale.setScalar(t < 0.3 ? 0.4 + 0.6 * (1 - Math.pow(1 - t / 0.3, 3)) * 1.08 : 1);
+      this.banner.mesh.position.y = 0.13 + 0.004 * Math.sin(t * 2.5);
+      if (this.bannerLeft <= 0) {
+        this.banner.set('');
+        this.debug.banner = '';
+      }
+    }
     for (let i = 0; i < this.sparkleAt.length; i++) {
       if (this.sparkleAt[i] < 0 || this.time < this.sparkleAt[i]) continue;
       this.sparkleAt[i] = -1;

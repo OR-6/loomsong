@@ -143,6 +143,7 @@ export class LoomView {
   /** Picture colour (lifted threads) and ground (cream weft). */
   private liftColor = 0;
   private groundColor = 0;
+  private liftWoven = 0;
   private pictureColor: number | null = null;
   private cloth!: InstancedMesh;
   private ghostCloth: InstancedMesh | null = null;
@@ -788,7 +789,7 @@ export class LoomView {
       _p.set(warpX(i) + shake, 0.0062, z0);
       _m.compose(_p, _q.identity(), _s.set(WARP_PITCH * 0.95 * pop, 0.003 * (1 + (1 - pop)), LOOM.rowPitch * 0.86 * pop));
       this.cloth.setMatrixAt(base + i, _m);
-      _c.setHex(isLifted(row, i) ? this.liftColor : this.groundOf(row));
+      _c.setHex(isLifted(row, i) ? this.liftWoven : this.groundOf(row));
       if (!done) {
         if (this.rowFxGood) _c.lerp(_glow, 0.6 * Math.max(0, 1 - t / 0.25));
         else if (isLifted(row, i) !== isLifted(want, i) && (t < 0.12 || (t > 0.24 && t < 0.36))) _c.multiplyScalar(0.45); // the wrong cells blink
@@ -1080,7 +1081,7 @@ export class LoomView {
         _m.compose(_p, _q.identity(), _s.set(WARP_PITCH * 0.95, 0.003, LOOM.rowPitch * 0.86));
         this.cloth.setMatrixAt(idx, _m);
         // warp visible if lifted in that row, else weft visible
-        _c.setHex(isLifted(row, i) ? this.liftColor : this.groundOf(row));
+        _c.setHex(isLifted(row, i) ? this.liftWoven : this.groundOf(row));
         if (start + r === this.glowRow) _c.lerp(_glow, 0.55);
         this.cloth.setColorAt(idx, _c);
         idx++;
@@ -1412,6 +1413,7 @@ export class LoomView {
   private applyColors(): void {
     const p = this.palette;
     this.liftColor = this.pictureColor ?? p.weft;
+    this.liftWoven = _c.setHex(this.liftColor).offsetHSL(0, 0.08, 0.05).getHex(); // woven yarn: a touch richer than the ghost
     this.groundColor = 0xe2d2b2; // oatmeal yarn: the picture colour is the brightest thing on the cloth: the picture colour reads against it, not white tile
     // warp colour comes per strand (instance colour × white), brighter when lifted
     (this.warps?.material as MeshStandardMaterial | undefined)?.color.setHex(0xffffff);

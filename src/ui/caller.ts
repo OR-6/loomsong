@@ -25,25 +25,44 @@ export function mountCaller(link: Transport, code: string, onLeave: () => void):
   el.setAttribute('aria-label', 'Phone caller');
   el.innerHTML = `
     <style>
-      #caller{position:fixed;inset:0;z-index:50;background:#2b2320;color:#f6ead6;font:600 16px/1.3 system-ui,sans-serif;
-        display:flex;flex-direction:column;align-items:center;gap:14px;padding:18px 16px;overflow:auto}
-      #caller h1{margin:0;font-size:20px;color:#f7be3b}
-      #caller p{margin:0;opacity:.85;text-align:center;max-width:28em}
-      #caller .card{width:min(86vw,360px);height:auto;border-radius:10px;box-shadow:0 6px 20px #0006;background:#fff}
-      #caller .levers{display:grid;grid-template-columns:repeat(2,minmax(120px,1fr));gap:12px;width:min(90vw,380px)}
-      #caller .lever{appearance:none;border:0;border-radius:18px;padding:18px 10px;font:700 18px system-ui,sans-serif;color:#2b2320;
-        box-shadow:inset 0 -6px 0 #0003;transition:transform .08s}
-      #caller .lever[aria-pressed="true"]{transform:translateY(3px);box-shadow:inset 0 3px 0 #0004;outline:4px solid #fff8}
-      #caller .lever:disabled{opacity:.35}
-      #caller .lever .strip{display:flex;gap:3px;justify-content:center;margin-top:8px}
-      #caller .lever .strip i{width:10px;height:14px;border-radius:3px;background:#0002}
-      #caller .lever .strip i.on{background:#2b2320}
-      #caller .lever .q{display:block;margin-top:6px;font-size:14px;opacity:.7}
-      #caller .status{font-size:15px;opacity:.9}
-      #caller .leave{appearance:none;border:1px solid #f6ead680;background:none;color:#f6ead6;border-radius:999px;padding:8px 18px;font:600 14px system-ui}
+      #caller{position:fixed;inset:0;z-index:50;color:#3b2a20;font:600 16px/1.3 ${theme.font};
+        background:repeating-linear-gradient(92deg,#0000 0 22px,#ffffff0d 22px 24px,#0000 24px 61px,#00000010 61px 62px),
+          linear-gradient(180deg,#e2b47c,#c98e55);
+        display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px 16px 22px;overflow:auto}
+      #caller header{display:flex;align-items:center;gap:10px}
+      #caller h1{margin:0;font-size:24px;font-weight:400;color:#3b2a20}
+      #caller p.lead{margin:0;text-align:center;max-width:26em;font:600 15px/1.35 system-ui,sans-serif;color:#4a3426}
+      #caller .card{width:min(88vw,360px);height:auto;border-radius:10px;box-shadow:0 8px 0 #8a5a33,0 12px 24px #0004;background:#fff}
+      #caller .levers{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;width:min(92vw,380px);
+        background:#6b3e26;border-radius:18px;padding:14px;box-shadow:inset 0 3px 0 #0003,0 6px 0 #4a2a18}
+      #caller .lever{appearance:none;border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:6px;
+        padding:6px 4px 10px;color:#f6ead6;font:400 17px ${theme.font};border-radius:14px;cursor:pointer}
+      #caller .lever .cap{width:76px;height:76px;border-radius:50%;box-shadow:inset -8px -10px 0 #0002,inset 6px 8px 0 #fff5,0 8px 0 #0004;
+        transition:transform .1s, box-shadow .1s}
+      #caller .lever .stem{width:12px;height:16px;background:#f3e6cf;border-radius:0 0 6px 6px;margin-top:-4px}
+      #caller .lever[aria-pressed="true"] .cap{transform:translateY(8px);box-shadow:inset -6px -8px 0 #0003,inset 4px 6px 0 #fff4,0 0 0 4px #fff8}
+      #caller .lever .lifted{font-size:13px;color:#ffe08a;visibility:hidden}
+      #caller .lever[aria-pressed="true"] .lifted{visibility:visible}
+      #caller .lever:disabled{opacity:.4}
+      #caller .lever .strip{display:flex;gap:3px;justify-content:center}
+      #caller .lever .strip i{width:9px;height:14px;border-radius:3px;background:#ffffff26}
+      #caller .lever .strip i.on{background:#f6ead6}
+      #caller .lever .q{font-size:14px;opacity:.75}
+      #caller .status{background:#fff6e4;color:#3b2a20;border-radius:999px;padding:8px 16px;font-size:16px;box-shadow:0 3px 0 #0002}
+      #caller .leave{appearance:none;border:0;background:none;color:#4a3426;text-decoration:underline;font:600 14px system-ui,sans-serif}
     </style>
-    <h1>You're the caller</h1>
-    <p>Match each row of the card: press the levers whose threads make it, then tell the weaver to slide Pip.</p>
+    <header>
+      <svg width="46" height="40" viewBox="0 0 46 40" aria-hidden="true">
+        <ellipse cx="22" cy="24" rx="17" ry="13" fill="#f7c948"/>
+        <circle cx="30" cy="14" r="10" fill="#f7c948"/>
+        <path d="M39 13 l7 3 -7 3z" fill="#f08a3c"/>
+        <circle cx="33" cy="12" r="2.2" fill="#2b2320"/>
+        <ellipse cx="18" cy="24" rx="8" ry="5" fill="#f2b632" transform="rotate(-15 18 24)"/>
+        <circle cx="27" cy="18" r="2.4" fill="#f4a3a3" opacity=".8"/>
+      </svg>
+      <h1>You're the caller</h1>
+    </header>
+    <p class="lead">Press the levers whose threads make the row with the arrow, then tell the weaver to slide Pip.</p>
     <div class="cardwrap"></div>
     <div class="levers" role="group" aria-label="Levers"></div>
     <div class="status" role="status">Connecting to loom ${code}…</div>
@@ -66,8 +85,17 @@ export function mountCaller(link: Transport, code: string, onLeave: () => void):
       b.type = 'button';
       b.className = 'lever';
       const c = theme.palette.knobs[k];
-      b.style.background = hex(c);
-      b.textContent = `${NAMES[c] ?? `Lever ${k + 1}`} lever`;
+      const cap = document.createElement('span');
+      cap.className = 'cap';
+      cap.style.background = hex(c);
+      const stem = document.createElement('span');
+      stem.className = 'stem';
+      const name = document.createElement('span');
+      name.textContent = `${NAMES[c] ?? `Lever ${k + 1}`} lever`;
+      const lifted = document.createElement('span');
+      lifted.className = 'lifted';
+      lifted.textContent = 'Lifted';
+      b.append(cap, stem, name, lifted);
       // which of the 8 threads this lever lifts (the weaver sees it on the loom; the caller sees it here)
       if (mystery) {
         const q = document.createElement('span');

@@ -21,6 +21,9 @@ export class Label {
   }
 
   /** @param heightM world height of the label quad; cap height ≈ 0.5 × this. */
+  /** 'tag': a paper luggage tag (hints); 'ribbon': a gold celebration banner. */
+  style: 'tag' | 'ribbon' = 'tag';
+
   constructor(public widthM = 0.2, public heightM = 0.035) {
     this.canvas.width = 1024;
     this.canvas.height = Math.round((1024 * heightM) / widthM);
@@ -41,6 +44,10 @@ export class Label {
     this.mesh.visible = text.length > 0;
     if (!text) {
       this.tex.needsUpdate = true;
+      return;
+    }
+    if (this.style === 'ribbon') {
+      this.drawRibbon(text);
       return;
     }
     // A paper luggage tag: cream card sized to the words, notched left end
@@ -96,6 +103,81 @@ export class Label {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText(text, x0 + hole + pad * 0.5, y0 + th * 0.56, tw);
+    this.tex.needsUpdate = true;
+  }
+
+  /** A gold ribbon banner with folded tails and a star at each end (celebrations). */
+  private drawRibbon(text: string): void {
+    const { ctx, canvas } = this;
+    const h = canvas.height;
+    ctx.font = `700 ${Math.round(h * 0.5)}px ${this.theme.font}`;
+    const tw = Math.min(canvas.width * 0.7, ctx.measureText(text).width);
+    const w = tw + h * 1.5;
+    const x0 = (canvas.width - w) / 2;
+    const y0 = h * 0.14;
+    const th = h * 0.7;
+    const tail = h * 0.42;
+    // folded tails behind, darker
+    ctx.fillStyle = '#b9781f';
+    for (const sx of [-1, 1]) {
+      const ex = sx < 0 ? x0 : x0 + w;
+      ctx.beginPath();
+      ctx.moveTo(ex, y0 + th * 0.25);
+      ctx.lineTo(ex + sx * tail, y0 + th * 0.25);
+      ctx.lineTo(ex + sx * tail * 0.6, y0 + th * 0.62);
+      ctx.lineTo(ex + sx * tail, y0 + th);
+      ctx.lineTo(ex, y0 + th);
+      ctx.closePath();
+      ctx.fill();
+    }
+    // the band
+    ctx.fillStyle = 'rgba(60,35,20,0.3)';
+    ctx.fillRect(x0 + h * 0.03, y0 + h * 0.05, w, th);
+    const grad = ctx.createLinearGradient(0, y0, 0, y0 + th);
+    grad.addColorStop(0, '#ffd56a');
+    grad.addColorStop(1, '#f2a92a');
+    ctx.fillStyle = grad;
+    ctx.fillRect(x0, y0, w, th);
+    ctx.strokeStyle = '#8a5414';
+    ctx.lineWidth = h * 0.03;
+    ctx.strokeRect(x0, y0, w, th);
+    // stitched edges
+    ctx.setLineDash([h * 0.06, h * 0.05]);
+    ctx.strokeStyle = 'rgba(255,248,225,0.9)';
+    ctx.lineWidth = h * 0.02;
+    ctx.beginPath();
+    ctx.moveTo(x0 + h * 0.08, y0 + h * 0.07);
+    ctx.lineTo(x0 + w - h * 0.08, y0 + h * 0.07);
+    ctx.moveTo(x0 + h * 0.08, y0 + th - h * 0.07);
+    ctx.lineTo(x0 + w - h * 0.08, y0 + th - h * 0.07);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // stars at both ends
+    const star = (cx: number, cy: number, r: number) => {
+      ctx.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const a = -Math.PI / 2 + (i * Math.PI) / 5;
+        const rr = i % 2 === 0 ? r : r * 0.45;
+        ctx.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
+      }
+      ctx.closePath();
+      ctx.fillStyle = '#fff6d8';
+      ctx.fill();
+      ctx.strokeStyle = '#8a5414';
+      ctx.lineWidth = r * 0.18;
+      ctx.stroke();
+    };
+    star(x0 + h * 0.38, y0 + th / 2, th * 0.3);
+    star(x0 + w - h * 0.38, y0 + th / 2, th * 0.3);
+    // lettering: cream with a brown outline
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = h * 0.07;
+    ctx.strokeStyle = '#7a4512';
+    ctx.strokeText(text, canvas.width / 2, y0 + th * 0.55, tw);
+    ctx.fillStyle = '#fffaf0';
+    ctx.fillText(text, canvas.width / 2, y0 + th * 0.55, tw);
     this.tex.needsUpdate = true;
   }
 }
