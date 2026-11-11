@@ -33,7 +33,8 @@ const passTo = async (sideMax) => {
   await pinchSlide(cal, a, over, 0.9);
 };
 
-// Level 1 is the Sprout: three stem rows on lever 0 (24), then the leaves on lever 1 (36). Par 3.
+// Level 1 is the Sprout: two stem rows on lever 0, then the top row is stem AND leaves:
+// lever 1 joins lever 0 ("Two levers at once!").
 // Row 1: latch lever 0, pass →
 const l0 = lever(0, false);
 await pinchSlide(cal, l0, [l0[0], l0[1], T().leverLatchedZRef[2] - 0.005]);
@@ -46,27 +47,24 @@ check('row 1 woven', s.debug.rows.length === 1, JSON.stringify(s.debug.rows));
 check('tutorial hint: the goal (card)', s.debug.hint === 'card', s.debug.hint);
 shot('m1-02-row1', s.debug.loomOrigin);
 
-// Rows 2 and 3: the stem again, ← then →
+// Row 2: the stem again, ←
 await passTo(false);
+// A deliberate wrong pass (the top row needs the leaves too), then unpick it with the bobbin.
 await passTo(true);
-// A deliberate wrong pass (the leaves need lever 1, not lever 0), then unpick it with the bobbin.
-await passTo(false);
 s = state();
-check('wrong row 4 woven', s.debug.rows.length === 4, JSON.stringify(s.debug.rows));
+check('wrong row 3 woven', s.debug.rows.length === 3, JSON.stringify(s.debug.rows));
 shot('m1-03-miss', s.debug.loomOrigin);
 const t = T();
 await pinchSlide(cal, t.bobbin, [t.bobbinPulled[0], t.bobbinPulled[1], t.bobbinPulled[2] + 0.008], 0.5);
 s = state();
-check('bobbin pull unpicks the wrong row', s.debug.rows.length === 3, `rows=${s.debug.rows.length}`);
+check('bobbin pull unpicks the wrong row', s.debug.rows.length === 2, `rows=${s.debug.rows.length}`);
 
-// Row 4: poke lever 1 (accessibility path), slide lever 0 back to rest, pass ←
+// Row 3: poke lever 1 (accessibility path): it joins lever 0, the aha; pass →
 await poke(cal, lever(1, false));
 s = state();
-check('poke latches lever 1', s.debug.latched[1] === true, JSON.stringify(s.debug.latched));
-await pinchSlide(cal, [T().lever0[0], T().lever0[1], T().lever0[2]], restZ(0).map((v, i) => (i === 2 ? v + 0.005 : v)));
-s = state();
-check('lever 0 released', s.debug.latched[0] === false, JSON.stringify(s.debug.latched));
-await passTo(false);
+check('poke latches lever 1 beside lever 0', s.debug.latched[0] === true && s.debug.latched[1] === true, JSON.stringify(s.debug.latched));
+check('the aha: two levers at once', s.debug.hint === 'combo', s.debug.hint);
+await passTo(true);
 s = state();
 check('level 1 won with 3 stars', s.debug.flow !== 'play' && s.debug.stars === 3, `flow=${s.debug.flow} stars=${s.debug.stars} rows=${JSON.stringify(s.debug.rows)}`);
 shot('m1-04-win', s.debug.loomOrigin);
