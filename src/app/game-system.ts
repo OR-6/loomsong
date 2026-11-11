@@ -274,7 +274,7 @@ export class GameSystem extends createSystem({
     this.tutor.mesh.rotation.x = -0.35;
     // hints are never hidden behind a bowl or a post
     (this.tutor.mesh.material as import('@iwsdk/core').MeshBasicMaterial).depthTest = false;
-    this.tutor.mesh.renderOrder = 20;
+    this.tutor.mesh.renderOrder = 999; // over the ghost hand too: the words are never hidden by the demo
     this.view.root.add(this.tutor.mesh);
     this.tutor.setTheme(this.shown());
     this.tutor.set('');
