@@ -24,6 +24,7 @@ import {
   SphereGeometry,
   Vector3,
 } from '@iwsdk/core';
+import { motion } from '../ui/motion.js';
 
 const PUFFS = 48;
 const BITS = 170;
@@ -229,6 +230,10 @@ export class Fx {
 
   /** Confetti burst rising from a point. `gold`: a small golden sparkle (an on-beat row). */
   confetti(x: number, y: number, z: number, count = BITS, power = 1, gold = false): void {
+    if (motion.calm) {
+      count = Math.ceil(count * 0.3); // calm motion: a few soft pieces, not a burst
+      power *= 0.6;
+    }
     for (let j = 0; j < count; j++) {
       const i = this.nextBit;
       this.nextBit = (i + 1) % BITS;

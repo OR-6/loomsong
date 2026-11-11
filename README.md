@@ -47,6 +47,9 @@ Hand tracking has no touch, so Loomsong puts every interaction on a real surface
 - **High contrast:** pure white/black yarn, a black-and-white card and opaque labels. Row status never relies on hue: ticks, crosses, arrows and hatching carry it.
 - **No timers, no fail states, undo always available.** Hints name levers by number and colour ("Lift lever 1 (red)"), matching the dots on the lever box.
 - In-world text has a cap height of at least 1.5 cm, with at most 5 words per label.
+- **Calm motion** (on the 2D page; on by default when your system asks for reduced motion): far less confetti, small hops and bounces, and the Sea's light on the table barely drifts.
+- **Reach:** measured in the emulator from a seated player's shoulders, the levers are 41–49 cm away, Pip 49 cm, the undo spool 42 cm; the loom unfolds where your hand rests, so it starts within reach.
+- Every sound has a visual twin: a plucked thread twangs, a woven row gets a tick or a cross on the card, Pip cheers or droops.
 
 **Honest caveat:** these features have **not** been validated with disabled players. Calibration's tremor handling is unit-tested with synthetic jitter only, because the emulator's hand is perfectly steady. Feedback is very welcome.
 

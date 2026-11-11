@@ -14,6 +14,7 @@ import {
   RepeatWrapping,
   SphereGeometry,
 } from '@iwsdk/core';
+import { motion } from '../ui/motion.js';
 
 export class RoomMood {
   readonly root = new Group();
@@ -67,7 +68,7 @@ export class RoomMood {
     rm.opacity = 0.32 * this.sea;
     this.ripples.visible = this.sea > 0.01;
     if (this.ripples.visible && rm.map) {
-      this.t += dt;
+      this.t += dt * (motion.calm ? 0.15 : 1); // calm motion: the light barely drifts
       rm.map.offset.set(Math.sin(this.t * 0.11) * 0.3 + this.t * 0.012, Math.cos(this.t * 0.09) * 0.2);
       rm.map.rotation = Math.sin(this.t * 0.05) * 0.2;
     }

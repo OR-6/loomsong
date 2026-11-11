@@ -14,6 +14,8 @@ export interface Settings {
   calibrateNext: boolean;
   /** Set the table afresh on the next XR entry (instead of the loom coming back where it was). */
   placeFresh: boolean;
+  /** Calm motion; undefined: follow the system's reduced-motion preference. */
+  calmMotion?: boolean;
   calibration?: CalResult;
 }
 
@@ -28,6 +30,7 @@ export function loadSettings(): Settings {
     hand: s.hand === 'left' || s.hand === 'right' ? s.hand : 'auto',
     calibrateNext: s.calibrateNext === true,
     placeFresh: s.placeFresh === true,
+    calmMotion: typeof s.calmMotion === 'boolean' ? s.calmMotion : undefined,
     calibration: validCal(s.calibration) ? s.calibration : undefined,
   };
 }

@@ -28,6 +28,7 @@ import {
   CanvasTexture,
   SRGBColorSpace,
 } from '@iwsdk/core';
+import { motion } from '../ui/motion.js';
 import { Label } from '../ui/label.js';
 import { LOOM, WARPS } from '../config.js';
 import { isLifted, type Mask8 } from '../puzzle/tieup.js';
@@ -1072,7 +1073,7 @@ export class Plushes {
     } else if (this.phase === 'dance') {
       this.bounce = Math.min(1, this.bounce + dt / 0.32);
       const b = Math.sin(this.bounce * Math.PI);
-      h.position.y = PLUSH.danceY + 0.02 * b; // hovering, bouncing to the song
+      h.position.y = PLUSH.danceY + 0.02 * b * motion.k; // hovering, bouncing to the song (gently, with calm motion)
       h.rotation.x += (-0.3 - h.rotation.x) * Math.min(1, dt * 8); // leaning a little toward you
       const land = this.bounce > 0.85 ? (this.bounce - 0.85) / 0.15 : 0;
       h.scale.set(PLUSH.hero * (1 + 0.08 * land), PLUSH.hero * (1 - 0.12 * land + 0.05 * b), PLUSH.hero);

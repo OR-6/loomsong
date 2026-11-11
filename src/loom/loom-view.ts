@@ -46,6 +46,7 @@ import { DAILY_BALL } from './daily-ball.js';
 import { Basket } from './basket.js';
 import { DailyBall } from './daily-ball.js';
 import { ToyPhone } from './toy-phone.js';
+import { motion } from '../ui/motion.js';
 import { RoomMood } from './room-mood.js';
 import { GhostHand } from './ghost-hand.js';
 import { Fx } from './fx.js';
@@ -1112,8 +1113,8 @@ export class LoomView {
     this.pipSleep += ((this.pipAsleep ? 1 : 0) - this.pipSleep) * Math.min(1, dt * 3);
     // flying: lean into the motion
     this.pipLean += (-0.18 * Math.min(1, speed * 2) - this.pipLean) * Math.min(1, dt * 10);
-    p.position.y = y;
-    p.rotation.set(0, spin + look, pitch + this.pipLean);
+    p.position.y = y * motion.k; // calm motion: small hops
+    p.rotation.set(0, (motion.calm ? 0 : spin) + look, pitch + this.pipLean);
     p.scale.set(0.95 * sx, 0.95 * squash, 0.95 * sx);
   }
 

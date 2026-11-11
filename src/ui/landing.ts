@@ -6,6 +6,7 @@ import { mountWeaveMark } from './weave-mark.js';
 import { hangPhotos } from './hang.js';
 import { VisibilityState, type World } from '@iwsdk/core';
 import { audio } from '../audio/synth.js';
+import { prefersReducedMotion } from './motion.js';
 import { loadProgress, workshopUnlocked } from '../persistence/progress.js';
 import { THEMES, type ThemeId } from './theme.js';
 import { clothDataUrl } from './cloth-image.js';
@@ -95,6 +96,7 @@ export function mountLanding(world: World): void {
         <div id="settings" aria-label="Settings">
           <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="hc" role="switch" aria-checked="false">High contrast</button></span>
           <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="music" role="switch" aria-checked="true">Music</button></span>
+          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="calm" role="switch" aria-checked="false">Calm motion</button></span>
           <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="fit" aria-pressed="false">Fit to my hands</button></span>
           <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="fresh" aria-pressed="false" title="Next time, rest your palm on the desk to set the loom somewhere new">Move the loom</button></span>
           <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><div role="radiogroup" aria-label="Lever side" id="hand-pick">
@@ -262,6 +264,7 @@ export function mountLanding(world: World): void {
   // Accessibility settings.
   const hc = el.querySelector<HTMLButtonElement>('#hc')!;
   const music = el.querySelector<HTMLButtonElement>('#music')!;
+  const calm = el.querySelector<HTMLButtonElement>('#calm')!;
   const handPick = el.querySelector<HTMLElement>('#hand-pick')!;
   const fit = el.querySelector<HTMLButtonElement>('#fit')!;
   const fresh = el.querySelector<HTMLButtonElement>('#fresh')!;
@@ -269,6 +272,7 @@ export function mountLanding(world: World): void {
     const st = loadSettings();
     hc.setAttribute('aria-checked', String(st.highContrast));
     music.setAttribute('aria-checked', String(st.music));
+    calm.setAttribute('aria-checked', String(st.calmMotion ?? prefersReducedMotion()));
     fit.setAttribute('aria-pressed', String(st.calibrateNext));
     fit.textContent = st.calibrateNext
       ? 'Fitting on next entry'
@@ -285,6 +289,12 @@ export function mountLanding(world: World): void {
   hc.addEventListener('click', () => {
     const st = loadSettings();
     saveSettings({ ...st, highContrast: !st.highContrast });
+    syncSettings();
+    changed();
+  });
+  calm.addEventListener('click', () => {
+    const st = loadSettings();
+    saveSettings({ ...st, calmMotion: !(st.calmMotion ?? prefersReducedMotion()) });
     syncSettings();
     changed();
   });

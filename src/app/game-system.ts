@@ -37,6 +37,7 @@ import type { Level } from '../puzzle/levels.js';
 import { PLUSH, ROW_BEAT, SPOTS, type DeskItem, type ShelfItem } from '../loom/plush.js';
 import { DAILY_BALL } from '../loom/daily-ball.js';
 import { TOY_PHONE } from '../loom/toy-phone.js';
+import { motion, prefersReducedMotion } from '../ui/motion.js';
 import { QUILT_W, buildQuilt } from '../loom/quilt.js';
 import { isLifted } from '../puzzle/tieup.js';
 const PLUSH_SLOTS = SPOTS;
@@ -372,8 +373,10 @@ export class GameSystem extends createSystem({
     };
     window.addEventListener('loomsong:theme', onTheme);
     this.cleanupFuncs.push(() => window.removeEventListener('loomsong:theme', onTheme));
+    motion.calm = this.settings.calmMotion ?? prefersReducedMotion();
     const onSettings = () => {
       this.settings = loadSettings();
+      motion.calm = this.settings.calmMotion ?? prefersReducedMotion();
       applyCalibration(this.settings.calibration);
       audio.setMusic(this.settings.music);
       this.restyle();
@@ -2017,7 +2020,8 @@ export class GameSystem extends createSystem({
       const up = this.model.latched[k];
       // floats right above that very knob, wherever it is (latched knobs sit further back)
       this.controller.leverPos(k, this.tagAt);
-      m.position.set(this.tagAt.x + side * 0.05, this.tagAt.y + 0.075, this.tagAt.z); // high over that knob, nudged into the box (clear of Pip)
+      // behind the bank, past the knob's travel: the ghost hand comes down over the knob from the front, so the words never cover it
+      m.position.set(this.tagAt.x + side * 0.03, this.tagAt.y + 0.05, (up ? this.tagAt.z : this.tagAt.z - LEVER.travel) - 0.075);
       if (up === (step === 'unlatch')) this.view.setLeverHighlight(k, 0, up, pulse);
     } else if (step === 'weft') {
       // the swap spool on Pip's side breathes, with the tag above it
@@ -2094,7 +2098,7 @@ export class GameSystem extends createSystem({
       // it pops in, then floats gently
       const t = this.bannerDur - this.bannerLeft;
       this.banner.mesh.scale.setScalar(t < 0.3 ? 0.4 + 0.6 * (1 - Math.pow(1 - t / 0.3, 3)) * 1.08 : 1);
-      this.banner.mesh.position.y = this.bannerY + 0.004 * Math.sin(t * 2.5);
+      this.banner.mesh.position.y = this.bannerY + 0.004 * Math.sin(t * 2.5) * motion.k;
       if (this.bannerLeft <= 0) {
         this.banner.set('');
         this.debug.banner = '';
