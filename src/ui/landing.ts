@@ -42,13 +42,13 @@ export function mountLanding(world: World): void {
             <p id="tagline">A tiny loom on your real desk. Hands only.</p>
             <p class="lede">Lift the levers, slide Pip across, and each row you weave sings. Finish a picture and it comes alive as a little knitted toy.</p>
             <div class="go">
-              <button id="enter-xr" type="button">Enter mixed reality</button>
+              <button id="enter-xr" class="patch" type="button">Enter mixed reality</button>
               <p class="note">Sit at a desk with your controllers down and hand tracking on.</p>
             </div>
             <div class="nohead" id="xr-unsupported" hidden>
-              <i class="peg" aria-hidden="true"></i>
+              <i class="tape" aria-hidden="true"></i>
               <p>This browser can't open mixed reality. Open this page in your headset's browser, or join a friend's loom as their caller:</p>
-              <div class="row"><input id="call-code" maxlength="4" placeholder="CODE" aria-label="Friend's room code" autocomplete="off" /><button type="button" id="call-join">Join as caller</button></div>
+              <div class="row"><input id="call-code" maxlength="4" placeholder="CODE" aria-label="Friend's room code" autocomplete="off" /><button type="button" id="call-join" class="patch">Join as caller</button></div>
             </div>
 
           </div>
@@ -64,8 +64,9 @@ export function mountLanding(world: World): void {
 
         <section class="line" aria-label="How it plays">
           <svg class="yarn" viewBox="0 0 1000 90" preserveAspectRatio="none" aria-hidden="true">
-            <path d="M-10 6 Q 230 80 480 52 T 1010 14" fill="none" stroke="#c43c28" stroke-width="5" stroke-linecap="round"/>
-            <path d="M-10 6 Q 230 80 480 52 T 1010 14" fill="none" stroke="#f07a62" stroke-width="2.2" stroke-dasharray="5 6" stroke-linecap="round"/>
+            <defs><pattern id="ply-red" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(55)"><rect width="7" height="7" fill="#c43c28"/><rect width="3.2" height="7" fill="#ee6a4f"/></pattern></defs>
+            <path d="M-10 6 Q 230 80 480 52 T 1010 14" fill="none" stroke="#8f2a1c" stroke-width="7" stroke-linecap="round" opacity=".35"/>
+            <path d="M-10 6 Q 230 80 480 52 T 1010 14" fill="none" stroke="url(#ply-red)" stroke-width="5.5" stroke-linecap="round"/>
           </svg>
           <ol class="steps">
             <li class="s1"><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('levers-close.jpg')}" alt="The red lever lifts its threads" width="800" height="600" /></figure>
@@ -79,30 +80,31 @@ export function mountLanding(world: World): void {
 
         <section class="more" aria-label="What else is on the desk">
           <svg class="yarn small-yarn" viewBox="0 0 1000 60" preserveAspectRatio="none" aria-hidden="true">
-            <path d="M-10 30 Q 300 4 520 22 T 1010 10" fill="none" stroke="#1a8f80" stroke-width="4" stroke-linecap="round"/>
-            <path d="M-10 30 Q 300 4 520 22 T 1010 10" fill="none" stroke="#5cc9b9" stroke-width="1.8" stroke-dasharray="5 6" stroke-linecap="round"/>
+            <defs><pattern id="ply-teal" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(55)"><rect width="6" height="6" fill="#178a7b"/><rect width="2.8" height="6" fill="#4fc2b1"/></pattern></defs>
+            <path d="M-10 30 Q 300 4 520 22 T 1010 10" fill="none" stroke="#0d5d53" stroke-width="6" stroke-linecap="round" opacity=".35"/>
+            <path d="M-10 30 Q 300 4 520 22 T 1010 10" fill="none" stroke="url(#ply-teal)" stroke-width="4.5" stroke-linecap="round"/>
           </svg>
-          <figure class="photo small"><i class="peg"></i><img loading="lazy" src="${sitePhoto('shelf.jpg')}" alt="Finished plushes on a little shelf with a brass wind-up key" width="800" height="600" /></figure>
-          <div class="note-card"><i class="peg"></i><b>Four chapters, eighteen pictures</b><p>Garden teaches your hands, Home combines levers, Night hides what they lift, and Sea weaves in two colours. Wind the key on your shelf and your plushes sing their songs in turn.</p></div>
-          <figure class="photo small"><i class="peg"></i><img loading="lazy" src="${sitePhoto('sea-boat.jpg')}" alt="A red boat woven on blue water rows" width="800" height="600" /></figure>
+          <figure class="photo small"><i class="tape"></i><img loading="lazy" src="${sitePhoto('shelf.jpg')}" alt="Finished plushes on a little shelf with a brass wind-up key" width="800" height="500" /></figure>
+          <div class="note-card"><i class="tape"></i><b>Four chapters, eighteen pictures</b><p>Garden teaches your hands, Home combines levers, Night hides what they lift, and Sea weaves in two colours. Wind the key on your shelf and your plushes sing their songs in turn.</p></div>
+          <figure class="photo small"><i class="tape"></i><img loading="lazy" src="${sitePhoto('sea-boat.jpg')}" alt="A red boat woven on blue water rows" width="800" height="500" /></figure>
         </section>
 
         <div class="drawer">
         <figure id="share-card" hidden>
-          <span class="pegged"><i class="peg"></i><img id="cloth-img" alt="Your last woven cloth" /></span>
+          <span class="pegged"><i class="tape"></i><img id="cloth-img" alt="Your last woven cloth" /></span>
           <figcaption>
             <b>Your last picture</b>
-            <button type="button" id="share-btn">Share this cloth</button>
+            <button type="button" id="share-btn" class="patch">Share this cloth</button>
             <span id="share-note" role="status"></span>
           </figcaption>
         </figure>
 
         <div class="prep">
-        <h2 class="before"><i class="peg" aria-hidden="true"></i>Before you start</h2>
+        <h2 class="before">Before you start</h2>
         <div id="settings" aria-label="Settings">
-          <span class="tagwrap"><i class="string" aria-hidden="true"></i><button type="button" class="tag" id="hc" role="switch" aria-checked="false">High contrast</button></span>
-          <span class="tagwrap"><i class="string" aria-hidden="true"></i><button type="button" class="tag" id="music" role="switch" aria-checked="true">Music</button></span>
-          <span class="tagwrap"><i class="string" aria-hidden="true"></i><button type="button" class="tag" id="fit" aria-pressed="false">Fit to my hands</button></span>
+          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="hc" role="switch" aria-checked="false">High contrast</button></span>
+          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="music" role="switch" aria-checked="true">Music</button></span>
+          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="fit" aria-pressed="false">Fit to my hands</button></span>
           <div role="radiogroup" aria-label="Lever side" id="hand-pick">
             <span class="lbl">Levers on the</span>
             <button type="button" data-hand="auto" role="radio" title="On the side of the hand you place the loom with">placing hand</button>
@@ -124,10 +126,10 @@ export function mountLanding(world: World): void {
             <h2 id="coop-title">No headset? Be the caller on your phone.</h2>
             <p>The weaver hosts a loom in their headset and reads out the code. Open this page on your phone and join: you see the card and press the levers while they slide Pip. A friend in a second headset can join as the shuttle thrower instead.</p>
             <div class="row">
-              <button type="button" id="coop-host">Host a loom</button>
+              <button type="button" id="coop-host" class="patch">Host a loom</button>
               <span class="or">or</span>
               <input id="coop-code" maxlength="4" placeholder="CODE" aria-label="Room code" autocomplete="off" />
-              <button type="button" id="coop-join">Join</button>
+              <button type="button" id="coop-join" class="patch">Join</button>
               <button type="button" id="coop-leave" hidden>Leave</button>
             </div>
             <p id="coop-status" role="status"></p>
@@ -136,7 +138,7 @@ export function mountLanding(world: World): void {
         </section>
 
         <footer class="foot">
-          <p class="slip"><i class="peg" aria-hidden="true"></i>Made for a mixed-reality game jam, November 2026, with IWSDK. Every sound is CC0: <a href="${import.meta.env.BASE_URL}audio/CREDITS.md">see the credits</a>.</p>
+          <p class="slip">Made for a mixed-reality game jam, November 2026, with IWSDK. Every sound is CC0: <a href="${import.meta.env.BASE_URL}audio/CREDITS.md">see the credits</a>.</p>
         </footer>
       </main>
     </div>`;
