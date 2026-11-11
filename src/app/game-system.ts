@@ -995,7 +995,8 @@ export class GameSystem extends createSystem({
     const done = CHAPTERS.filter((c) => c.levels.every((id) => (this.progress.best[id] ?? 0) > 0));
     for (let k = 0; k < done.length; k++) {
       const ch = done[k];
-      if (this.quilts.has(ch.id) || ch.id === this.quiltFlyId || this.quiltFly?.id === ch.id) continue;
+      // a chapter just finished waits for its finale and flies over from the shelf (never hung twice)
+      if (this.quilts.has(ch.id) || ch.id === this.quiltFlyId || this.quiltFly?.id === ch.id || this.finale?.level.chapter === ch.id) continue;
       const g = this.makeQuilt(ch.id);
       if (!g) continue;
       this.quiltSlot(k, done.length, g.position);
