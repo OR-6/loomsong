@@ -10,52 +10,86 @@ import { clothDataUrl } from './cloth-image.js';
 import { clothFromHash, shareUrl } from '../net/share.js';
 import { loadSettings, saveSettings, type HandPref } from '../persistence/settings.js';
 import { coop, type CoopStatus } from '../net/coop.js';
+import { PICTURES } from '../puzzle/pictures.gen.js';
 import { mountCaller, shouldCall, unmountCaller } from './caller.js';
 
 export function mountLanding(world: World): void {
   const el = document.createElement('div');
   el.id = 'landing';
   el.innerHTML = `
-    <h1>Loomsong</h1>
-    <p id="tagline">A tiny loom on your real desk. Hands only.</p>
-    <button id="enter-xr" type="button">Enter XR</button>
-    <div id="style-pick" role="radiogroup" aria-label="Loom style" hidden>
-      <button type="button" data-theme="toy" role="radio">Toy</button>
-      <button type="button" data-theme="workshop" role="radio">Workshop</button>
-    </div>
-    <p class="small">Sit at a desk, controllers down, hand tracking on.</p>
-    <figure id="share-card" hidden>
-      <img id="cloth-img" alt="Your last woven cloth" />
-      <figcaption>
-        <button type="button" id="share-btn">Share this cloth</button>
-        <span id="share-note" role="status"></span>
-      </figcaption>
-    </figure>
-    <div id="settings">
-      <button type="button" id="hc" role="switch" aria-checked="false">High contrast</button>
-      <button type="button" id="music" role="switch" aria-checked="true">Music</button>
-      <button type="button" id="fit" aria-pressed="false">Fit to my hands</button>
-      <div role="radiogroup" aria-label="Lever side" id="hand-pick">
-        <span class="lbl">Levers</span>
-        <button type="button" data-hand="auto" role="radio">Auto</button>
-        <button type="button" data-hand="left" role="radio">Left</button>
-        <button type="button" data-hand="right" role="radio">Right</button>
-      </div>
-    </div>
-    <p class="small" id="xr-unsupported" hidden>Mixed reality isn't available in this browser. Open this page in your headset's browser.</p>
-    <details id="coop">
-      <summary>Play together (beta)</summary>
-      <p class="small">Host a loom in your headset, then share the code. A friend on a <b>phone</b> joins as your caller: they see the card and press the levers while you slide Pip. A second headset joins as the shuttle thrower.</p>
-      <div class="row">
-        <button type="button" id="coop-host">Host a loom</button>
-        <input id="coop-code" maxlength="4" placeholder="CODE" aria-label="Room code" autocomplete="off" />
-        <button type="button" id="coop-join">Join</button>
-        <button type="button" id="coop-leave" hidden>Leave</button>
-      </div>
-      <p id="coop-status" role="status"></p>
-      <p class="small">Connects you directly to the other player (WebRTC, via a public PeerJS server). No accounts, no voice.</p>
-    </details>`;
+    <div class="frame">
+      <i class="spool tl"></i><i class="spool tr"></i><i class="spool bl"></i><i class="spool br"></i>
+      <main class="felt">
+        <section class="hero">
+          <div class="weave" aria-hidden="true">
+            <div class="warps"></div>
+            <div class="cloth"></div>
+            <svg class="pip" viewBox="0 0 46 40" width="46" height="40">
+              <path d="M6 30 q16 9 34 0 l-3 6 q-14 5 -28 0z" fill="#b5703f"/>
+              <ellipse cx="22" cy="22" rx="15" ry="11" fill="#f7c948"/>
+              <circle cx="31" cy="13" r="9" fill="#f7c948"/>
+              <path d="M39 12 l7 3 -7 3z" fill="#f08a3c"/>
+              <circle cx="34" cy="11" r="2" fill="#2b2320"/>
+              <ellipse cx="18" cy="21" rx="7" ry="4.5" fill="#f2b632" transform="rotate(-15 18 21)"/>
+              <circle cx="11" cy="27" r="4.5" fill="#fbf1dc"/>
+            </svg>
+          </div>
+          <div class="pitch">
+            <h1>Loomsong</h1>
+            <p id="tagline">A tiny loom on your real desk. Hands only.</p>
+            <p class="lede">Lift the levers, slide Pip across, and each row you weave sings. Finish a picture and it comes alive as a little knitted toy.</p>
+            <button id="enter-xr" type="button">Enter mixed reality</button>
+            <p class="note" id="xr-unsupported" hidden>This browser can't open mixed reality. Open this page in your headset's browser, or join a friend's loom from your phone below.</p>
+            <p class="note">Sit at a desk with your controllers down and hand tracking on.</p>
+            <div id="style-pick" role="radiogroup" aria-label="Loom style" hidden>
+              <button type="button" data-theme="toy" role="radio">Toy</button>
+              <button type="button" data-theme="workshop" role="radio">Workshop</button>
+            </div>
+          </div>
+        </section>
+
+        <ol class="steps" aria-label="How it plays">
+          <li><b>Lift the levers</b><span>Each lever lifts its own threads. Pick the ones that make the next row on the card.</span></li>
+          <li><b>Slide Pip across</b><span>Pinch the little bird and slide it through. The row is woven, and its threads ring out.</span></li>
+          <li><b>Watch it come alive</b><span>A finished picture pops off the loom as a plush and hops onto your shelf.</span></li>
+        </ol>
+
+        <figure id="share-card" hidden>
+          <img id="cloth-img" alt="Your last woven cloth" />
+          <figcaption>
+            <button type="button" id="share-btn">Share this cloth</button>
+            <span id="share-note" role="status"></span>
+          </figcaption>
+        </figure>
+
+        <div id="settings" aria-label="Settings">
+          <button type="button" class="tag" id="hc" role="switch" aria-checked="false">High contrast</button>
+          <button type="button" class="tag" id="music" role="switch" aria-checked="true">Music</button>
+          <button type="button" class="tag" id="fit" aria-pressed="false">Fit to my hands</button>
+          <div role="radiogroup" aria-label="Lever side" id="hand-pick">
+            <span class="lbl">Levers</span>
+            <button type="button" data-hand="auto" role="radio" title="On the side of the hand you place the loom with">Auto</button>
+            <button type="button" data-hand="left" role="radio">Left</button>
+            <button type="button" data-hand="right" role="radio">Right</button>
+          </div>
+        </div>
+
+        <details id="coop">
+          <summary>Play together</summary>
+          <p>Host a loom in your headset and read out the code. A friend on a <b>phone</b> joins as your caller: they see the card and press the levers while you slide Pip. A friend in a second headset joins as the shuttle thrower.</p>
+          <div class="row">
+            <button type="button" id="coop-host">Host a loom</button>
+            <input id="coop-code" maxlength="4" placeholder="CODE" aria-label="Room code" autocomplete="off" />
+            <button type="button" id="coop-join">Join</button>
+            <button type="button" id="coop-leave" hidden>Leave</button>
+          </div>
+          <p id="coop-status" role="status"></p>
+          <p class="fine">Connects you directly to the other player over WebRTC, through a public PeerJS server. No accounts, no voice.</p>
+        </details>
+      </main>
+    </div>`;
   document.body.appendChild(el);
+  weaveHero(el.querySelector<HTMLElement>('.weave')!);
   const btn = el.querySelector<HTMLButtonElement>('#enter-xr')!;
   btn.addEventListener('click', () => {
     audio.resume(); // user gesture: unlock audio early
@@ -207,4 +241,56 @@ export function mountLanding(world: World): void {
       syncCloth();
     }
   });
+}
+
+/**
+ * The hero: the Duck woven row by row from the bottom, Pip flying across before
+ * each row lands (the page's one orchestrated motion; instant with reduced motion).
+ */
+function weaveHero(box: HTMLElement): void {
+  const pic = PICTURES.find((p) => p.id === 'duck') ?? PICTURES[0];
+  const rows = pic.picture; // top → bottom
+  const color = '#' + pic.color.toString(16).padStart(6, '0');
+  const cloth = box.querySelector<HTMLElement>('.cloth')!;
+  const pip = box.querySelector<SVGElement>('.pip')!;
+  box.style.setProperty('--rows', String(rows.length));
+  box.style.setProperty('--pic', color);
+  const rowEls: HTMLElement[] = [];
+  for (const r of rows) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    for (const ch of r) {
+      const c = document.createElement('i');
+      c.className = ch === '#' ? 'px' : 'gr';
+      row.appendChild(c);
+    }
+    cloth.appendChild(row);
+    rowEls.push(row);
+  }
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) {
+    rowEls.forEach((r) => r.classList.add('in'));
+    pip.classList.add('rest');
+    return;
+  }
+  // weave from the bottom row up, Pip crossing the shed each time (alternating sides)
+  let i = rowEls.length - 1;
+  let fromLeft = true;
+  const next = () => {
+    if (i < 0) {
+      pip.classList.add('rest');
+      return;
+    }
+    const row = rowEls[i];
+    pip.style.setProperty('--y', String(i));
+    pip.classList.toggle('flip', !fromLeft);
+    pip.classList.remove('fly-l', 'fly-r');
+    void pip.getBoundingClientRect();
+    pip.classList.add(fromLeft ? 'fly-r' : 'fly-l');
+    window.setTimeout(() => row.classList.add('in'), 330);
+    fromLeft = !fromLeft;
+    i--;
+    window.setTimeout(next, 560);
+  };
+  window.setTimeout(next, 500);
 }
