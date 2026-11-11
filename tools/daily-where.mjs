@@ -10,7 +10,7 @@ export default async function run({ page, frame }) {
     return {
       ball: d ? d.clone().applyMatrix4(m).toArray() : null,
       visible: g.view.daily.root.visible,
-      bow: g.view.daily.bow.visible,
+      bow: g.view.daily.ribbon.visible,
       level: g.flow.level.id,
       daily: g.flow.daily,
       phase: g.flow.phase,

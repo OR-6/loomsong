@@ -118,8 +118,10 @@ describe('level flow', () => {
     expect(log.at(-1)).toBe('hint unlatch 1');
     model.setLatched(1, false);
     model.commitRow();
-    // the top row: stem AND leaves, so lever 1 joins lever 0 (no putting anything back)
-    expect(log.at(-1)).toBe('hint lever 1');
+    // the top row: stem AND leaves, so lever 1 joins lever 0: first the player gets to find it
+    expect(log.at(-1)).toBe('hint more 1');
+    for (let t = 0; t < TIMING.moreWait + 0.1; t += 0.05) flow.update(0.05);
+    expect(log.at(-1)).toBe('hint lever 1'); // still stuck: now the lever is shown
     model.setLatched(1, true);
     expect(log.at(-1)).toBe('hint combo 0'); // the aha, celebrated once
     for (let t = 0; t < TIMING.comboHint + 0.1; t += 0.05) flow.update(0.05);
@@ -127,6 +129,19 @@ describe('level flow', () => {
     model.commitRow();
     expect(flow.phase).toBe('won');
     expect(flow.progress.tutorialDone).toBe(true);
+  });
+
+  it('the tutorial aha: a player who finds the second lever alone gets the celebration straight away', () => {
+    const { model, flow, log } = setup();
+    flow.start();
+    model.setLatched(0, true);
+    model.commitRow();
+    for (let t = 0; t < 2 * TIMING.cardHint + 0.2; t += 0.05) flow.update(0.05);
+    model.commitRow();
+    expect(log.at(-1)).toBe('hint more 1'); // no pointing
+    flow.update(1);
+    model.setLatched(1, true); // found it
+    expect(log.at(-1)).toBe('hint combo 0');
   });
 
   it('after the tutorial, idling shows a gentle hint that clears on the next touch', () => {

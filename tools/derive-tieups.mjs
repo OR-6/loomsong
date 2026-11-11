@@ -23,8 +23,8 @@ const CHAPTERS = [
   ] },
   { id: 'night', name: 'Night', idea: 'mystery levers', rule: 'parts', mystery: true, pics: [
     { id: 'moon', name: 'Moon', color: 0xeeae1c, rows: ['..####..', '.###....', '###.....', '###.....', '.###....', '..####..'] },
-    { id: 'ghost', name: 'Ghost', color: 0xc9cdf7, rows: ['..####..', '.######.', '##.##.##', '########', '########', '#.#..#.#'] },
-    { id: 'owl', name: 'Owl', color: 0xe08a3c, rows: ['.#....#.', '.######.', '##.##.##', '.######.', '.#.##.#.', '..#..#..'] },
+    { id: 'ghost', name: 'Ghost', color: 0xc9cdf7, rows: ['...###..', '..#####.', '..#.#.#.', '.#######', '########', '#.#.##..'] },
+    { id: 'owl', name: 'Owl', color: 0xe08a3c, rows: ['.##..##.', '.######.', '##.##.##', '.######.', '.######.', '..#..#..'] },
     { id: 'cat', name: 'Cat', color: 0x8f63c9, rows: ['#......#', '##....##', '########', '#.#..#.#', '########', '.######.'] },
   ] },
   { id: 'sea', name: 'Sea', idea: 'mostly combinations', rule: 'parts', mystery: true, pics: [

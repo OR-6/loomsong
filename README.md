@@ -10,7 +10,7 @@ A little wooden toy loom unfolds on your real desk. Each level shows a small pix
 
 ## The idea: your desk is the controller, the shelf and the save file
 
-Hand tracking has no touch, so Loomsong puts every interaction on a real surface. Levers slide along the desk, Pip slides across it, and your hand rests on something solid while you play: real contact, no reaching into the air. Passthrough is the point, not decoration. The loom stands on your actual table, your plushes stay where you put them on it, and next time the loom comes back to the same spot in your room.
+Hand tracking has no touch, so Loomsong puts every interaction on a real surface. Levers slide along the desk, Pip slides across it, and your hand rests on something solid while you play: real contact, no reaching into the air. The game only works because it uses your real table: the loom stands on it, your plushes stay where you put them on it, and next time the loom comes back to the same spot in your room.
 
 ## Judge instructions
 
@@ -23,11 +23,12 @@ Hand tracking has no touch, so Loomsong puts every interaction on a real surface
 
 ## What's in it
 
+- **A quiet start.** The first picture shows only the loom, the card, Pip and two levers; the shelf springs up when your first plush is born, the basket and the daily present come after. The tutorial lets you find the two-lever trick yourself before it shows you.
 - **15 hand-made pictures in four chapters.** Garden teaches that levers add up (the first picture already needs two levers at once). Home is mostly combinations. In Night, a lever's threads stay hidden until you try it (the first try of each is free). In Sea, rows of water need a second colour of yarn that you swap mid-picture. Every level has its own lever set; knots above the card count your moves, and the fewest moves earn three stars.
 - **Pictures come alive.** A finished picture pops out as a plush made from the woven cells, dances on a little felt stage while its song plays, then hops onto the chapter shelf. Poke a plush and it sings its picture; turn the brass wind-up key and every plush plays in turn, like a music box. Finishing a chapter plays the whole shelf.
 - **Plushes on your desk.** Pinch a plush, carry it off the shelf and set it down anywhere on the table. It stays there between sessions. When the table is a detected surface, a plush only stays over it (drop it off the edge and it hops back). The wind-up key plays your plushes left to right as they stand, so arranging the desk rearranges the tune.
 - **The room remembers.** Once the loom is held by IWSDK's persistent spatial anchor, its pose is saved. Next session, if the same anchor comes back and the spot is still within seated reach, the loom unfolds right where you left it. "Move the loom" in the settings sets a new spot.
-- **A picture of the day.** A gift-wrapped yarn ball beside the basket holds today's picture (21 of them, the same for everyone that day). Weave it and its plush hops onto your desk; days in a row are counted.
+- **A picture of the day.** A wrapped present beside the basket holds today's picture (21 of them, the same for everyone that day). Weave it and its plush hops onto your desk; days in a row are counted.
 - **Music.** Every thread is a recorded kalimba note on a pentatonic scale. Run a fingertip over the threads to play them like a harp. A small generative music box plays underneath, with a melody for each chapter; rows thrown on the beat earn a gold shower.
 - **Play together.** Host a loom and read out the four-letter code. A friend can join from **any phone** as your caller: only the caller sees the picture, so you have to talk it through. Two headsets can also share one loom (one works the levers, the other throws the shuttle).
 - **Sharing.** A finished cloth becomes a `#w=` link; opening it starts a "weave this" challenge.
@@ -36,6 +37,7 @@ Hand tracking has no touch, so Loomsong puts every interaction on a real surface
 ## Accessibility
 
 - **Input:** pinch or poke on every control; one hand is enough; either hand works; the lever bank follows your hand or can be set left or right.
+- **Levers by count, not just colour:** each knob carries 1–4 pips (red, teal, mustard and plum also differ in lightness), so colour-blind players and the mystery levers of Night never depend on hue.
 - **Fit to my hands** (on the 2D page): three pinches and a 2 s hold tune pinch thresholds, smoothing and target size (1.0–1.8×).
 - **High contrast:** pure white/black yarn, a black-and-white card and opaque labels. Row status never relies on hue: ticks, crosses, arrows and hatching carry it.
 - **No timers, no fail states, undo always available.** Levers are named by colour in the hints ("Lift the red lever").
@@ -69,6 +71,8 @@ Dev URL parameters:
 | `?desk=<y>` | Fixes the desk height (metres) |
 | `?noise=1` | Adds 3 mm jitter and 2% dropouts to hand tracking |
 | `?degrade=1` or `?degrade=2` | Forces a frame-guard quality level |
+| `?debug=1` | Shows frame rate, draw calls and quality level on a tag behind the card (for headset testing) |
+| `?shadows=0` | Turns off real-time shadows (contact shadows stay), to compare frame times |
 | `?probe` | Dev builds only: publishes raw joint data |
 | `#w=<code>` | Opens a shared cloth |
 

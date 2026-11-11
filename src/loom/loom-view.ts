@@ -39,9 +39,10 @@ import {
 import { TargetCard } from '../ui/target-card.js';
 import { THEMES, type Palette, type Theme } from '../ui/theme.js';
 import { PLAQUE, Plaque } from '../ui/plaque.js';
-import { grainTexture, knitTexture, weaveTexture, yarnTexture } from './textures.js';
+import { feltTexture, grainTexture, weaveTexture, yarnTexture } from './textures.js';
 import { cloneModel, loomModels, materialOf, mergeStatic } from './models.js';
-import { Plushes, puffGeometry } from './plush.js';
+import { PLUSH, Plushes, puffGeometry } from './plush.js';
+import { DAILY_BALL } from './daily-ball.js';
 import { Basket } from './basket.js';
 import { DailyBall } from './daily-ball.js';
 import { GhostHand } from './ghost-hand.js';
@@ -51,6 +52,7 @@ import {
   BOBBIN,
   CARD,
   LEVER,
+  BASKET,
   LEVERS,
   bobbinX,
   LOOM,
@@ -213,14 +215,18 @@ export class LoomView {
   private squash = 0;
   private shadowOn = true;
 
-  /** Contact-shadow decal on/off (frame guard). */
+  /**
+   * Real-time shadows on/off (frame guard, `?shadows=0`). The soft contact
+   * shadows under every object stay: they ground the toys on the real desk
+   * at almost no cost.
+   */
   setShadow(on: boolean): void {
     this.shadowOn = on;
-    const s = this.body.getObjectByName('ContactShadow');
-    if (s) s.visible = on;
     this.key.castShadow = on;
     this.catcher.visible = on;
   }
+  /** Soft contact shadows under the shelf, the lever box, the basket and the gift (follow the lever side). */
+  private blobs: Mesh[] = [];
   /** Warm key light (moves with the loom) and a desk shadow catcher. */
   private key = new DirectionalLight(0xfff0dc, 1.6);
   /** Felt mat under everything; the chapter shelf and plush show. */
@@ -420,7 +426,7 @@ export class LoomView {
 
     // Cloth cells.
     const cellGeo = new BoxGeometry(WARP_PITCH * 0.995, 0.003, LOOM.rowPitch * 0.99);
-    const clothMat = new MeshStandardMaterial({ roughness: 0.95, map: knitTexture() }); // a knitted V stitch per cell
+    const clothMat = new MeshStandardMaterial({ roughness: 0.95, map: weaveTexture() }); // woven: weft fibres across each cell, not a knit stitch
     // Woven cells: flat, square yarn cells in one continuous band on the felt.
     this.cloth = new InstancedMesh(new BoxGeometry(1, 1, 1), clothMat, WARPS * LOOM.visibleRows);
     this.cloth.name = 'Cloth';
@@ -472,6 +478,7 @@ export class LoomView {
         this.knobCaps[k] = knob.getObjectByName('Cap0') ?? null;
         const c0 = this.knobCaps[k];
         if (c0) c0.userData.baseScale = c0.scale.toArray();
+        if (c0) addPips(c0 as Mesh, k + 1);
         cap.color.setHex(palette.knobs[k]);
         // yarn wrap on the stem, a shade deeper than the cap
         const wrap = materialOf(knob, 'StemWrap') as MeshStandardMaterial | null;
@@ -527,6 +534,13 @@ export class LoomView {
       ball.castShadow = true;
       pip.add(ball);
       this.shuttleMat = materialOf(this.shuttle, 'Body') as MeshStandardMaterial;
+      // a felt bird, like the plushes: matte, with soft fibres (no rubber-duck shine)
+      if (this.shuttleMat) {
+        this.shuttleMat.roughness = 0.92;
+        this.shuttleMat.metalness = 0;
+        this.shuttleMat.map = feltTexture();
+        this.shuttleMat.needsUpdate = true;
+      }
       // Head shares the body's material so the hover glow covers all of Pip.
       const head = this.shuttle.getObjectByName('Head') as Mesh | undefined;
       if (head) head.material = this.shuttleMat;
@@ -642,6 +656,30 @@ export class LoomView {
 
   setSide(side: 1 | -1): void {
     this.side = side;
+    // contact shadows: shelf, lever box, basket, the gift [x, z, width, depth]
+    const spots: [number, number, number, number][] = [
+      [-side * PLUSH.shelfX, PLUSH.shelfZ + 0.004, 0.31, 0.085],
+      [side * (LEVER.firstX + 1.5 * LEVER.spacing), 0.052, 0.23, 0.15],
+      [-side * BASKET.x, BASKET.z + 0.004, 0.135, 0.105],
+      [-side * DAILY_BALL.x, DAILY_BALL.z + 0.004, 0.06, 0.06],
+    ];
+    if (!this.blobs.length) {
+      const mat = new MeshBasicMaterial({ map: radialTexture(), transparent: true, depthWrite: false, color: 0x000000, opacity: 0.26 });
+      const geo = new PlaneGeometry(1, 1);
+      for (let i = 0; i < spots.length; i++) {
+        const b = new Mesh(geo, mat);
+        b.name = 'ContactBlob';
+        b.rotation.x = -Math.PI / 2;
+        b.renderOrder = -1;
+        this.root.add(b);
+        this.blobs.push(b);
+      }
+    }
+    for (let i = 0; i < spots.length; i++) {
+      const [x, z, w, d] = spots[i];
+      this.blobs[i].position.set(x, 0.0004, z);
+      this.blobs[i].scale.set(w, d, 1);
+    }
     this.weftSpools.children[0]?.position.set(side * SWAP.x, SWAP.y, SWAP.z);
     this.token.position.set(tokenX(side), TOKEN.y, TOKEN.z);
     this.nudges.position.set(nudgeX(side), NUDGE.y, 0);
@@ -1635,4 +1673,36 @@ function mysteryMark(): Mesh {
   m.name = 'MysteryMark';
   m.rotation.x = -Math.PI / 2; // undo the ring's turn: dome up again
   return m;
+}
+
+const pipGeo = new SphereGeometry(1, 10, 6);
+const pipMat = new MeshStandardMaterial({ color: 0xfff4e0, roughness: 0.7 });
+/**
+ * 1–4 cream pips pressed into the top of a lever cap, like a die: levers are
+ * told apart by count as well as colour (colour-blind players, mystery levers).
+ */
+function addPips(cap: Mesh, n: number): void {
+  const g = cap.geometry;
+  if (!g.boundingBox) g.computeBoundingBox();
+  const b = g.boundingBox!;
+  const r = (b.max.x - b.min.x) / 2;
+  const cx = (b.max.x + b.min.x) / 2;
+  const cy = (b.max.y + b.min.y) / 2;
+  const cz = (b.max.z + b.min.z) / 2;
+  const hr = b.max.y - cy; // vertical half-size (caps can be squashed domes)
+  const d = r * 0.36;
+  const layouts: [number, number][][] = [
+    [[0, 0]],
+    [[-d, 0], [d, 0]],
+    [[0, -d], [-d * 0.9, d * 0.55], [d * 0.9, d * 0.55]],
+    [[-d, -d], [d, -d], [-d, d], [d, d]].map(([x, z]) => [x * 0.8, z * 0.8] as [number, number]),
+  ];
+  for (const [x, z] of layouts[n - 1] ?? []) {
+    const p = new Mesh(pipGeo, pipMat);
+    p.name = 'KnobPip';
+    const t = Math.min(1, Math.hypot(x, z) / r);
+    p.position.set(cx + x, cy + hr * Math.sqrt(Math.max(0, 1 - t * t)) - r * 0.02, cz + z);
+    p.scale.set(r * 0.15, r * 0.08, r * 0.15);
+    cap.add(p);
+  }
 }

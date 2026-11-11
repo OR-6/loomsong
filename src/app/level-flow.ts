@@ -19,7 +19,7 @@ export type FlowPhase = 'play' | 'won' | 'playback' | 'between';
  * 'knots': the tutorial explains the knot budget once, after the goal;
  * 'combo': the aha, once: two levers latched together make the next row.
  */
-export type HintStep = 'lever' | 'unlatch' | 'weft' | 'shuttle' | 'undo' | 'card' | 'knots' | 'combo' | 'none';
+export type HintStep = 'lever' | 'unlatch' | 'weft' | 'shuttle' | 'undo' | 'card' | 'knots' | 'combo' | 'more' | 'none';
 
 export interface FlowHooks {
   load(level: Level, index: number): void;
@@ -42,6 +42,8 @@ export const TIMING = {
   cardHint: 3.5,
   /** How long the "two levers at once" aha tag stays up. */
   comboHint: 2.6,
+  /** The tutorial lets the player find the second lever this long before showing it. */
+  moreWait: 8,
   /** Seconds without touching anything before a gentle hint (after the tutorial). */
   idleHint: 12,
 } as const;
@@ -71,6 +73,8 @@ export class LevelFlow {
   private goalShown = false;
   /** The "two levers at once" aha has been celebrated. */
   private comboShown = false;
+  /** The tutorial has asked the player to find the second lever themselves. */
+  private moreShown = false;
   private idle = 0;
   /** The current hint came from idling (cleared by the next touch). */
   private idleShown = false;
@@ -92,6 +96,7 @@ export class LevelFlow {
     this.tutorial = this.index === 0 && !this.progress.tutorialDone && !this.quiet;
     this.goalShown = false;
     this.comboShown = false;
+    this.moreShown = false;
     this.idle = 0;
     this.idleShown = false;
     if (this.tutorial) this.guide();
@@ -124,6 +129,10 @@ export class LevelFlow {
   }
 
   update(dt: number): void {
+    if (this.hintStep === 'more' && this.hintTimer > 0) {
+      this.hintTimer -= dt;
+      if (this.hintTimer <= 0) this.guide(); // still stuck: now show the lever
+    }
     if ((this.hintStep === 'card' || this.hintStep === 'knots' || this.hintStep === 'combo') && this.hintTimer > 0) {
       this.hintTimer -= dt;
       if (this.hintTimer <= 0) {
@@ -285,6 +294,14 @@ export class LevelFlow {
   /** Tutorial: show the very next action for the current row. */
   private guide(): void {
     const n = nextStep(this.level, this.model.rows, this.model.latched, this.model.weft);
+    // the aha is the player's: when the next row needs a second lever beside one that's up,
+    // say so without pointing, once; if they're still stuck after a while, the lever is shown
+    if (this.tutorial && !this.moreShown && n.step === 'lever' && this.model.latched.some(Boolean)) {
+      this.moreShown = true;
+      this.setHint('more', n.lever);
+      this.hintTimer = TIMING.moreWait;
+      return;
+    }
     this.setHint(n.step, n.lever);
   }
 

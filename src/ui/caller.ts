@@ -11,7 +11,7 @@ import { rowStatuses } from '../puzzle/session.js';
 import { THEMES } from './theme.js';
 import { TargetCard } from './target-card.js';
 
-const NAMES: Record<number, string> = { 0xe8553e: 'Red', 0x1fb3a0: 'Teal', 0xe8679e: 'Pink', 0x7cc142: 'Green' };
+const NAMES: Record<number, string> = { 0xe8553e: 'Red', 0x1fb3a0: 'Teal', 0xf2b632: 'Yellow', 0x7b5bb8: 'Purple' };
 const hex = (n: number) => '#' + n.toString(16).padStart(6, '0');
 
 let mounted: { el: HTMLElement; stop: () => void } | null = null;

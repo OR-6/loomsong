@@ -13,7 +13,7 @@ const _p = new Vector3();
 const _s = new Vector3();
 const _eu = new Euler();
 const _c = new Color();
-const CONFETTI = [0xe8553e, 0xf7be3b, 0x1fb3a0, 0xe8679e, 0x7cc142, 0xfff2dc];
+const CONFETTI = [0xe8553e, 0xf7be3b, 0x1fb3a0, 0x7b5bb8, 0xe8679e, 0xfff2dc];
 const GOLD = [0xf7c948, 0xffe08a, 0xfff6d8];
 
 export class Fx {

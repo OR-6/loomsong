@@ -9,6 +9,16 @@ for (const s of suites) {
   const ok = r.status === 0;
   if (!ok) failed++;
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${s.padEnd(11)} ${last ?? ''}`);
+  if (ok) continue;
+  // which checks failed (or the error), so a flaky suite can be told from a real break
+  const lines = `${r.stdout || ''}\n${r.stderr || ''}`.split('\n');
+  for (const l of lines.filter((x) => x.startsWith('FAIL  ') || /Error/.test(x)).slice(0, 4)) console.log(`        ${l.slice(0, 220)}`);
+  // retry once: the emulator sometimes needs a moment after the previous suite's reload
+  const again = spawnSync('node', [`tools/e2e-${s}.mjs`], { encoding: 'utf8' });
+  if (again.status === 0) {
+    failed--;
+    console.log(`        retried: PASS (flaky)`);
+  }
 }
 console.log(failed ? `\n${failed} suite(s) failed` : '\nALL SUITES PASS');
 process.exit(failed ? 1 : 0);

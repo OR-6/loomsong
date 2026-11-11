@@ -151,3 +151,39 @@ export function knitTexture(): CanvasTexture {
   knit.colorSpace = SRGBColorSpace;
   return knit;
 }
+
+let felt: CanvasTexture | null = null;
+/**
+ * Plush felt: a soft pillow (lighter middle, gently darker toward the seams)
+ * with a fuzz of short fibres. Low contrast on purpose: the quilted cells give
+ * the shape, so a small plush still reads as its picture, not as stitch noise.
+ */
+export function feltTexture(): CanvasTexture {
+  if (felt) return felt;
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d')!;
+  const grad = g.createRadialGradient(64, 60, 8, 64, 64, 92);
+  grad.addColorStop(0, '#ffffff');
+  grad.addColorStop(0.75, '#efebe6');
+  grad.addColorStop(1, '#cfc8bf');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 128, 128);
+  let seed = 11;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  g.lineWidth = 1;
+  for (let i = 0; i < 260; i++) {
+    const x = rnd() * 128;
+    const y = rnd() * 128;
+    const a = rnd() * Math.PI;
+    const l = 2 + rnd() * 4;
+    g.strokeStyle = rnd() < 0.5 ? `rgba(0,0,0,${0.04 + rnd() * 0.05})` : `rgba(255,255,255,${0.1 + rnd() * 0.12})`;
+    g.beginPath();
+    g.moveTo(x, y);
+    g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l);
+    g.stroke();
+  }
+  felt = new CanvasTexture(c);
+  felt.colorSpace = SRGBColorSpace;
+  return felt;
+}

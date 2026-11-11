@@ -52,7 +52,7 @@ export const THEMES: Record<ThemeId, Theme> = {
       shuttle: 0x3d5a80, // navy
       // Lever colours chosen to pop on the yellow box and navy felt (and against
       // cream threads when a lever lights its threads): tomato, teal, pink, lime.
-      knobs: [0xe8553e, 0x1fb3a0, 0xe8679e, 0x7cc142],
+      knobs: [0xe8553e, 0x1fb3a0, 0xf2b632, 0x7b5bb8], // red, teal, mustard, plum: apart in lightness too (colour-blind safe with the pips)
     },
     beam: 'round',
     woodRoughness: 0.75,

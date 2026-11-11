@@ -31,7 +31,7 @@ import {
 import { Label } from '../ui/label.js';
 import { LOOM, WARPS } from '../config.js';
 import { isLifted, type Mask8 } from '../puzzle/tieup.js';
-import { knitTexture, weaveTexture } from './textures.js';
+import { feltTexture, weaveTexture } from './textures.js';
 import { cloneModel, loomModels, mergeStatic } from './models.js';
 
 /** A soft felt pennant: a subdivided triangle, top edge at y = 0, gently cupped. */
@@ -71,14 +71,16 @@ export const PLUSH = {
   /** The plush dances in the air right above the loom it was woven on (seen face-on from the seat). */
   stageX: 0,
   stageZ: 0.19,
-  /** Hero size while it pops and dances (shelf size is shelfScale). */
-  hero: 0.95,
+  /** Hero size while it pops and dances (shelf size is shelfScale): about 13 cm across, the size of a real toy. */
+  hero: 1.2,
+  /** Even a short picture's plush dances at least this long before it bows and hops away (s). */
+  minDance: 2.4,
   /** Hover height while it dances (it faces the seated player). */
   danceY: 0.135,
   /** Width of the cream halo behind the dancing plush (m). */
-  haloSize: 0.17,
+  haloSize: 0.2,
   /** Radius of the felt stage disc under the dancing plush (m). */
-  stageR: 0.052,
+  stageR: 0.064,
   /** Plushes that can live on the real desk (one spot per picture: chapters, then pictures of the day). */
   desk: 40,
   /** Size on the desk: bigger than on the shelf, so taking one out is a reward. */
@@ -138,7 +140,7 @@ export function buildPlush(rows: readonly Mask8[], color: number): Group {
   let n = 0;
   for (const r of rows) for (let i = 0; i < WARPS; i++) if (isLifted(r, i)) n++;
   // matte felt (no sheen/gloss: it read as glassy), the loom's knitted stitch
-  const mat = new MeshStandardMaterial({ color: new Color(color), roughness: 0.95, metalness: 0, map: knitTexture() });
+  const mat = new MeshStandardMaterial({ color: new Color(color), roughness: 0.95, metalness: 0, map: feltTexture() });
   const body = new InstancedMesh(puffGeometry(), mat, Math.max(1, n));
   body.name = 'PlushBody';
   body.frustumCulled = false;
@@ -351,7 +353,7 @@ export interface ShelfItem {
   placed?: boolean;
 }
 
-type ShowPhase = 'none' | 'pop' | 'hopOut' | 'dance' | 'hopShelf' | 'fade';
+type ShowPhase = 'none' | 'pop' | 'hopOut' | 'dance' | 'bow' | 'hopShelf' | 'fade';
 
 const ease = (t: number) => 1 - Math.pow(1 - t, 3);
 const back = (t: number) => {
@@ -362,6 +364,9 @@ const back = (t: number) => {
 /** The chapter shelf and the win-time plush show. */
 export class Plushes {
   readonly root = new Group();
+  /** The shelf and everything on it (hidden in the very first picture; it pops up for the first plush). */
+  private shelfRoot = new Group();
+  private shelfPop = 1;
   private shelf: Object3D;
   /** Plush per spot (shelf slots, then desk spots) and its picture id. */
   private slotItems: (Group | null)[] = new Array(SPOTS).fill(null);
@@ -388,6 +393,8 @@ export class Plushes {
   private from = new Vector3();
   private to = new Vector3();
   private bounce = 1;
+  /** The song ended before the plush had danced its minimum: it bows once that's done. */
+  private finishPending = false;
   private tilt = 1;
   /** A soft cream halo behind the hero plush: its own clean stage over the busy loom and card. */
   private halo: Mesh;
@@ -411,6 +418,8 @@ export class Plushes {
 
   constructor() {
     this.root.name = 'Plushes';
+    this.shelfRoot.name = 'ShelfSet';
+    this.root.add(this.shelfRoot);
     this.halo = new Mesh(new PlaneGeometry(1, 1), new MeshBasicMaterial({ map: haloTexture(), transparent: true, opacity: 0, depthWrite: false }));
     this.halo.name = 'PlushHalo';
     this.halo.scale.setScalar(PLUSH.haloSize);
@@ -467,7 +476,7 @@ export class Plushes {
       bow.position.x = 0.019;
       this.windKey.name = 'WindKey';
       this.windKey.add(shaft, hub, bow);
-      this.root.add(this.windKey);
+      this.shelfRoot.add(this.windKey);
     }
     const m = loomModels();
     if (m?.shelf) this.shelf = cloneModel(m.shelf);
@@ -480,7 +489,7 @@ export class Plushes {
     this.shelf.traverse((o) => {
       if ((o as Mesh).isMesh) o.castShadow = o.receiveShadow = true;
     });
-    this.root.add(this.shelf);
+    this.shelfRoot.add(this.shelf);
     // A felt cushion per slot, and a paper tag naming the chapter.
     const cushionMat = new MeshPhysicalMaterial({ color: 0xf3e6cc, roughness: 0.95, sheen: 1, sheenRoughness: 0.6, sheenColor: new Color(0xffffff), map: weaveTexture() });
     eyeGeo ??= new SphereGeometry(1, 14, 10);
@@ -490,10 +499,10 @@ export class Plushes {
       c.scale.set(0.017, 0.003, 0.016);
       c.receiveShadow = true;
       this.cushions.push(c);
-      this.root.add(c);
+      this.shelfRoot.add(c);
     }
     this.tag.mesh.name = 'ChapterTag';
-    this.root.add(this.tag.mesh);
+    this.shelfRoot.add(this.tag.mesh);
     // (bunting removed in the polish pass: the shelf tag shows progress)
     this.setSide(1);
   }
@@ -548,7 +557,7 @@ export class Plushes {
       this.pennants.push(pen);
       g.add(pivot);
     }
-    this.root.add(g);
+    this.shelfRoot.add(g);
   }
 
   private bunting = new Group();
@@ -639,6 +648,21 @@ export class Plushes {
     }
   }
 
+  /** Show or hide the shelf set; `pop` makes it spring up (the first plush is coming). */
+  showShelf(on: boolean, pop = false): void {
+    if (on && !this.shelfRoot.visible && pop) this.shelfPop = 0;
+    this.shelfRoot.visible = on;
+  }
+
+  get shelfShown(): boolean {
+    return this.shelfRoot.visible;
+  }
+
+  /** The chapter tag's words (e.g. "Garden 2/3"), without touching the plushes. */
+  setTag(text: string): void {
+    this.tag.set(text);
+  }
+
   /** A plush is about to arrive at desk spot i (the hero hops there): set where it stands. */
   prepareDesk(i: number, x: number, z: number): void {
     if (i >= PLUSH.slots) this.deskPos[i].set(x, 0, z);
@@ -709,7 +733,7 @@ export class Plushes {
       const g = cutout(it.rows);
       g.scale.setScalar(0.9); // a little narrower than a slot: neighbours never touch
       this.slotPos(i, g.position);
-      this.root.add(g);
+      this.shelfRoot.add(g);
       this.ghosts[i] = g;
     }
     for (let i = 0; i < this.pennants.length; i++) {
@@ -729,7 +753,7 @@ export class Plushes {
       const p = buildPlush(it.rows, it.color);
       p.scale.setScalar(PLUSH.shelfScale);
       this.slotPos(i, p.position);
-      this.root.add(p);
+      this.shelfRoot.add(p);
       this.slotItems[i] = p;
     }
   }
@@ -785,7 +809,7 @@ export class Plushes {
 
   /** The hero plush is out on its stage (pop, dance). */
   get staged(): boolean {
-    return !!this.hero && (this.phase === 'pop' || this.phase === 'hopOut' || this.phase === 'dance');
+    return !!this.hero && (this.phase === 'pop' || this.phase === 'hopOut' || this.phase === 'dance' || this.phase === 'bow');
   }
 
   get hasPlush(): boolean {
@@ -803,9 +827,20 @@ export class Plushes {
     this.tilt = -this.tilt;
   }
 
-  /** Song over: hop up to the shelf (or off, if it has no slot). */
+  /** Song over: a bow to the player, then a hop up to the shelf (or off, if it has no slot). */
   finish(): void {
     if (!this.hero || (this.phase !== 'dance' && this.phase !== 'hopOut')) return;
+    if (this.phase === 'dance' && this.t < PLUSH.minDance) {
+      this.finishPending = true; // a short song: keep dancing a little first
+      return;
+    }
+    this.phase = 'bow';
+    this.t = 0;
+  }
+
+  private hopAway(): void {
+    if (!this.hero) return;
+    this.finishPending = false;
     this.from.copy(this.hero.position);
     if (this.heroSlot >= 0) {
       this.home(this.heroSlot, this.to);
@@ -820,6 +855,7 @@ export class Plushes {
 
   /** Jump any running show to its end state. */
   settle(): void {
+    this.finishPending = false;
     if (!this.hero) return;
     const h = this.hero;
     this.hero = null;
@@ -849,6 +885,15 @@ export class Plushes {
   }
 
   update(dt: number): void {
+    // the shelf springing up, scaled about its own middle
+    if (this.shelfPop < 1) {
+      this.shelfPop = Math.min(1, this.shelfPop + dt / 0.55);
+      const b = this.shelfPop - 1;
+      const s = Math.max(0.001, 1 + 2.4 * b * b * b + 1.4 * b * b);
+      const cx = -this.side * PLUSH.shelfX;
+      this.shelfRoot.scale.setScalar(s);
+      this.shelfRoot.position.set(cx * (1 - s), 0, PLUSH.shelfZ * (1 - s));
+    }
     // pennants sway a little, each out of step
     this.sway += dt;
     // slow, lazy sway about the string, each pennant out of step
@@ -945,12 +990,12 @@ export class Plushes {
     this.windKey.scale.z = this.windKey.scale.y;
     const h = this.hero;
     // the halo glows in while the plush pops and dances, and fades as it hops away
-    const staged = !!h && (this.phase === 'pop' || this.phase === 'hopOut' || this.phase === 'dance');
+    const staged = !!h && (this.phase === 'pop' || this.phase === 'hopOut' || this.phase === 'dance' || this.phase === 'bow');
     this.haloA += ((staged ? 1 : 0) - this.haloA) * Math.min(1, dt * (staged ? 6 : 9));
     const hm = this.halo.material as MeshBasicMaterial;
     hm.opacity = this.haloA * 0.32;
     this.halo.visible = this.haloA > 0.02 && !!h;
-    this.stage.visible = this.halo.visible && (this.phase === 'hopOut' || this.phase === 'dance' || this.phase === 'hopShelf');
+    this.stage.visible = this.halo.visible && (this.phase === 'hopOut' || this.phase === 'dance' || this.phase === 'bow' || this.phase === 'hopShelf');
     if (h && this.stage.visible) {
       // the stage sits under the plush's feet and tilts with its lean toward the player
       this.stage.position.set(h.position.x, h.position.y - 0.004, h.position.z);
@@ -993,6 +1038,20 @@ export class Plushes {
       const land = this.bounce > 0.85 ? (this.bounce - 0.85) / 0.15 : 0;
       h.scale.set(PLUSH.hero * (1 + 0.08 * land), PLUSH.hero * (1 - 0.12 * land + 0.05 * b), PLUSH.hero);
       h.rotation.z += (this.tilt * 0.14 - h.rotation.z) * Math.min(1, dt * 10);
+      if (this.finishPending && this.t >= PLUSH.minDance) {
+        this.finishPending = false;
+        this.phase = 'bow';
+        this.t = 0;
+      }
+    } else if (this.phase === 'bow') {
+      // a little bow to the player: lean in, squash, back up
+      const k = Math.min(1, this.t / 0.8);
+      const b = Math.sin(Math.PI * k);
+      h.rotation.x = -0.3 + 0.8 * b;
+      h.rotation.z *= 0.85;
+      h.position.y = PLUSH.danceY - 0.01 * b;
+      h.scale.set(PLUSH.hero * (1 + 0.05 * b), PLUSH.hero * (1 - 0.07 * b), PLUSH.hero);
+      if (k >= 1) this.hopAway();
     } else if (this.phase === 'hopShelf' || this.phase === 'fade') {
       const k = Math.min(1, this.t / 0.7);
       this.arc(h, k, 0.07);

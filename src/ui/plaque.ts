@@ -1,7 +1,6 @@
 /**
- * Front-beam nameplate: "Level 4  ★ 12". Diegetic progress display (a
- * reason to come back), printed on a little toy plate leaning on the front rail.
- * Cap height ≥ 1.5 cm.
+ * Front-beam nameplate: the name of the picture on the loom ("Heart"),
+ * printed on a little toy plate leaning on the front rail. Cap height ≥ 1.5 cm.
  */
 import { CanvasTexture, Mesh, MeshStandardMaterial, PlaneGeometry, SRGBColorSpace } from '@iwsdk/core';
 import { THEMES, type Theme } from './theme.js';
@@ -13,8 +12,7 @@ export class Plaque {
   private canvas = document.createElement('canvas');
   private tex: CanvasTexture;
   private theme: Theme = THEMES.toy;
-  private level = 0;
-  private stars = 0;
+  private name = '';
 
   constructor() {
     this.canvas.width = 640;
@@ -33,13 +31,12 @@ export class Plaque {
     this.draw();
   }
 
-  set(level: number, stars: number): void {
-    this.level = level;
-    this.stars = stars;
+  set(name: string): void {
+    if (name === this.name) return;
+    this.name = name;
     this.draw();
   }
 
-  /** Stars glint after a win (visual twin for the arpeggio). */
   private draw(): void {
     const c = this.canvas;
     const g = c.getContext('2d')!;
@@ -56,31 +53,9 @@ export class Plaque {
     g.stroke();
     g.textBaseline = 'middle';
     g.font = `400 ${Math.round(h * 0.66)}px ${th.font}`; // cap ≈ 1.6 cm
-    const right = c.width - h * 0.35;
-    for (const [dy, col] of [[0, '#34507a']] as const) {
-      g.fillStyle = col;
-      g.textAlign = 'left';
-      g.fillText(`Level ${this.level + 1}`, h * 0.35, h * 0.54 + dy);
-      g.textAlign = 'right';
-      g.fillText(String(this.stars), right, h * 0.54 + dy);
-    }
-    g.fillStyle = th.ink;
-    const w = g.measureText(String(this.stars)).width;
-    star(g, right - w - h * 0.45, h * 0.5, h * 0.3, 0xf7be3b);
+    g.fillStyle = '#34507a';
+    g.textAlign = 'center';
+    g.fillText(this.name, c.width / 2, h * 0.54, c.width - h * 0.7);
     this.tex.needsUpdate = true;
   }
-}
-
-function star(g: CanvasRenderingContext2D, x: number, y: number, r: number, fill: number) {
-  g.beginPath();
-  for (let i = 0; i < 10; i++) {
-    const a = -Math.PI / 2 + (i * Math.PI) / 5;
-    const rr = i % 2 === 0 ? r : r * 0.45;
-    g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
-  }
-  g.closePath();
-  g.fillStyle = '#' + fill.toString(16).padStart(6, '0');
-  g.fill();
-  g.lineWidth = 3;
-  g.stroke();
 }

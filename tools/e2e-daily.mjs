@@ -24,7 +24,7 @@ w = run('tools/daily-where.mjs');
 check('woven: the day is counted', w.days.length === 1, JSON.stringify(w.days));
 check('its plush lives on the desk', !!w.placed[id] && w.ids.indexOf(id) >= 5, JSON.stringify({ placed: w.placed[id], at: w.ids.indexOf(id) }));
 check('back to the chapters afterwards', w.daily === '' && !w.level.startsWith('day-'), w.level);
-check('the ball is unwrapped until tomorrow', w.visible && !w.bow);
+check('the present is opened until tomorrow', w.visible && !w.bow);
 await poke(cal, w.ball);
 await wait(400);
 w = run('tools/daily-where.mjs');

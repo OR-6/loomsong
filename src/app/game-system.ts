@@ -35,6 +35,10 @@ import { PLUSH, ROW_BEAT, SPOTS, type DeskItem, type ShelfItem } from '../loom/p
 import { DAILY_BALL } from '../loom/daily-ball.js';
 import { isLifted } from '../puzzle/tieup.js';
 const PLUSH_SLOTS = SPOTS;
+/** `?debug=1`: show frame rate and draw calls on a tag behind the card. */
+const DEBUG_HUD = new URLSearchParams(location.search).get('debug') === '1';
+/** `?shadows=0`: no real-time shadows (contact shadows stay), for frame-time comparisons on a headset. */
+const NO_SHADOWS = new URLSearchParams(location.search).get('shadows') === '0';
 /** IWSDK keeps its persistent room anchor's handle here. */
 const ANCHOR_KEY = 'iwsdk_scene_anchor_uuid';
 /** Seconds after entering in which last session's loom may come back. */
@@ -52,7 +56,7 @@ import { loadFont } from '../ui/fonts.js';
 const params = new URLSearchParams(location.search);
 const FIXED_DESK = params.get('desk');
 
-const KNOB_NAMES: Record<number, string> = { 0xe8553e: 'red', 0x1fb3a0: 'teal', 0xe8679e: 'pink', 0x7cc142: 'green' };
+const KNOB_NAMES: Record<number, string> = { 0xe8553e: 'red', 0x1fb3a0: 'teal', 0xf2b632: 'yellow', 0x7b5bb8: 'purple' };
 const ORDINAL = ['first', 'second', 'third', 'fourth'];
 
 /** Seconds either side of a music beat that count as "on the beat". */
@@ -66,7 +70,8 @@ const HINT_TEXT: Record<HintStep, string> = {
   undo: 'Pull to undo',
   card: 'Match the next row',
   knots: 'Each lever move unties a knot',
-  combo: 'Two levers at once!',
+  combo: '', // the aha is a gold ribbon over the card, not a tag
+  more: 'This row needs more threads',
   none: '',
 };
 
@@ -173,6 +178,11 @@ export class GameSystem extends createSystem({
   /** Tutorial/idle breath on the swap spools (0–1). */
   private swapGlow = 0;
   private tip!: Label;
+  /** `?debug=1`: a tag behind the card with frame rate, draw calls and the quality level (for headset testing). */
+  private hud: Label | null = null;
+  private hudT = 0;
+  private hudFrames = 0;
+  private hudCalls = 0;
   private banner!: Label;
   private bannerLeft = 0;
   private tipCode = -1;
@@ -213,6 +223,7 @@ export class GameSystem extends createSystem({
     this.renderer.shadowMap.type = PCFSoftShadowMap;
     // (No tone mapping: filmic curves washed the toy palette into pastels.)
     this.view = new LoomView(this.shown());
+    if (NO_SHADOWS) this.view.setShadow(false); // `?shadows=0`: compare frame times on the headset
     this.view.plushes.onLand = () => audio.hop();
     this.view.plushes.onHop = () => audio.pluck(7, 0.6, 0, 0.1);
     this.controller = new LoomController(this.model, {
@@ -279,6 +290,11 @@ export class GameSystem extends createSystem({
     this.tutor.setTheme(this.shown());
     this.tutor.set('');
     // a small tooltip over whatever secondary control a hand is hovering (what does this do?)
+    if (DEBUG_HUD) {
+      this.hud = new Label(0.2, 0.03);
+      this.hud.mesh.position.set(0, CARD.baseY + 0.16, CARD.z - 0.01);
+      this.view.root.add(this.hud.mesh);
+    }
     this.tip = new Label(0.13, 0.028);
     this.tip.mesh.rotation.x = -0.35;
     (this.tip.mesh.material as import('@iwsdk/core').MeshBasicMaterial).depthTest = false;
@@ -383,15 +399,22 @@ export class GameSystem extends createSystem({
         this.view.setPicture(level.color ?? null, level.tieUp, level.tieUp.map(() => !!level.mystery));
         this.view.setTarget(level.target);
         this.view.card.paper = level.chapter === 'night' ? '#b9beea' : null; // Sea stays cream so its blue water rows read
-        this.view.card.sparkles = level.chapter === 'night';
+        this.view.card.sparkles = false;
         this.view.card.weft = level.weft ?? null;
         this.view.setWeftColor(level.weft ?? null);
         this.view.card.setPicture(level.color ?? null, level.par);
+        this.view.plaque.set(level.name);
+        if (this.debug) this.debug.plaque = level.name;
         this.shelf = shelfItems(level, this.progress);
         this.view.plushes.setShelf(this.shelf, CHAPTERS.find((c) => c.id === level.chapter)?.name ?? '');
         this.view.plushes.setDesk(deskItems(this.progress));
         this.syncDaily();
         this.syncBasket(level);
+        // the very first picture keeps the desk quiet: no shelf, no basket until there's something to show
+        const fresh = !this.progress.tutorialDone && !Object.values(this.progress.best).some((v) => v > 0);
+        this.view.plushes.showShelf(!fresh);
+        this.view.basket.root.visible = !fresh;
+        if (fresh) this.controller.skeins = 0;
         this.view.setShed(0, true);
         this.view.setRows(this.model.rows);
         this.view.setGlowRow(-1);
@@ -414,6 +437,11 @@ export class GameSystem extends createSystem({
         // It comes alive: the woven picture pops out as a plush.
         const lv = this.flow.level;
         this.view.plushes.celebrate(lv.id, lv.target, lv.color ?? this.shown().palette.weft, this.heroSpot(lv));
+        if (!this.view.plushes.shelfShown) this.view.plushes.showShelf(true, true); // the shelf springs up for the first plush
+        // the next picture waits for the whole show: pop, dance (at least PLUSH.minDance), bow, hop
+        const songEnd = TIMING.winPause + lv.target.length * TIMING.rowTime;
+        const showEnd = Math.max(songEnd, 0.95 + PLUSH.minDance) + 0.8 + 0.75;
+        this.flow.extraBetween = Math.max(0, showEnd + 0.3 - (songEnd + TIMING.afterPlayback));
         if (this.flow.daily) {
           // today's picture joins the streak; say so once the plush has hopped onto the desk
           const n = streakOf(this.progress.days ?? [], this.flow.daily);
@@ -437,11 +465,13 @@ export class GameSystem extends createSystem({
         // the last picture of a chapter: once its plush is on the shelf, the whole shelf celebrates
         if (!this.flow.challenge && lv.chapter) {
           const items = shelfItems(lv, this.progress);
+          const ch = CHAPTERS.find((c) => c.id === lv.chapter);
+          if (ch) this.view.plushes.setTag(`${ch.name} ${items.filter((it) => it.done).length}/${items.length}`);
           if (items.length > 1 && items.every((it) => it.done)) {
             this.finale = { chapter: CHAPTERS.find((c) => c.id === lv.chapter)?.name ?? '', items, level: lv };
             let secs = 1.6;
             for (const it of items) secs += it.rows.length * ROW_BEAT + 0.35;
-            this.flow.extraBetween = secs;
+            this.flow.extraBetween += secs;
           }
         }
         window.dispatchEvent(new CustomEvent('loomsong:cloth'));
@@ -467,17 +497,24 @@ export class GameSystem extends createSystem({
       hint: (step, lever) => {
         // the aha lands with a bright chord and a burst of gold over the threads
         if (step === 'combo') {
+          // a moment, not another tag: a gold ribbon over the card, a chord, gold over the threads
           audio.onBeat();
-          this.view.fx.confetti(0, LOOM.liftedY, LOOM.heddleZ + 0.02, 30, 0.5, true);
+          audio.arpeggio();
+          this.view.fx.confetti(0, LOOM.liftedY, LOOM.heddleZ + 0.02, 60, 0.6, true);
+          this.view.pulseWarp();
+          this.banner.set('Two levers at once!');
+          this.banner.mesh.position.set(0, CARD.baseY + this.view.card.heightM + 0.045, CARD.z + 0.01);
+          this.banner.mesh.visible = true;
+          this.bannerLeft = TIMING.comboHint + 0.4;
+          this.debug.banner = 'Two levers at once!';
         }
         this.hintLever = lever;
         this.tutor.set(this.hintText(step));
         if (this.debug) this.debug.hint = step;
       },
       save: (p) => saveProgress(p),
-      totals: (stars, level) => {
-        this.view.plaque.set(level, stars);
-        if (this.debug) this.debug.plaque = `Level ${level + 1} * ${stars}`;
+      totals: () => {
+        // the plate names the picture on the loom (set on load); totals stay in progress
       },
     });
 
@@ -571,6 +608,19 @@ export class GameSystem extends createSystem({
 
   /** Degrade gracefully when frames are missed (spec §6). */
   private watchFrames(delta: number): void {
+    if (this.hud) {
+      this.hudT += delta;
+      this.hudFrames++;
+      this.hudCalls += this.renderer.info.render.calls;
+      if (this.hudT >= 0.5) {
+        const fps = Math.round(this.hudFrames / this.hudT);
+        const calls = Math.round(this.hudCalls / this.hudFrames);
+        this.hud.set(`${fps} fps · ${calls} draws · q${this.debug.degrade}`);
+        this.hudT = 0;
+        this.hudFrames = 0;
+        this.hudCalls = 0;
+      }
+    }
     const sess = this.world.session;
     if (!sess) return;
     const hz = sess.frameRate ?? 72;
@@ -579,7 +629,7 @@ export class GameSystem extends createSystem({
     if (lvl === null || lvl === this.debug.degrade) return;
     this.debug.degrade = lvl;
     audio.setReverb(lvl < 1);
-    this.view.setShadow(lvl < 1);
+    this.view.setShadow(lvl < 1 && !NO_SHADOWS);
     occluderState.enabled = lvl < 2; // spec §6: drop occluders under load
     try {
       this.renderer.xr.setFoveation(lvl >= 2 ? 1 : 0.5);
@@ -931,9 +981,10 @@ export class GameSystem extends createSystem({
   /** A free spot on the desk beside the shelf and basket for a new plush (null: none fits). */
   private freeDeskSpot(): [number, number] | null {
     const s = this.controller.bankSide;
+    // nearest the seat first (within the two-foot reach), never nearer than the likely desk edge
     const spots: [number, number][] = [
-      [-s * 0.42, 0.17], [-s * 0.47, 0.11], [s * 0.36, 0.19], [-s * 0.4, 0.23], [s * 0.43, 0.15],
-      [s * 0.3, 0.23], [-s * 0.5, 0.18], [s * 0.48, 0.21], [-s * 0.33, 0.27], [s * 0.38, 0.26],
+      [s * 0.2, 0.19], [s * 0.29, 0.18], [s * 0.37, 0.15], [-s * 0.42, 0.12], [s * 0.44, 0.09],
+      [s * 0.13, 0.2], [-s * 0.46, 0.05], [s * 0.5, 0.03], [-s * 0.5, -0.03], [s * 0.42, -0.08],
     ];
     const taken = Object.values(this.progress.placed ?? {});
     for (const [x, z] of spots) {
@@ -1020,7 +1071,7 @@ export class GameSystem extends createSystem({
     }
     const pl = (t: unknown) => ((t as { kind?: string; i?: number } | null)?.kind === 'plush' ? (t as { i: number }).i : -1);
     this.view.plushes.hover(Math.max(pl(c.hover.left), pl(c.hover.right)));
-    c.keySpot = this.coopLink || this.flow?.challenge ? null : this.view.plushes.keyCentre(this.keyVec);
+    c.keySpot = this.coopLink || this.flow?.challenge || !this.view.plushes.shelfShown ? null : this.view.plushes.keyCentre(this.keyVec);
     c.swapSpot = this.flow?.level?.weft && !this.coopLink ? this.view.swapSpoolPos(this.swapVec) : null; // follows the lever side
     const sw = (t: unknown) => (t as { kind?: string } | null)?.kind === 'swap';
     this.view.setSwapHighlight(sw(c.hover.left) || sw(c.hover.right) ? 1 : 0, this.swapGlow);
@@ -1497,7 +1548,7 @@ export class GameSystem extends createSystem({
     } else if (step === 'shuttle') {
       // Tag hangs just outside the frame beside Pip's perch, never over the threads.
       const end = this.controller.shuttle.t < 0.5 ? -1 : 1;
-      m.position.set(end * SHUTTLE.maxX, 0.215, SHUTTLE.z); // well above Pip, clear of the hand's fingertips
+      m.position.set(end * (SHUTTLE.maxX + 0.02), 0.15, SHUTTLE.z + 0.01); // just above Pip, clear of the hand's fingertips
       if (this.controller.hover.left === null && this.controller.hover.right === null) {
         this.view.setShuttleHighlight(0, pulse);
       }
