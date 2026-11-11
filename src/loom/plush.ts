@@ -630,6 +630,11 @@ export class Plushes {
     this.keyHover = on ? 1 : 0;
   }
 
+  /** A plush is still out (popping, dancing or hopping to the shelf). */
+  get busy(): boolean {
+    return !!this.hero;
+  }
+
   /** The hero plush is out on its stage (pop, dance). */
   get staged(): boolean {
     return !!this.hero && (this.phase === 'pop' || this.phase === 'hopOut' || this.phase === 'dance');

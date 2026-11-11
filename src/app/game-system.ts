@@ -133,6 +133,8 @@ export class GameSystem extends createSystem({
   /** Lever clicks during a programmatic drop make no sound. */
   private quietLevers = false;
   private undoNotch = 0;
+  /** A chapter was just completed: its finale waits for the last plush to reach the shelf. */
+  private finale: { chapter: string; items: ShelfItem[]; level: Level } | null = null;
   private plushVecs = Array.from({ length: PLUSH_SLOTS }, () => new Vector3());
   private keyVec = new Vector3();
   private swapVec = { x: 0, y: 0, z: 0 };
@@ -368,6 +370,16 @@ export class GameSystem extends createSystem({
         this.view.pulseWarp();
         if (this.debug) this.debug.stars = stars;
         if (!this.controller.tokenEnabled && workshopUnlocked(this.progress)) this.revealWorkshop();
+        // the last picture of a chapter: once its plush is on the shelf, the whole shelf celebrates
+        if (!this.flow.challenge && lv.chapter) {
+          const items = shelfItems(lv, this.progress);
+          if (items.length > 1 && items.every((it) => it.done)) {
+            this.finale = { chapter: CHAPTERS.find((c) => c.id === lv.chapter)?.name ?? '', items, level: lv };
+            let secs = 1.6;
+            for (const it of items) secs += it.rows.length * ROW_BEAT + 0.35;
+            this.flow.extraBetween = secs;
+          }
+        }
         window.dispatchEvent(new CustomEvent('loomsong:cloth'));
         // A finished challenge shouldn't restart on the next reload.
         if (this.flow.challenge && location.hash) {
@@ -726,6 +738,21 @@ export class GameSystem extends createSystem({
     audio.holdMusic(secs + 0.3);
     this.view.plushes.sing(i, secs);
     this.view.setPipMood('happy');
+  }
+
+  /** Chapter complete: the key winds itself, the shelf plays the whole chapter, confetti over it. */
+  private playFinale(): void {
+    const f = this.finale;
+    if (!f) return;
+    this.finale = null;
+    this.shelf = f.items;
+    this.view.plushes.setShelf(f.items, f.chapter); // the tag now reads 4/4
+    this.singUntil = 0;
+    this.playShelf();
+    const side = this.controller.bankSide;
+    this.view.fx.confetti(-side * PLUSH.shelfX, PLUSH.shelfTopY + 0.03, PLUSH.shelfZ, 140, 0.8);
+    audio.chirp('cheer');
+    this.showNotice(`${f.chapter} complete!`, 5);
   }
 
   /** The wind-up key: every finished plush on the shelf sings in turn, left to right (the shelf is a music box). */
@@ -1193,6 +1220,8 @@ export class GameSystem extends createSystem({
     this.view.basket.hover(Math.max(sk(c.hover.left), sk(c.hover.right)));
     this.syncPlushSpots();
     this.syncTip(dt);
+    // the finale starts once the last plush has hopped onto the shelf
+    if (this.finale && this.flow.phase === 'between' && !this.view.plushes.busy) this.playFinale();
     // while the plush dances on its stage, the plate and token step aside
     const staged = this.view.plushes.staged;
     this.view.plaque.mesh.visible = !staged;

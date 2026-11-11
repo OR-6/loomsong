@@ -56,6 +56,8 @@ export class LevelFlow {
   private timer = 0;
   private playRow = 0;
   private hintTimer = 0;
+  /** Extra seconds to linger before the next level (a chapter finale is playing). */
+  extraBetween = 0;
   /** Level 1 on a first run: every step is shown until the picture is woven. */
   tutorial = false;
   /** The goal ("match the card") has been explained once. */
@@ -144,7 +146,8 @@ export class LevelFlow {
       } else {
         this.hooks.glowRow(-1);
         this.phase = 'between';
-        this.timer = TIMING.afterPlayback;
+        this.timer = TIMING.afterPlayback + this.extraBetween;
+        this.extraBetween = 0;
       }
       return;
     }
