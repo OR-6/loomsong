@@ -74,11 +74,27 @@
         background: linear-gradient(90deg, #d9a066 0 45%, #b5793f 45% 55%, #d9a066 55%); box-shadow: 0 3px 0 #0003; }
       #landing .peg::after { content: ''; position: absolute; left: 3px; right: 3px; top: 16px; height: 6px; border-radius: 3px; background: #8b8b8b; }
 
+      /* the name on a felt plate screwed to the loom's top rail */
+      #landing .rail { display: flex; justify-content: center; margin: -4px 0 18px; }
+      #landing .plate { position: relative; display: inline-flex; padding: 12px 34px 14px; border-radius: 12px;
+        background: var(--felt-noise, none), var(--felt-deep); box-shadow: inset 0 2px 5px #0008, 0 1px 0 #ffffff40; }
+      #landing .plate::before, #landing .plate::after { content: ''; position: absolute; top: 50%; width: 9px; height: 9px; margin-top: -4.5px; border-radius: 50%;
+        background: radial-gradient(circle at 35% 35%, #f6dca0, #b8892e); box-shadow: 0 1px 1px #0006; }
+      #landing .plate::before { left: 12px; } #landing .plate::after { right: 12px; }
+      .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
       /* hero: the pitch, and the real loom photo */
-      #landing .hero { display: grid; grid-template-columns: minmax(400px, 1fr) 1.08fr; gap: clamp(28px, 4vw, 56px); align-items: start; }
-      #landing .hero-photo { margin-top: 18px; }
+      /* the gameplay clip is the centrepiece; the pitch is a taped card overlapping its corner */
+      #landing .hero { position: relative; display: grid; padding-bottom: 46px; }
+      #landing .hero-photo { width: min(100%, 860px); justify-self: end; margin-top: 10px; }
       #landing .hero-photo { transform: rotate(1.6deg); }
-      #landing .pitch { position: relative; z-index: 1; min-width: 0; }
+      #landing .pitch { position: absolute; z-index: 5; left: 0; bottom: 0; width: min(46%, 470px); padding: 26px 28px 24px; color: var(--ink);
+        background: #fbf3e0; border-radius: 2px; transform: rotate(-1.6deg); box-shadow: 0 1px 2px #0004, 0 14px 24px -10px #000a; }
+      #landing .pitch #tagline { color: var(--walnut); }
+      #landing .pitch .lede { color: #4a3426; }
+      #landing .pitch .note { color: #6b5a4e; }
+      #landing .pitch .nohead { background: #f1e3c6; box-shadow: none; transform: none; margin-top: 4px; }
+      #landing .pitch .nohead .tape { display: none; }
       #landing .mark { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
       #landing .weave { --cell: 15px; --gap: 1px; position: relative; flex: none;
         width: calc(8 * var(--cell) + 7 * var(--gap) + 16px); padding: 18px 8px 8px; border-radius: 9px;
@@ -95,6 +111,7 @@
       #landing .mark .warps { display: none; }
       #landing .mark .weave { background: none; box-shadow: none; padding-left: 0; padding-right: 0; }
       #landing .mark .cloth i.gr { visibility: hidden; }
+      #landing .mark .cloth i { border-radius: 1px; }
       #landing .mark .cloth i.beak { background: #f08a3c; }
       #landing .mark .cloth i.eye { background: #2b2320; }
       /* Pip sits on the duck's back, between its tail and its neck */
@@ -161,7 +178,10 @@
         clip-path: polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 0 calc(100% - 12px), 0 12px); text-wrap: pretty; }
       #landing .hang::before { content: ''; position: absolute; left: 11px; top: 18px; width: 7px; height: 7px; border-radius: 50%;
         background: var(--felt); box-shadow: inset 0 1px 1px #0006; }
-      #landing .hang b { display: block; font: 400 19px/1.1 var(--display); color: var(--walnut); margin-bottom: 4px; }
+      #landing .hang b { display: flex; align-items: center; gap: 8px; font: 400 19px/1.1 var(--display); color: var(--walnut); margin-bottom: 6px; }
+      /* a stitched numeral, sewn on rather than typed */
+      #landing .hang .num { display: inline-grid; place-items: center; width: 28px; height: 28px; flex: none; border-radius: 50%;
+        border: 2px dashed var(--tomato); color: var(--tomato); font: 400 16px var(--display); }
       #landing .s2 .hang { margin-left: auto; margin-right: 6px; transform: rotate(-2.2deg); }
       #landing .s3 .hang { margin-left: 34px; transform: rotate(.8deg); }
 
@@ -180,6 +200,9 @@
       #landing .note-card p { margin: 0; font: 600 15px/1.6 var(--serif); text-wrap: pretty; }
       #landing .note-card .peg { left: 22%; transform: rotate(-8deg); }
       #landing .more img { aspect-ratio: 16 / 10; object-fit: cover; }
+      #landing .more .label { position: absolute; z-index: 3; left: 16px; bottom: 18px; padding: 4px 12px 5px 20px; background: var(--paper); color: var(--ink);
+        font: 400 15px var(--display); box-shadow: 0 1px 2px #0004; transform: rotate(-2deg);
+        clip-path: polygon(8px 0, 100% 0, 100% 100%, 8px 100%, 0 calc(100% - 8px), 0 8px); }
       #landing .more > .photo:last-of-type img { object-position: 45% 45%; }
 
 
@@ -203,8 +226,8 @@
       #landing .tagwrap:nth-child(3) { transform: rotate(-1deg); }
       /* a loop of red yarn through the punched hole */
       #landing .string { position: absolute; z-index: 2; left: -21px; top: 50%; width: 40px; height: 26px; margin-top: -13px; pointer-events: none; }
-      #landing .tag::after { content: 'off'; margin-left: 10px; font: 400 14px var(--display); color: #3b2a2066; }
-      #landing .tag[aria-checked='true']::after, #landing .tag[aria-pressed='true']::after { content: 'on'; color: var(--tomato); }
+      #landing .tag::after { content: 'off'; margin-left: 10px; font: 400 14px var(--display); color: #6b5a4e; }
+      #landing .tag[aria-checked='true']::after, #landing .tag[aria-pressed='true']::after { content: 'on'; color: var(--ink); }
       #landing .tag, #hand-pick { position: relative; font: 600 15px var(--serif); color: var(--ink); background: var(--paper);
         border: 0; padding: 9px 16px 9px 30px; cursor: pointer;
         clip-path: polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 0 calc(100% - 12px), 0 12px); }
@@ -246,8 +269,9 @@
       #landing button:focus-visible, #landing input:focus-visible, #landing summary:focus-visible { outline: 3px solid var(--mustard); outline-offset: 3px; }
       @media (min-width: 1200px) { #landing .steps li { font-size: 16px; } }
       @media (max-width: 860px) {
-        #landing .hero { grid-template-columns: 1fr; }
-        #landing .hero-photo { transform: rotate(1deg); margin-top: 18px; }
+        #landing .hero { padding-bottom: 0; }
+        #landing .hero-photo { width: 100%; transform: rotate(1deg); margin-top: 6px; }
+        #landing .pitch { position: relative; width: auto; margin: -34px 8px 0; transform: rotate(-1deg); }
         #landing .steps { flex-direction: column; gap: 34px; }
         #landing .steps li { margin: 16px auto 0 !important; max-width: 480px; width: 100%; }
         #landing .yarn { display: none; }
@@ -261,6 +285,8 @@
         #landing .spool { transform: scale(.72); }
         #landing .mark { gap: 10px; }
         #landing h1 { font-size: clamp(34px, 10.5vw, 52px); }
+        #enter-xr { font-size: 19px; padding: 15px 20px 16px; white-space: nowrap; }
+        #landing .plate { padding: 10px 26px 12px; }
         #landing .weave { --cell: 8px; }
         #landing .more { grid-template-columns: 1fr; }
         #settings { display: grid; grid-template-columns: 1fr 1fr; }

@@ -20,10 +20,7 @@ export function mountLanding(world: World): void {
   el.innerHTML = `
     <div class="frame">
       <i class="spool tl"></i><i class="spool tr"></i><i class="spool bl"></i><i class="spool br"></i>
-      <main class="felt">
-        <section class="hero">
-          <div class="pitch">
-            <div class="mark">
+        <header class="rail"><div class="mark plate">
               <div class="weave" aria-hidden="true">
                 <div class="warps"></div>
                 <div class="cloth"></div>
@@ -38,7 +35,12 @@ export function mountLanding(world: World): void {
                 </svg>
               </div>
               <h1>Loomsong</h1>
-            </div>
+            </div></header>
+      <main class="felt">
+        <section class="hero">
+          <div class="pitch">
+            <i class="tape" aria-hidden="true"></i>
+
             <p id="tagline">A tiny loom on your real desk. Hands only.</p>
             <p class="lede">Lift the levers, slide Pip across, and each row you weave sings. Finish a picture and it comes alive as a little knitted toy.</p>
             <div class="go">
@@ -70,11 +72,11 @@ export function mountLanding(world: World): void {
           </svg>
           <ol class="steps">
             <li class="s1"><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('levers-close.jpg')}" alt="The red lever lifts its threads" width="800" height="600" /></figure>
-              <div class="hang"><b>1. Lift the levers</b>Each lever lifts its own threads. Pick the ones that make the next row on the card.</div></li>
+              <div class="hang"><b><span class="num" aria-hidden="true">1</span><span class="visually-hidden">Step 1: </span>Lift the levers</b>Each lever lifts its own threads. Pick the ones that make the next row on the card.</div></li>
             <li class="s2"><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('pip-pinch.jpg')}" alt="A glowing ghost hand shows how to pinch Pip" width="800" height="600" /></figure>
-              <div class="hang"><b>2. Slide Pip across</b>Pinch the little bird and slide it through. The row is woven, and its threads ring out.</div></li>
+              <div class="hang"><b><span class="num" aria-hidden="true">2</span><span class="visually-hidden">Step 2: </span>Slide Pip across</b>Pinch the little bird and slide it through. The row is woven, and its threads ring out.</div></li>
             <li class="s3"><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('plush-dance.jpg')}" alt="The finished duck pops off the loom as a knitted plush" width="800" height="600" /></figure>
-              <div class="hang"><b>3. Watch it come alive</b>A finished picture pops off the loom as a plush and hops onto your shelf.</div></li>
+              <div class="hang"><b><span class="num" aria-hidden="true">3</span><span class="visually-hidden">Step 3: </span>Watch it come alive</b>A finished picture pops off the loom as a plush and hops onto your shelf.</div></li>
           </ol>
         </section>
 
@@ -84,9 +86,9 @@ export function mountLanding(world: World): void {
             <path d="M-10 30 Q 300 4 520 22 T 1010 10" fill="none" stroke="#0d5d53" stroke-width="6" stroke-linecap="round" opacity=".35"/>
             <path d="M-10 30 Q 300 4 520 22 T 1010 10" fill="none" stroke="url(#ply-teal)" stroke-width="4.5" stroke-linecap="round"/>
           </svg>
-          <figure class="photo small"><i class="tape"></i><img loading="lazy" src="${sitePhoto('shelf.jpg')}" alt="Finished plushes on a little shelf with a brass wind-up key" width="800" height="500" /></figure>
+          <figure class="photo small"><i class="peg"></i><span class="label">The shelf</span><img loading="lazy" src="${sitePhoto('shelf.jpg')}" alt="Finished plushes on a little shelf with a brass wind-up key" width="800" height="500" /></figure>
           <div class="note-card"><i class="tape"></i><b>Four chapters, eighteen pictures</b><p>Garden teaches your hands, Home combines levers, Night hides what they lift, and Sea weaves in two colours. Wind the key on your shelf and your plushes sing their songs in turn.</p></div>
-          <figure class="photo small"><i class="tape"></i><img loading="lazy" src="${sitePhoto('sea-boat.jpg')}" alt="A red boat woven on blue water rows" width="800" height="500" /></figure>
+          <figure class="photo small"><i class="peg"></i><span class="label">Sea: two colours</span><img loading="lazy" src="${sitePhoto('sea-boat.jpg')}" alt="A red boat woven on blue water rows" width="800" height="500" /></figure>
         </section>
 
         <div class="drawer">
@@ -105,12 +107,12 @@ export function mountLanding(world: World): void {
           <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="hc" role="switch" aria-checked="false">High contrast</button></span>
           <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="music" role="switch" aria-checked="true">Music</button></span>
           <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="fit" aria-pressed="false">Fit to my hands</button></span>
-          <div role="radiogroup" aria-label="Lever side" id="hand-pick">
+          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><div role="radiogroup" aria-label="Lever side" id="hand-pick">
             <span class="lbl">Levers on the</span>
             <button type="button" data-hand="auto" role="radio" title="On the side of the hand you place the loom with">placing hand</button>
             <button type="button" data-hand="left" role="radio">left</button>
             <button type="button" data-hand="right" role="radio">right</button>
-          </div>
+          </div></span>
           <div id="style-pick" role="radiogroup" aria-label="Loom style" hidden>
             <span class="lbl">Loom style</span>
             <button type="button" data-theme="toy" role="radio">Toy</button>
@@ -138,7 +140,7 @@ export function mountLanding(world: World): void {
         </section>
 
         <footer class="foot">
-          <p class="slip">Made for a mixed-reality game jam, November 2026, with IWSDK. Every sound is CC0: <a href="${import.meta.env.BASE_URL}audio/CREDITS.md">see the credits</a>.</p>
+          <p class="slip"><i class="tape" aria-hidden="true"></i>Made for a mixed-reality game jam, November 2026, with IWSDK. Every sound is CC0: <a href="${import.meta.env.BASE_URL}audio/CREDITS.md">see the credits</a>.</p>
         </footer>
       </main>
     </div>`;
