@@ -22,8 +22,6 @@ const audioUrl = (f: string) => `${import.meta.env.BASE_URL}audio/${f}`;
 const PENTA = [0, 2, 4, 7, 9];
 
 /** Background music level (before ducking). */
-/** Crossfade (s) where a recorded track loops back to its start. */
-const TRACK_XF = 4;
 const MUSIC_GAIN = 0.55;
 /** Bass roots per bar, in semitones from the key: I – vi – IV – V. */
 const PROGRESSION = [0, -3, 5, 7];
@@ -60,6 +58,7 @@ class Synth {
   private master!: GainNode;
   private dry!: GainNode;
   private wet!: GainNode;
+  private conv: ConvolverNode | null = null;
   private paused = false;
   rootMidi = 62;
   /** Lowpass brightness multiplier (theme). */
@@ -83,10 +82,10 @@ class Synth {
   /** The chapter whose music should play. */
   private chapter = 'garden';
   /** The recorded track playing now (null: the built-in music box), and its load state. */
-  private track: { name: string; src: AudioBufferSourceNode; gain: GainNode; voice: GainNode; t0: number; next: number; info: Track } | null = null;
+  private track: { name: string; el: HTMLAudioElement; node: MediaElementAudioSourceNode; gain: GainNode; info: Track; playing: boolean } | null = null;
+  private trackFailed = new Set<string>();
   /** A gentle dip where the threads sing (~0.9 kHz), so a recorded track never covers them. */
   private trackEq: BiquadFilterNode | null = null;
-  private trackBufs = new Map<string, AudioBuffer | 'loading' | 'failed'>();
 
   constructor() {
     this.setRoot(62);
@@ -117,6 +116,15 @@ class Synth {
   setReverb(on: boolean): void {
     this.reverbOn = on;
     if (this.wet) this.wet.gain.value = on ? 0.28 : 0;
+    // the convolver keeps working while connected, even silent: unplug it when off
+    if (this.conv && this.master) {
+      try {
+        if (on) this.conv.connect(this.master);
+        else this.conv.disconnect();
+      } catch {
+        /* already in that state */
+      }
+    }
   }
 
   private build(): void {
@@ -134,10 +142,11 @@ class Synth {
     this.dry = ctx.createGain();
     this.wet = ctx.createGain();
     this.wet.gain.value = this.reverbOn ? 0.28 : 0;
-    const conv = ctx.createConvolver();
+    const conv = (this.conv = ctx.createConvolver());
     conv.buffer = impulse(ctx, 1.6, 2.5);
     this.dry.connect(this.master);
-    this.wet.connect(conv).connect(this.master);
+    this.wet.connect(conv);
+    if (this.reverbOn) conv.connect(this.master);
     this.master.connect(comp).connect(ctx.destination);
     this.musicBus = ctx.createGain();
     this.musicBus.gain.value = this.musicOn ? MUSIC_GAIN : 0;
@@ -252,9 +261,7 @@ class Synth {
       const { bpm, firstBeat } = this.track.info;
       if (!bpm) return null;
       const spb = 60 / bpm;
-      const dur = this.track.src.buffer?.duration ?? 0;
-      let pos = ctx.currentTime - this.track.t0;
-      if (dur > 0) pos %= dur;
+      const pos = this.track.el.currentTime;
       const ph = (((pos - (firstBeat ?? 0)) % spb) + spb) % spb;
       return Math.min(ph, spb - ph);
     }
@@ -552,8 +559,10 @@ class Synth {
   }
 
   /**
-   * The chapter's recorded track (loaded on first need, looped, crossfaded on
-   * chapter change). False while there is none, or it's still loading: the
+   * The chapter's recorded track, streamed from an audio element (a few MB,
+   * never a decoded buffer of hundreds: the headset's browser would drop the
+   * tab), looped, crossfaded on chapter change, under a gentle dip where the
+   * threads sing. False while there is none or it can't play yet: the
    * built-in music box plays meanwhile.
    */
   private playTrack(ctx: AudioContext): boolean {
@@ -562,25 +571,8 @@ class Synth {
       if (this.track) this.stopTrack(ctx, 1.2);
       return false;
     }
-    if (this.track?.name === info.file) {
-      this.loopTrack(ctx);
-      return true;
-    }
-    const buf = this.trackBufs.get(info.file);
-    if (buf === undefined) {
-      this.trackBufs.set(info.file, 'loading');
-      fetch(audioUrl(info.file))
-        .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
-        .then((a) => ctx.decodeAudioData(a))
-        .then((b) => this.trackBufs.set(info.file, b))
-        .catch(() => this.trackBufs.set(info.file, 'failed'));
-      return !!this.track; // the previous chapter's track carries on until this one is ready
-    }
-    if (buf === 'loading') return !!this.track;
-    if (buf === 'failed') return false;
-    // crossfade: the old track fades out, the new one fades in
-    if (this.track) this.stopTrack(ctx, 1.5);
-    this.stopPad();
+    if (this.track?.name === info.file) return this.track.playing;
+    if (this.trackFailed.has(info.file)) return false;
     if (!this.trackEq) {
       this.trackEq = ctx.createBiquadFilter();
       this.trackEq.type = 'peaking';
@@ -589,41 +581,30 @@ class Synth {
       this.trackEq.gain.value = -4;
       this.trackEq.connect(this.musicBus);
     }
+    // crossfade: the old track fades out, the new one fades in once it can play
+    if (this.track) this.stopTrack(ctx, 1.5);
+    const el = new Audio();
+    el.src = audioUrl(info.file);
+    el.loop = true;
+    el.preload = 'auto';
+    const node = ctx.createMediaElementSource(el);
     const gain = ctx.createGain();
     gain.gain.value = 0;
-    gain.gain.setTargetAtTime(info.gain, ctx.currentTime, 0.8);
-    gain.connect(this.trackEq);
-    const { src, voice } = this.trackVoice(ctx, buf, gain, ctx.currentTime, 0);
-    this.track = { name: info.file, src, gain, voice, t0: ctx.currentTime, next: ctx.currentTime + buf.duration - TRACK_XF, info };
-    return true;
-  }
-
-  /** One pass through a track, fading in over `fadeIn` s (the loop's crossfade). */
-  private trackVoice(ctx: AudioContext, buf: AudioBuffer, out: AudioNode, when: number, fadeIn: number): { src: AudioBufferSourceNode; voice: GainNode } {
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
-    const voice = ctx.createGain();
-    voice.gain.setValueAtTime(fadeIn > 0 ? 0 : 1, when);
-    if (fadeIn > 0) voice.gain.linearRampToValueAtTime(1, when + fadeIn);
-    src.connect(voice).connect(out);
-    src.start(when);
-    return { src, voice };
-  }
-
-  /** Near the end of a pass, the next pass starts underneath and the two crossfade: a seamless loop. */
-  private loopTrack(ctx: AudioContext): void {
-    const t = this.track;
-    const buf = t?.src.buffer;
-    if (!t || !buf || ctx.currentTime < t.next - 0.5) return;
-    const at = Math.max(ctx.currentTime + 0.05, t.next);
-    t.voice.gain.setValueAtTime(1, at);
-    t.voice.gain.linearRampToValueAtTime(0, at + TRACK_XF);
-    t.src.stop(at + TRACK_XF + 0.1);
-    const { src, voice } = this.trackVoice(ctx, buf, t.gain, at, TRACK_XF);
-    t.src = src;
-    t.voice = voice;
-    t.t0 = at;
-    t.next = at + buf.duration - TRACK_XF;
+    node.connect(gain).connect(this.trackEq);
+    const t = { name: info.file, el, node, gain, info, playing: false };
+    this.track = t;
+    el.play()
+      .then(() => {
+        if (this.track !== t) return;
+        t.playing = true;
+        this.stopPad();
+        gain.gain.setTargetAtTime(info.gain, ctx.currentTime, 0.8);
+      })
+      .catch(() => {
+        this.trackFailed.add(info.file);
+        if (this.track === t) this.track = null;
+      });
+    return false;
   }
 
   private stopTrack(ctx: AudioContext, fade: number): void {
@@ -632,7 +613,13 @@ class Synth {
     this.track = null;
     t.gain.gain.cancelScheduledValues(ctx.currentTime);
     t.gain.gain.setTargetAtTime(0, ctx.currentTime, fade / 3);
-    t.src.stop(ctx.currentTime + fade + 0.1);
+    window.setTimeout(() => {
+      t.el.pause();
+      t.el.removeAttribute('src');
+      t.el.load();
+      t.node.disconnect();
+      t.gain.disconnect();
+    }, (fade + 0.2) * 1000);
   }
 
   /** A soft music-box bell (sine + a quiet inharmonic partial, fast decay) on the music bus. */

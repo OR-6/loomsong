@@ -19,7 +19,7 @@ import {
   SceneUnderstandingSystem,
   type Object3D,
   type Entity,
-  PCFSoftShadowMap,
+  PCFShadowMap,
 } from '@iwsdk/core';
 import { BASKET, BOBBIN, CARD, LEVER, LEVERS, LOOM, NUDGE, PLACE, SHUTTLE, TOKEN, WARPS, bobbinX, leverX, nudgeX, skeinPos, tokenX, shuttleY } from '../config.js';
 import { applyCalibration, hands, calibration, type Side } from '../input/hands.js';
@@ -241,7 +241,7 @@ export class GameSystem extends createSystem({
     if (!unlocked) this.progress.theme = 'toy';
     // Soft real-time shadow from the loom's key light (dropped by the frame guard).
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = PCFSoftShadowMap;
+    this.renderer.shadowMap.type = PCFShadowMap; // the soft variant costs more per pixel; the map's own blur radius is soft enough
     // (No tone mapping: filmic curves washed the toy palette into pastels.)
     this.view = new LoomView(this.shown());
     if (NO_SHADOWS) this.view.setShadow(false); // `?shadows=0`: compare frame times on the headset
@@ -466,12 +466,17 @@ export class GameSystem extends createSystem({
         audio.chirp('cheer');
         // It comes alive: the woven picture pops out as a plush.
         const lv = this.flow.level;
-        this.view.plushes.celebrate(lv.id, lv.target, lv.color ?? this.shown().palette.weft, this.heroSpot(lv));
+        this.view.plushes.celebrate(lv.id, lv.target, lv.color ?? this.shown().palette.weft, this.heroSpot(lv), (this.progress.best[lv.id] ?? 0) >= 3);
         if (!this.view.plushes.shelfShown) this.view.plushes.showShelf(true, true); // the shelf springs up for the first plush
         // the next picture waits for the whole show: pop, dance (at least PLUSH.minDance), bow, hop
         const songEnd = TIMING.winPause + lv.target.length * TIMING.rowTime;
         const showEnd = Math.max(songEnd, 0.95 + PLUSH.minDance) + 0.8 + 0.75;
         this.flow.extraBetween = Math.max(0, showEnd + 0.3 - (songEnd + TIMING.afterPlayback));
+        // the very first gold bow: say what it's for, once the plush has landed
+        if (stars >= 3 && Object.values(this.progress.best).filter((b) => b >= 3).length === 1) {
+          this.laterNotice = 'Fewest moves: a gold bow!';
+          this.laterNoticeIn = 4.6;
+        }
         if (this.flow.daily) {
           // today's picture joins the streak; say so once the plush has hopped onto the desk
           const n = streakOf(this.progress.days ?? [], this.flow.daily);
@@ -1680,6 +1685,13 @@ export class GameSystem extends createSystem({
     if (this.world.session?.enabledFeatures?.includes('anchors') && !this.loomEntity.hasComponent(XRAnchor)) {
       this.loomEntity.addComponent(XRAnchor);
     }
+    // compile every shader now, while the loom unfolds, so the first plush, confetti or quilt doesn't hitch
+    try {
+      const r = this.renderer as unknown as { compileAsync?: (s: unknown, c: unknown) => Promise<unknown> };
+      void r.compileAsync?.(this.world.scene, this.world.camera)?.catch(() => {});
+    } catch {
+      /* not available: shaders compile on first use */
+    }
     const fallback = this.placement.source === 'default';
     this.controller.nudgeEnabled = fallback;
     this.view.nudges.visible = fallback;
@@ -1912,7 +1924,7 @@ function shelfItems(level: Level, progress: Progress): ShelfItem[] {
   return ch.levels.map((id) => {
     const l = LEVELS.find((x) => x.id === id);
     const done = (progress.best[id] ?? 0) > 0;
-    return { id, rows: l?.target ?? [], color: l?.color ?? 0xe2563b, done, placed: done && !!progress.placed?.[id] };
+    return { id, rows: l?.target ?? [], color: l?.color ?? 0xe2563b, done, placed: done && !!progress.placed?.[id], gold: (progress.best[id] ?? 0) >= 3 };
   });
 }
 
@@ -1929,7 +1941,7 @@ function deskItems(progress: Progress): (DeskItem | null)[] {
   return ALL_PICTURES.map((l) => {
     const at = progress.placed?.[l.id];
     if (!at || !((progress.best[l.id] ?? 0) > 0)) return null;
-    return { id: l.id, rows: l.target, color: l.color ?? 0xe2563b, x: at[0], z: at[1] };
+    return { id: l.id, rows: l.target, color: l.color ?? 0xe2563b, x: at[0], z: at[1], gold: (progress.best[l.id] ?? 0) >= 3 };
   });
 }
 

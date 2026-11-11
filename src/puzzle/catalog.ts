@@ -91,12 +91,13 @@ export type ChapterState = 'locked' | 'open' | 'current';
 
 /** A chapter unlocks once all but one picture of the chapter before it is woven. */
 export function chapterStates(progress: { best: Record<string, number> }, current: string | undefined): ChapterState[] {
+  // once the first picture is woven every chapter is open: a short visit still reaches Night's hidden
+  // levers and the Sea's second yarn (each chapter starts at its own first picture)
+  const started = (progress.best[CHAPTERS[0].levels[0]] ?? 0) > 0;
   return CHAPTERS.map((c, i) => {
     if (c.id === current) return 'current';
-    if (i === 0) return 'open';
-    const prev = CHAPTERS[i - 1];
-    const done = prev.levels.filter((id) => (progress.best[id] ?? 0) > 0).length;
-    return done >= prev.levels.length - 1 ? 'open' : 'locked';
+    if (i === 0 || started) return 'open';
+    return 'locked';
   });
 }
 

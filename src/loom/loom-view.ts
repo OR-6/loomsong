@@ -105,6 +105,7 @@ const _a = new Vector3();
 const _b = new Vector3();
 const Z_AXIS = new Vector3(0, 0, 1);
 
+const _v = new Vector3();
 export class LoomView {
   readonly root = new Group();
   /** Theme-dependent meshes live here so a theme switch can rebuild them. */
@@ -1040,6 +1041,33 @@ export class LoomView {
       if (g < 0.3) this.pipWings.forEach((w, i) => (w.rotation.x = (i === 0 ? 1 : -1) * 0.9 * k));
       if (g > 0.3) this.pipGrabT = -1;
     }
+    // asleep on the perch (welcome back): head tucked, eyes shut, slow breaths, a "Z" now and then
+    if (this.pipSleep > 0) {
+      this.pipSleepT += dt;
+      const breath = Math.sin(this.pipSleepT * 1.6);
+      pitch += 0.42 * this.pipSleep;
+      squash *= 1 - 0.05 * this.pipSleep + 0.03 * breath * this.pipSleep;
+      sx *= 1 + 0.025 * breath * this.pipSleep;
+      for (const e of this.pipEyes) e.scale.y = Math.min(e.scale.y, 1 - 0.85 * this.pipSleep);
+      this.pipWings.forEach((w) => (w.rotation.x = 0));
+      this.zzzIn -= dt;
+      if (this.zzzIn <= 0 && this.pipSleep > 0.9) {
+        this.zzzIn = 1.6;
+        this.shuttle.getWorldPosition(_v);
+        this.root.worldToLocal(_v);
+        this.fx.zzz(_v.x + 0.012, _v.y + 0.035, _v.z);
+      }
+    }
+    // waking: a big stretch (wings out, up on its toes)
+    if (this.pipWakeT >= 0) {
+      this.pipWakeT += dt;
+      const k = Math.sin(Math.min(1, this.pipWakeT / 0.9) * Math.PI);
+      y += 0.008 * k;
+      squash *= 1 + 0.12 * k;
+      this.pipWings.forEach((w, i) => (w.rotation.x = (i === 0 ? 1 : -1) * 1.1 * k));
+      if (this.pipWakeT > 0.9) this.pipWakeT = -1;
+    }
+    this.pipSleep += ((this.pipAsleep ? 1 : 0) - this.pipSleep) * Math.min(1, dt * 3);
     // flying: lean into the motion
     this.pipLean += (-0.18 * Math.min(1, speed * 2) - this.pipLean) * Math.min(1, dt * 10);
     p.position.y = y;
@@ -1124,6 +1152,21 @@ export class LoomView {
       this.trailDist = 0;
       this.fx.puff(x - Math.sign(x - xPrev) * 0.012, shuttleY(x) + 0.004, SHUTTLE.z, this.weftNowColor, 1);
     }
+  }
+
+  /** Pip dozes on its perch (welcome back after a while away) until a hand comes near. */
+  pipAsleep = false;
+  private pipSleep = 0;
+  private pipSleepT = 0;
+  private pipWakeT = -1;
+  private zzzIn = 0.6;
+
+  /** Pip wakes with a stretch. */
+  wakePip(): void {
+    if (!this.pipAsleep) return;
+    this.pipAsleep = false;
+    this.pipWakeT = 0;
+    this.setPipMood('happy');
   }
 
   /** Pip is the next thing to move: it beckons from its perch. */

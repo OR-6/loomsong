@@ -31,6 +31,16 @@ export function shot(name, look) {
 
 /** Fresh page (optionally with cleared storage), XR entered, hands only. */
 export async function freshSession({ clear = true } = {}) {
+  // hands up first: the emulator keeps its session through a reload, and a palm left flat at desk
+  // height would place the loom during the reload wait
+  try {
+    if (xr('status').sessionActive) {
+      xr('set-transform', { device: HAND, position: { x: 0.35, y: 1.45, z: -0.25 }, orientation: { pitch: 0, yaw: 0, roll: -90 } });
+      xr('set-transform', { device: 'hand-left', position: { x: -0.35, y: 1.45, z: -0.25 }, orientation: { pitch: 0, yaw: 0, roll: 90 } });
+    }
+  } catch {
+    /* no session yet */
+  }
   if (clear) run('tools/clear-storage.mjs');
   cli('browser', 'reload');
   await wait(2500);

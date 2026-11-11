@@ -5,12 +5,8 @@ describe('chapters', () => {
   it('Garden is open, later chapters locked on a fresh save', () => {
     expect(chapterStates({ best: {} }, 'garden')).toEqual(['current', 'locked', 'locked', 'locked']);
   });
-  it('a chapter opens once all but one picture of the previous one is woven', () => {
-    const g = CHAPTERS[0].levels;
-    const best = Object.fromEntries(g.slice(0, g.length - 2).map((id) => [id, 3]));
-    expect(chapterStates({ best }, 'garden')[1]).toBe('locked');
-    best[g[g.length - 2]] = 1;
-    expect(chapterStates({ best }, 'garden')[1]).toBe('open');
+  it('every chapter opens once the first picture is woven (a short visit reaches Night and Sea)', () => {
+    expect(chapterStates({ best: { [CHAPTERS[0].levels[0]]: 1 } }, 'garden')).toEqual(['current', 'open', 'open', 'open']);
   });
   it('combination chapters really need levers combined on most rows', () => {
     for (const ch of CHAPTERS.slice(1)) {

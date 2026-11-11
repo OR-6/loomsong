@@ -5,8 +5,7 @@ export default async function run({ page, frame }) {
     const g = window.__loom.game;
     a.resume();
     await new Promise((r) => setTimeout(r, 4000));
-    const states = {};
-    for (const [k, v] of a.trackBufs) states[k] = typeof v === 'string' ? v : `${v.duration.toFixed(1)}s`;
-    return { ctx: a.ctx?.state ?? null, chapter: a.chapter, track: a.track?.name ?? null, trackGain: a.track ? +a.track.gain.gain.value.toFixed(3) : null, loads: states, root: a.rootMidi, level: g.flow.level.id, pad: !!a.pad };
+    const t = a.track;
+    return { ctx: a.ctx?.state ?? null, chapter: a.chapter, track: t?.name ?? null, playing: t?.playing ?? false, at: t ? +t.el.currentTime.toFixed(1) : null, trackGain: t ? +t.gain.gain.value.toFixed(3) : null, failed: [...a.trackFailed], root: a.rootMidi, level: g.flow.level.id, pad: !!a.pad };
   });
 }

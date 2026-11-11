@@ -62,6 +62,28 @@ function buttonGeo(): ShapeGeometry {
 
 const _ink = new Color(0x4a3426);
 
+/** A small felt "Z", 3 mm thick. */
+function zGeometry(): ExtrudeGeometry {
+  const s = new Shape();
+  const w = 0.009;
+  const h = 0.01;
+  const t = 0.0022;
+  s.moveTo(0, h);
+  s.lineTo(w, h);
+  s.lineTo(w, h - t);
+  s.lineTo(t * 1.3, t);
+  s.lineTo(w, t);
+  s.lineTo(w, 0);
+  s.lineTo(0, 0);
+  s.lineTo(0, t);
+  s.lineTo(w - t * 1.3, h - t);
+  s.lineTo(0, h - t);
+  s.closePath();
+  const g = new ExtrudeGeometry(s, { depth: 0.0025, bevelEnabled: false });
+  g.translate(-w / 2, -h / 2, -0.00125);
+  return g;
+}
+
 /** A felt ♪ cut-out about 2 cm tall, 3 mm thick: a round head, a stem and a flag. */
 function noteGeometry(): ExtrudeGeometry {
   const head = new Shape();
@@ -94,6 +116,8 @@ export class Fx {
   private noteT = new Float32Array(NOTES);
   private noteX = new Float32Array(NOTES);
   private nextNote = 0;
+  private noteGeo!: ExtrudeGeometry;
+  private zGeo!: ExtrudeGeometry;
   private pp = new Float32Array(PUFFS * 3);
   private pv = new Float32Array(PUFFS * 3);
   private pt = new Float32Array(PUFFS); // remaining life (s)
@@ -126,7 +150,8 @@ export class Fx {
       this.root.add(r);
       this.rings.push(r);
     }
-    const noteGeo = noteGeometry();
+    const noteGeo = (this.noteGeo = noteGeometry());
+    this.zGeo = zGeometry();
     for (let i = 0; i < NOTES; i++) {
       const n = new Mesh(noteGeo, new MeshStandardMaterial({ color: 0x4a3426, roughness: 0.95, transparent: true, opacity: 0 }));
       n.visible = false;
@@ -149,11 +174,26 @@ export class Fx {
     this.live = true;
   }
 
+  /** A sleepy felt "Z" drifting up from a dozing Pip. */
+  zzz(x: number, y: number, z: number): void {
+    const i = this.nextNote;
+    this.nextNote = (i + 1) % NOTES;
+    const n = this.notes[i];
+    n.geometry = this.zGeo;
+    n.position.set(x, y, z);
+    this.noteX[i] = x;
+    (n.material as MeshStandardMaterial).color.setHex(0x8fa8d8);
+    n.visible = true;
+    this.noteT[i] = 1.4;
+    this.live = true;
+  }
+
   /** A musical note floating up off the cloth (the cloth sings its rows). */
   note(x: number, y: number, z: number, color: number): void {
     const i = this.nextNote;
     this.nextNote = (i + 1) % NOTES;
     const n = this.notes[i];
+    n.geometry = this.noteGeo;
     n.position.set(x, y, z);
     this.noteX[i] = x;
     (n.material as MeshStandardMaterial).color.setHex(color).lerp(_ink, 0.55); // ink-brown felt, warmed by the picture's colour

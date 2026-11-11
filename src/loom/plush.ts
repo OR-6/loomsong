@@ -97,6 +97,8 @@ export interface DeskItem {
   color: number;
   x: number;
   z: number;
+  /** Woven in the fewest moves (3 stars): it wears a gold felt bow. */
+  gold?: boolean;
 }
 
 /** Seconds per row when a shelf plush sings its picture. */
@@ -151,7 +153,7 @@ const _p = new Vector3();
 const _s = new Vector3();
 
 /** Build a plush from picture rows (row 0 = bottom) in `color`. Origin: bottom centre. */
-export function buildPlush(rows: readonly Mask8[], color: number): Group {
+export function buildPlush(rows: readonly Mask8[], color: number, gold = false): Group {
   const cell = PLUSH.cell;
   const g = new Group();
   g.name = 'Plush';
@@ -187,6 +189,7 @@ export function buildPlush(rows: readonly Mask8[], color: number): Group {
   addStalks(g, rows, color);
   addFace(g, rows, color);
   addFeetAndTag(g, rows, color);
+  if (gold) addGoldBow(g, rows);
   g.userData.height = rows.length * cell;
   mergeStatic(g, () => false); // eyes+smile, cheeks, feet: one draw each per plush
   return g;
@@ -369,6 +372,8 @@ export interface ShelfItem {
   done: boolean;
   /** It lives on the desk now: its shelf slot stays empty. */
   placed?: boolean;
+  /** Woven in the fewest moves (3 stars): it wears a gold felt bow. */
+  gold?: boolean;
 }
 
 type ShowPhase = 'none' | 'pop' | 'hopOut' | 'dance' | 'bow' | 'hopShelf' | 'fade';
@@ -389,6 +394,9 @@ export class Plushes {
   /** Plush per spot (shelf slots, then desk spots) and its picture id. */
   private slotItems: (Group | null)[] = new Array(SPOTS).fill(null);
   private slotIds: (string | null)[] = new Array(SPOTS).fill(null);
+  /** Each spot's plush wears a gold bow (3 stars). */
+  private slotGold: boolean[] = new Array(SPOTS).fill(false);
+  private heroGold = false;
   /** Where each desk spot's plush stands (loom space, on the desk: y 0). */
   private deskPos = Array.from({ length: SPOTS }, () => new Vector3());
   /** A soft contact shadow under each desk plush (it sits on the real table). */
@@ -647,7 +655,7 @@ export class Plushes {
       const i = PLUSH.slots + d;
       const it = items[d] ?? null;
       const want = it ? it.id : null;
-      if (want === this.slotIds[i] && (this.slotItems[i] || !want)) {
+      if (want === this.slotIds[i] && (this.slotItems[i] || !want) && !!it?.gold === this.slotGold[i]) {
         if (it && i !== this.carryI && this.landT[i] >= 1) this.deskPos[i].set(it.x, 0, it.z);
         continue;
       }
@@ -657,7 +665,8 @@ export class Plushes {
       this.slotIds[i] = want;
       if (!it) continue;
       this.deskPos[i].set(it.x, 0, it.z);
-      const p = buildPlush(it.rows, it.color);
+      const p = buildPlush(it.rows, it.color, !!it.gold);
+      this.slotGold[i] = !!it.gold;
       p.scale.setScalar(PLUSH.deskScale);
       p.position.copy(this.deskPos[i]);
       p.rotation.set(this.restX(i), this.restY(i), 0);
@@ -763,13 +772,14 @@ export class Plushes {
     for (let i = 0; i < PLUSH.slots; i++) {
       const it = items[i];
       const id = it && it.done && !it.placed ? it.id : null;
-      if (id === this.slotIds[i]) continue;
+      if (id === this.slotIds[i] && (!id || !!it?.gold === this.slotGold[i])) continue;
       const old = this.slotItems[i];
       if (old) disposePlush(old);
       this.slotItems[i] = null;
       this.slotIds[i] = id;
       if (!it || !id) continue;
-      const p = buildPlush(it.rows, it.color);
+      const p = buildPlush(it.rows, it.color, !!it.gold);
+      this.slotGold[i] = !!it.gold;
       p.scale.setScalar(PLUSH.shelfScale);
       this.slotPos(i, p.position);
       this.shelfRoot.add(p);
@@ -778,9 +788,10 @@ export class Plushes {
   }
 
   /** Win: the picture pops out of the cloth. `slot` -1 = not a shelf picture. */
-  celebrate(id: string, rows: readonly Mask8[], color: number, slot: number): void {
+  celebrate(id: string, rows: readonly Mask8[], color: number, slot: number, gold = false): void {
     this.settle();
-    this.hero = buildPlush(rows, color);
+    this.hero = buildPlush(rows, color, gold);
+    this.heroGold = gold;
     this.heroSlot = slot;
     this.heroId = id;
     this.heroColor = color;
@@ -897,6 +908,7 @@ export class Plushes {
     this.home(this.heroSlot, h.position);
     this.slotItems[this.heroSlot] = h;
     this.slotIds[this.heroSlot] = this.heroId;
+    this.slotGold[this.heroSlot] = this.heroGold;
     this.landT[this.heroSlot] = 1;
     if (this.heroSlot >= PLUSH.slots) return;
     const ghost = this.ghosts[this.heroSlot];
@@ -1222,4 +1234,34 @@ function addStalks(g: Group, rows: readonly Mask8[], color: number): void {
     stalk.castShadow = true;
     g.add(stalk);
   }
+}
+
+let bowGeo: TorusGeometry | null = null;
+let bowMat: MeshStandardMaterial | null = null;
+/** A little gold felt bow on top of the plush: woven in the fewest moves. */
+function addGoldBow(g: Group, rows: readonly Mask8[]): void {
+  const cell = PLUSH.cell;
+  const top = rows.length - 1;
+  let sx = 0;
+  let n = 0;
+  for (let i = 0; i < WARPS; i++) if (isLifted(rows[top], i)) {
+    sx += i;
+    n++;
+  }
+  const x = ((n ? sx / n : (WARPS - 1) / 2) - (WARPS - 1) / 2) * cell;
+  const y = LIFT + (top + 1) * cell + cell * 0.12;
+  bowGeo ??= new TorusGeometry(cell * 0.42, cell * 0.16, 8, 20);
+  bowGeo.userData.sharedGeometry = true;
+  bowMat ??= new MeshStandardMaterial({ color: 0xe8b04a, roughness: 0.75, emissive: 0x3a2400 });
+  for (const s of [-1, 1]) {
+    const loop = new Mesh(bowGeo, bowMat);
+    loop.position.set(x + s * cell * 0.42, y, cell * 0.2);
+    loop.rotation.set(0, 0, s * 0.5);
+    loop.scale.set(1, 0.7, 0.7);
+    g.add(loop);
+  }
+  const knot = new Mesh(bowGeo, bowMat);
+  knot.position.set(x, y - cell * 0.04, cell * 0.25);
+  knot.scale.setScalar(0.38);
+  g.add(knot);
 }
