@@ -50,11 +50,7 @@ export function mountLanding(world: World): void {
               <p>This browser can't open mixed reality. Open this page in your headset's browser, or join a friend's loom as their caller:</p>
               <div class="row"><input id="call-code" maxlength="4" placeholder="CODE" aria-label="Friend's room code" autocomplete="off" /><button type="button" id="call-join">Join as caller</button></div>
             </div>
-            <div id="style-pick" role="radiogroup" aria-label="Loom style" hidden>
-              <span class="lbl">Loom style</span>
-              <button type="button" data-theme="toy" role="radio">Toy</button>
-              <button type="button" data-theme="workshop" role="radio">Workshop</button>
-            </div>
+
           </div>
           <figure class="photo hero-photo">
             <i class="peg" aria-hidden="true"></i>
@@ -88,7 +84,7 @@ export function mountLanding(world: World): void {
           </svg>
           <figure class="photo small"><i class="peg"></i><img loading="lazy" src="${sitePhoto('shelf.jpg')}" alt="Finished plushes on a little shelf with a brass wind-up key" width="800" height="600" /></figure>
           <div class="note-card"><i class="peg"></i><b>Four chapters, eighteen pictures</b><p>Garden teaches your hands, Home combines levers, Night hides what they lift, and Sea weaves in two colours. Wind the key on your shelf and your plushes sing their songs in turn.</p></div>
-          <figure class="photo small"><i class="peg"></i><img loading="lazy" src="${sitePhoto('sea-boat.jpg')}" alt="A red boat woven on blue water rows" width="1100" height="619" /></figure>
+          <figure class="photo small"><i class="peg"></i><img loading="lazy" src="${sitePhoto('sea-boat.jpg')}" alt="A red boat woven on blue water rows" width="800" height="600" /></figure>
         </section>
 
         <div class="drawer">
@@ -102,7 +98,7 @@ export function mountLanding(world: World): void {
         </figure>
 
         <div class="prep">
-        <h2 class="before">Before you start</h2>
+        <h2 class="before"><i class="peg" aria-hidden="true"></i>Before you start</h2>
         <div id="settings" aria-label="Settings">
           <span class="tagwrap"><i class="string" aria-hidden="true"></i><button type="button" class="tag" id="hc" role="switch" aria-checked="false">High contrast</button></span>
           <span class="tagwrap"><i class="string" aria-hidden="true"></i><button type="button" class="tag" id="music" role="switch" aria-checked="true">Music</button></span>
@@ -112,6 +108,11 @@ export function mountLanding(world: World): void {
             <button type="button" data-hand="auto" role="radio" title="On the side of the hand you place the loom with">placing hand</button>
             <button type="button" data-hand="left" role="radio">left</button>
             <button type="button" data-hand="right" role="radio">right</button>
+          </div>
+          <div id="style-pick" role="radiogroup" aria-label="Loom style" hidden>
+            <span class="lbl">Loom style</span>
+            <button type="button" data-theme="toy" role="radio">Toy</button>
+            <button type="button" data-theme="workshop" role="radio">Workshop</button>
           </div>
         </div>
         </div>
@@ -135,8 +136,7 @@ export function mountLanding(world: World): void {
         </section>
 
         <footer class="foot">
-          <span class="foot-tag">Made for a mixed-reality game jam, November 2026. Built with IWSDK.</span>
-          <a class="foot-tag" href="${import.meta.env.BASE_URL}audio/CREDITS.md">Sound credits (all CC0)</a>
+          <p class="slip"><i class="peg" aria-hidden="true"></i>Made for a mixed-reality game jam, November 2026, with IWSDK. Every sound is CC0: <a href="${import.meta.env.BASE_URL}audio/CREDITS.md">see the credits</a>.</p>
         </footer>
       </main>
     </div>`;
@@ -314,8 +314,9 @@ export function mountLanding(world: World): void {
  * each row lands (the page's one orchestrated motion; instant with reduced motion).
  */
 function weaveHero(box: HTMLElement): void {
+  // a little duck drawn for the mark: '#' body, 'b' beak, 'e' eye (top → bottom)
+  const rows = ['....##..', '...##eb.', '....##..', '#...###.', '#######.', '.#####..', '..###...'];
   const pic = PICTURES.find((p) => p.id === 'duck') ?? PICTURES[0];
-  const rows = pic.picture; // top → bottom
   const color = '#' + pic.color.toString(16).padStart(6, '0');
   const cloth = box.querySelector<HTMLElement>('.cloth')!;
   const pip = box.querySelector<SVGElement>('.pip')!;
@@ -327,7 +328,7 @@ function weaveHero(box: HTMLElement): void {
     row.className = 'row';
     for (const ch of r) {
       const c = document.createElement('i');
-      c.className = ch === '#' ? 'px' : 'gr';
+      c.className = ch === '#' ? 'px' : ch === 'b' ? 'px beak' : ch === 'e' ? 'px eye' : 'gr';
       row.appendChild(c);
     }
     cloth.appendChild(row);

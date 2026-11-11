@@ -68,11 +68,12 @@
       #landing .peg::after { content: ''; position: absolute; left: 3px; right: 3px; top: 16px; height: 6px; border-radius: 3px; background: #8b8b8b; }
 
       /* hero: the pitch, and the real loom photo */
-      #landing .hero { display: grid; grid-template-columns: minmax(340px, 1fr) 1.1fr; gap: clamp(28px, 4vw, 56px); align-items: center; }
+      #landing .hero { display: grid; grid-template-columns: minmax(340px, 1fr) 1.15fr; gap: clamp(28px, 4vw, 56px); align-items: start; }
+      #landing .hero-photo { margin-top: 18px; }
       #landing .hero-photo { transform: rotate(1.6deg); }
       #landing .pitch { position: relative; z-index: 1; min-width: 0; }
       #landing .mark { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
-      #landing .weave { --cell: 11px; --gap: 2px; position: relative; flex: none;
+      #landing .weave { --cell: 13px; --gap: 2px; position: relative; flex: none;
         width: calc(8 * var(--cell) + 7 * var(--gap) + 16px); padding: 18px 8px 8px; border-radius: 9px;
         background: var(--felt-deep); box-shadow: inset 0 2px 6px #0007; }
       #landing .weave .warps { position: absolute; inset: 0 8px; pointer-events: none;
@@ -86,8 +87,11 @@
       /* in the logo mark only the duck's own cells show: a clear little duck, not a bead grid */
       #landing .mark .warps { display: none; }
       #landing .mark .weave { background: none; box-shadow: none; padding-left: 0; padding-right: 0; }
-      #landing .mark .cloth .row.in i.gr { animation: none; opacity: .14; transform: none; }
-      #landing .mark .pip.rest { left: 2px; top: -19px; transform: rotate(-6deg); }
+      #landing .mark .cloth .row.in i.gr { animation: none; opacity: .09; transform: none; }
+      #landing .mark .cloth i.beak { background: #f08a3c; }
+      #landing .mark .cloth i.eye { background: #2b2320; }
+      /* Pip sits on the duck's back, between its tail and its neck */
+      #landing .mark .pip.rest { left: calc(1 * (var(--cell) + var(--gap)) - 2px); top: calc(18px + 4 * (var(--cell) * 0.82 + var(--gap)) - 21px); transform: none; }
       #landing .cloth .row.in i { animation: beat .3s cubic-bezier(.3, 1.6, .5, 1) forwards; }
       @keyframes beat { to { opacity: 1; transform: none; } }
       #landing .pip { position: absolute; left: 0; width: 26px; height: 23px; opacity: 0;
@@ -116,13 +120,14 @@
       #landing .row button, #coop .row button { font: 400 18px var(--display); padding: 9px 18px 11px; border-radius: 12px; border: 0; cursor: pointer;
         background: var(--walnut); color: var(--paper); box-shadow: 0 4px 0 #4a2a18; }
       #call-join { background: var(--tomato) !important; box-shadow: 0 4px 0 #a8341f !important; }
-      #style-pick { display: flex; gap: 8px; align-items: center; margin-top: 18px; }
+      #style-pick { position: relative; display: flex; gap: 6px; align-items: center; background: var(--paper); color: var(--ink); padding: 8px 14px 8px 30px;
+        transform: rotate(-1.2deg); clip-path: polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 0 calc(100% - 12px), 0 12px); font: 600 15px var(--serif); }
+      #style-pick::before { content: ''; position: absolute; left: 12px; top: 50%; width: 8px; height: 8px; margin-top: -4px; border-radius: 50%; background: var(--felt); box-shadow: 0 0 0 2px var(--tomato); }
       #style-pick[hidden] { display: none; }
-      #style-pick .lbl { font: 600 14px var(--serif); color: #c9c5d8; margin-right: 4px; }
-      #style-pick button { font: 400 16px var(--display); padding: 7px 16px; border-radius: 10px; border: 2px solid var(--mustard);
-        background: transparent; color: var(--paper); cursor: pointer; }
+      #style-pick .lbl { margin-right: 4px; }
+      #style-pick button { font: 400 16px var(--display); padding: 3px 10px; border-radius: 999px; border: 2px solid transparent; background: none; color: var(--ink); cursor: pointer; }
       #style-pick button[data-theme='workshop'] { font-family: 'Fraunces', Georgia, serif; font-weight: 600; }
-      #style-pick button[aria-checked='true'] { background: var(--mustard); color: var(--ink); }
+      #style-pick button[aria-checked='true'] { border-color: var(--tomato); }
 
       /* how it plays: hand-hung photos on a sagging yarn, each with its note on a paper tag (it is a sequence) */
       #landing .line { position: relative; padding-top: 8px; }
@@ -130,7 +135,7 @@
       #landing .steps { list-style: none; margin: 0; padding: 0; display: flex; align-items: flex-start; }
       #landing .steps li { position: relative; }
       #landing .steps .s1 { flex: 1.12; margin-top: 26px; z-index: 2; }
-      #landing .steps .s2 { flex: 0.86; margin: 78px 0 0 -18px; z-index: 3; }
+      #landing .steps .s2 { flex: 0.86; margin: 78px 0 0 6px; z-index: 3; }
       #landing .steps .s3 { flex: 1.02; margin: 40px 0 0 18px; z-index: 1; }
       #landing .steps .s1 .photo { transform: rotate(-3.6deg); }
       #landing .steps .s2 .photo { transform: rotate(2.7deg); }
@@ -179,7 +184,9 @@
       #share-note { display: block; font-size: 13px; color: #c9c5d8; max-width: 90vw; word-break: break-all; margin-top: 6px; }
 
       /* settings: paper luggage tags with a yarn loop, like the hints in the game */
-      #landing h2.before { margin: 0; text-align: center; font: 400 22px var(--display); color: var(--mustard); }
+      #landing h2.before { position: relative; margin: 0 0 6px; padding: 10px 22px 9px; font: 400 21px var(--display); color: var(--walnut);
+        background: var(--paper); border-radius: 2px; box-shadow: 0 4px 0 #0003; transform: rotate(-1.5deg); }
+      #landing h2.before .peg { top: -22px; }
       #settings { display: flex; flex-wrap: wrap; gap: 16px 30px; justify-content: center; align-items: center; padding-left: 20px; }
       #landing .tagwrap { position: relative; display: inline-flex; }
       #landing .tagwrap:nth-child(1) { transform: rotate(-2deg); }
@@ -198,21 +205,19 @@
       #landing .tag[aria-checked='true'], #landing .tag[aria-pressed='true'] { background: var(--mustard); }
       /* the tag shape clips outlines, so focus is drawn inside it */
       #landing .tag:focus-visible { outline: none; box-shadow: inset 0 0 0 3px var(--tomato); }
-      #hand-pick { display: flex; gap: 8px; align-items: center; cursor: default; background: none !important; clip-path: none !important; padding: 0 !important; color: var(--paper); }
-      #hand-pick::before { display: none; }
-      #hand-pick .lbl { margin-right: 2px; font: 600 15px var(--serif); color: #e8ddc8; }
-      /* three little tags to choose from */
-      #hand-pick button { position: relative; font: 600 14px var(--serif); padding: 6px 12px 6px 22px; border: 0; background: var(--paper); color: var(--ink); cursor: pointer;
-        clip-path: polygon(9px 0, 100% 0, 100% 100%, 9px 100%, 0 calc(100% - 9px), 0 9px); }
-      #hand-pick button::before { content: ''; position: absolute; left: 9px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: var(--felt); }
-      #hand-pick button[aria-checked='true'] { background: var(--mustard); }
+      #hand-pick { display: flex; gap: 6px; align-items: center; cursor: default; transform: rotate(1deg); }
+      #hand-pick .lbl { margin-right: 4px; }
+      /* choices written on the tag; the chosen one is circled in yarn */
+      #hand-pick button { font: 600 15px var(--serif); padding: 3px 9px; border: 2px solid transparent; border-radius: 999px; background: none; color: var(--ink); cursor: pointer; }
+      #hand-pick button[aria-checked='true'] { border-color: var(--tomato); }
       #hand-pick button:focus-visible { outline: 3px solid var(--tomato); outline-offset: 1px; }
 
       /* play together: a paper card pegged to the felt, with the caller's phone beside it */
-      #coop { position: relative; display: grid; grid-template-columns: 170px 1fr; gap: 26px; align-items: center; background: var(--paper); color: var(--ink);
+      #coop { position: relative; display: grid; grid-template-columns: 210px 1fr; gap: 26px; align-items: center; background: var(--paper); color: var(--ink);
         border-radius: 4px; padding: 26px 28px 22px; box-shadow: 0 5px 0 #0003; max-width: 820px; width: 100%; align-self: center; transform: rotate(-.4deg); }
       #coop .phone { padding: 6px; transform: rotate(-3deg); margin: -44px 0 -10px; }
       #coop .phone img { border-radius: 14px; }
+      #coop .phone .peg { left: 14%; transform: rotate(-10deg); }
       #coop h2 { text-wrap: balance; margin: 0 0 8px; font: 400 25px/1.15 var(--display); color: var(--walnut); }
       #coop p { margin: 0 0 12px; max-width: 58ch; font: 600 15px/1.55 var(--serif); }
       #coop .row { margin: 6px 0 10px; align-items: center; }
@@ -224,11 +229,12 @@
       #coop-status { min-height: 1.4em; font-weight: 700; color: var(--walnut); margin: 0 !important; }
       #coop .fine { font: 600 13px/1.5 var(--serif); color: #6b5a4e; margin: 6px 0 0; }
 
-      #landing .foot { display: flex; gap: 14px 22px; justify-content: center; flex-wrap: wrap; margin-top: -10px; }
-      #landing .foot-tag { position: relative; font: 600 13px/1.4 var(--serif); color: #e8ddc8; padding: 6px 14px 7px 24px; background: #ffffff10;
-        clip-path: polygon(9px 0, 100% 0, 100% 100%, 9px 100%, 0 calc(100% - 9px), 0 9px); text-decoration: none; }
-      #landing a.foot-tag { color: var(--mustard); text-decoration: underline; text-underline-offset: 3px; }
-      #landing a.foot-tag:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--mustard); }
+      #landing .foot { display: flex; justify-content: center; margin-top: -6px; }
+      #landing .slip { position: relative; margin: 0; max-width: 46em; padding: 14px 20px 13px; background: var(--paper); color: var(--ink); border-radius: 2px;
+        font: 600 13.5px/1.5 var(--serif); text-align: center; box-shadow: 0 4px 0 #0003; transform: rotate(.6deg); text-wrap: balance; }
+      #landing .slip .peg { left: 18%; transform: rotate(-6deg); }
+      #landing .slip a { color: var(--walnut); text-underline-offset: 3px; }
+      #landing .slip a:focus-visible { outline: 3px solid var(--tomato); outline-offset: 2px; }
       #landing button:focus-visible, #landing input:focus-visible, #landing summary:focus-visible { outline: 3px solid var(--mustard); outline-offset: 3px; }
       @media (min-width: 1200px) { #landing .steps li { font-size: 16px; } }
       @media (max-width: 860px) {
@@ -256,7 +262,9 @@
         #coop .phone { max-width: 170px; margin: -40px auto 0; }
         #coop .row { display: grid; grid-template-columns: 1fr auto; }
         #coop-host { grid-column: 1 / -1; }
+        #coop .or { grid-column: 1 / -1; text-align: center; }
         #coop-code { width: 100%; }
+        #coop-leave { grid-column: 1 / -1; }
       }
       @media (prefers-reduced-motion: reduce) {
         #landing .cloth i { opacity: 1; transform: none; animation: none !important; }
