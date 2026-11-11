@@ -16,9 +16,10 @@ export type FlowPhase = 'play' | 'won' | 'playback' | 'between';
  * What to touch next. 'lever': lift lever k; 'unlatch': put lever k back;
  * 'weft': swap Pip's yarn (Sea); 'shuttle': slide Pip; 'undo': pull the spool (last row is wrong);
  * 'card': read the card (the goal, or "match the next row" in idle hints);
- * 'knots': the tutorial explains the knot budget once, after the goal.
+ * 'knots': the tutorial explains the knot budget once, after the goal;
+ * 'combo': the aha, once: two levers latched together make the next row.
  */
-export type HintStep = 'lever' | 'unlatch' | 'weft' | 'shuttle' | 'undo' | 'card' | 'knots' | 'none';
+export type HintStep = 'lever' | 'unlatch' | 'weft' | 'shuttle' | 'undo' | 'card' | 'knots' | 'combo' | 'none';
 
 export interface FlowHooks {
   load(level: Level, index: number): void;
@@ -39,6 +40,8 @@ export const TIMING = {
   noteGap: 0.05,
   afterPlayback: 1.6,
   cardHint: 3.5,
+  /** How long the "two levers at once" aha tag stays up. */
+  comboHint: 2.6,
   /** Seconds without touching anything before a gentle hint (after the tutorial). */
   idleHint: 12,
 } as const;
@@ -62,6 +65,8 @@ export class LevelFlow {
   tutorial = false;
   /** The goal ("match the card") has been explained once. */
   private goalShown = false;
+  /** The "two levers at once" aha has been celebrated. */
+  private comboShown = false;
   private idle = 0;
   /** The current hint came from idling (cleared by the next touch). */
   private idleShown = false;
@@ -81,6 +86,7 @@ export class LevelFlow {
     this.load(this.levelAt(this.index));
     this.tutorial = this.index === 0 && !this.progress.tutorialDone;
     this.goalShown = false;
+    this.comboShown = false;
     this.idle = 0;
     this.idleShown = false;
     if (this.tutorial) this.guide();
@@ -112,7 +118,7 @@ export class LevelFlow {
   }
 
   update(dt: number): void {
-    if ((this.hintStep === 'card' || this.hintStep === 'knots') && this.hintTimer > 0) {
+    if ((this.hintStep === 'card' || this.hintStep === 'knots' || this.hintStep === 'combo') && this.hintTimer > 0) {
       this.hintTimer -= dt;
       if (this.hintTimer <= 0) {
         if (this.tutorial && this.hintStep === 'card') {
@@ -223,7 +229,17 @@ export class LevelFlow {
       this.hintTimer = TIMING.cardHint;
       return;
     }
-    if ((this.hintStep === 'card' || this.hintStep === 'knots') && this.hintTimer > 0) return;
+    if ((this.hintStep === 'card' || this.hintStep === 'knots' || this.hintStep === 'combo') && this.hintTimer > 0) return;
+    // the aha: a second lever joins the first and together they make the next row
+    if (e.type === 'lever' && e.latched && !this.comboShown && this.model.latched.filter(Boolean).length >= 2) {
+      const n = nextStep(this.level, this.model.rows, this.model.latched, this.model.weft);
+      if (n.step === 'shuttle' || n.step === 'weft') {
+        this.comboShown = true;
+        this.setHint('combo');
+        this.hintTimer = TIMING.comboHint;
+        return;
+      }
+    }
     if (e.type === 'lever' || e.type === 'row' || e.type === 'undo' || e.type === 'weft') this.guide();
   }
 

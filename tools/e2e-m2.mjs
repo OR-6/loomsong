@@ -43,8 +43,8 @@ xr('set-transform', { device: 'hand-left', position: { x: -0.35, y: 1.45, z: -0.
 xr('set-select-value', { device: HAND, value: 0 });
 s = await setTable();
 const L = run('tools/level-info.mjs');
-check('level 4 is the Duck', L.id === 'duck' && L.index === 3, `${L.id} levers=${L.tieUp.length} rows=${L.target.length} par=${L.par}`);
-check('plaque shows level 4 and 8 stars', s.debug.plaque === 'Level 4 * 8', s.debug.plaque);
+check('level 3 is the Duck', L.id === 'duck' && L.index === 2, `${L.id} levers=${L.tieUp.length} rows=${L.target.length} par=${L.par}`);
+check('plaque shows level 3 and 6 stars', s.debug.plaque === 'Level 3 * 6', s.debug.plaque);
 check('workshop style still locked (the Garden needs the Duck)', s.debug.workshopUnlocked !== true, String(s.debug.workshopUnlocked));
 const cal = await calibrate();
 
@@ -89,7 +89,7 @@ for (let r = 0; r < path.length; r++) {
 s = state();
 check('level 4 won at par (3 stars)', s.debug.stars === 3 && s.debug.flow !== 'play', `flow=${s.debug.flow} stars=${s.debug.stars} rows=${JSON.stringify(s.debug.rows)}`);
 check('finishing the Garden unlocks the workshop style', state().debug.workshopUnlocked === true);
-check('plaque total → 11 stars', s.debug.plaque.endsWith('* 11'), s.debug.plaque);
+check('plaque total → 9 stars', s.debug.plaque.endsWith('* 9'), s.debug.plaque);
 shot('m2-02-level4-win', s.debug.loomOrigin);
 // the Duck finishes the Garden: its finale (the whole shelf sings) plays before the next chapter
 for (let i = 0; i < 60; i++) {
@@ -97,7 +97,7 @@ for (let i = 0; i < 60; i++) {
   s = state();
   if (s.debug.level === 'cup' && s.debug.flow === 'play') break;
 }
-check('advanced to level 5 (Cup)', s.debug.level === 'cup' && s.debug.flow === 'play', `${s.debug.level} ${s.debug.flow}`);
+check('advanced to level 4 (Cup)', s.debug.level === 'cup' && s.debug.flow === 'play', `${s.debug.level} ${s.debug.flow}`);
 
 // ---------- C. high contrast ----------
 run('tools/set-hc.mjs');

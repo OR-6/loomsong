@@ -17,7 +17,7 @@ export default async function run({ context }) {
     const raw = localStorage.getItem('loomsong:progress.v1');
     const pr = raw ? JSON.parse(raw) : { level: 4, best: {}, tutorialDone: true, theme: 'toy' };
     pr.lastCloth = { tieUp: [24, 36], rows: [24, 24, 24, 36], rootMidi: 62 };
-    pr.best = { sprout: 3, tulip: 3, tree: 2, duck: 3 };
+    pr.best = { sprout: 3, tulip: 3, duck: 3 };
     localStorage.setItem('loomsong:progress.v1', JSON.stringify(pr));
   };
   // desktop

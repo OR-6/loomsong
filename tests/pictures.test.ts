@@ -23,7 +23,7 @@ describe('picture levels', () => {
     expect(ids).toEqual(PICTURES.map((p) => p.id));
     expect(new Set(ids).size).toBe(ids.length);
   });
-  it('difficulty rises: chapter 1 needs no combinations; the Sea chapter needs the most', () => {
+  it('difficulty rises: Garden has the fewest combinations; level 1 has exactly one (the aha)', () => {
     const combos = (id: string) => {
       const p = PICTURES.find((x) => x.id === id)!;
       return p.target.filter((r) => !p.tieUp.includes(r & 255)).length;
@@ -32,8 +32,8 @@ describe('picture levels', () => {
       const ls = CHAPTERS.find((c) => c.id === ch)!.levels;
       return ls.reduce((a, id) => a + combos(id), 0) / ls.length;
     };
-    expect(avg('garden')).toBeLessThan(avg('sea'));
-    expect(combos('sprout')).toBe(0);
+    expect(avg('garden')).toBeLessThan(avg('home'));
+    expect(combos('sprout')).toBe(1); // the aha: the top row needs both levers
   });
   it('level sequence: pictures first, then bonus patterns', () => {
     expect(levelAt(0).id).toBe('sprout');
@@ -55,5 +55,9 @@ describe('picture levels', () => {
     }
     // a picture that mixes both yarns makes the swap a real step
     expect(sea.some((p) => p.target.some((r) => r & 256) && p.target.some((r) => !(r & 256)))).toBe(true);
+  });
+  it('no two levels share a lever set', () => {
+    const sets = PICTURES.map((p) => [...p.tieUp].sort((a, b) => a - b).join(','));
+    expect(new Set(sets).size).toBe(sets.length);
   });
 });

@@ -33,14 +33,14 @@ describe('level flow', () => {
     const { model, flow, log, plucks } = setup();
     flow.start();
     expect(log).toContain('hint lever 0');
-    // Sprout: stem rows on lever 0 ×3, then the two leaves on lever 1 → 3 flips = par
-    weave(model, [[1, 0], [1, 0], [1, 0], [0, 1]]);
+    // Sprout: the stem twice on lever 0, then stem + leaves (lever 1 joins) → 2 flips = par
+    weave(model, [[1, 0], [1, 0], [1, 1]]);
     expect(log).toContain('hint shuttle 0');
     expect(log).toContain('win 3');
     expect(flow.phase).toBe('won');
     for (let t = 0; t < 10 && flow.phase !== 'play'; t += 0.05) flow.update(0.05);
     // melody: every lifted warp of every row plucked
-    expect(plucks.length).toBe(2 + 2 + 2 + 2);
+    expect(plucks.length).toBe(2 + 2 + 4);
     expect(flow.index).toBe(1);
     expect(log.at(-2)).toBe('load tulip 1');
     expect(flow.progress.best.sprout).toBe(3);
@@ -54,15 +54,15 @@ describe('level flow', () => {
     expect(flow.phase).toBe('play');
     model.undo();
     model.setLatched(1, false);
-    weave(model, [[1, 0], [1, 0], [1, 0], [0, 1]]);
+    weave(model, [[1, 0], [1, 0], [1, 1]]);
     expect(log.some((l) => l.startsWith('win'))).toBe(true);
-    expect(flow.lastStars).toBe(2); // 5 flips vs par 3
+    expect(flow.lastStars).toBe(2); // 4 flips vs par 2
   });
 
   it('timing: playback starts after the win pause', () => {
     const { model, flow, plucks } = setup({ level: 0, best: {}, tutorialDone: true, theme: 'toy' });
     flow.start();
-    weave(model, [[1, 0], [1, 0], [1, 0], [0, 1]]);
+    weave(model, [[1, 0], [1, 0], [1, 1]]);
     flow.update(TIMING.winPause - 0.1);
     expect(plucks.length).toBe(0);
     flow.update(0.2);
@@ -70,7 +70,7 @@ describe('level flow', () => {
   });
 
   it('after the last picture the sequence continues into bonus patterns', () => {
-    const { flow } = setup({ level: 18, best: {}, tutorialDone: true, theme: 'toy' });
+    const { flow } = setup({ level: LEVELS.length, best: {}, tutorialDone: true, theme: 'toy' });
     flow.start();
     expect(flow.level.id).toBe('bonus1');
   });
@@ -96,11 +96,11 @@ describe('level flow', () => {
     }
   });
 
-  it('level 1 tutorial guides every row: goal once, put a lever back, lift the next, undo a wrong row', () => {
+  it('level 1 tutorial guides every row: goal once, undo a wrong row, then the two-lever aha', () => {
     const { model, flow, log } = setup();
     flow.start();
     expect(flow.tutorial).toBe(true);
-    // Sprout row 0 = lever 0
+    // Sprout row 0 = the stem, lever 0
     model.setLatched(0, true);
     expect(log.at(-1)).toBe('hint shuttle 0');
     model.commitRow();
@@ -109,7 +109,7 @@ describe('level flow', () => {
     expect(log.at(-1)).toBe('hint knots 0'); // then what the knots mean, once
     for (let t = 0; t < TIMING.cardHint + 0.1; t += 0.05) flow.update(0.05);
     expect(log.at(-1)).toBe('hint shuttle 0'); // row 1 is the stem again: lever 0 is still up
-    // a wrong row (both levers) → undo
+    // a wrong row (lever 1 joins too early) → undo
     model.setLatched(1, true);
     expect(log.at(-1)).toBe('hint unlatch 1');
     model.commitRow();
@@ -118,12 +118,11 @@ describe('level flow', () => {
     expect(log.at(-1)).toBe('hint unlatch 1');
     model.setLatched(1, false);
     model.commitRow();
-    model.commitRow();
-    // the leaves: lever 0 back down, lever 1 up
-    expect(log.at(-1)).toBe('hint unlatch 0');
-    model.setLatched(0, false);
+    // the top row: stem AND leaves, so lever 1 joins lever 0 (no putting anything back)
     expect(log.at(-1)).toBe('hint lever 1');
     model.setLatched(1, true);
+    expect(log.at(-1)).toBe('hint combo 0'); // the aha, celebrated once
+    for (let t = 0; t < TIMING.comboHint + 0.1; t += 0.05) flow.update(0.05);
     expect(log.at(-1)).toBe('hint shuttle 0');
     model.commitRow();
     expect(flow.phase).toBe('won');

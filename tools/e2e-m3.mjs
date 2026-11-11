@@ -60,6 +60,6 @@ check('own progress untouched', after.progress.level === 2 && !('shared' in afte
 check('share hash cleared after the win', after.hash === '', after.hash);
 check('last cloth saved for sharing', JSON.stringify(after.progress.lastCloth?.rows) === JSON.stringify([15, 255]));
 s = state();
-check('resumes own sequence (level 3, Tree)', s.debug.challenge === false && s.debug.level === 'tree', `${s.debug.level}`);
+check('resumes own sequence (level 3, Duck)', s.debug.challenge === false && s.debug.level === 'duck', `${s.debug.level}`);
 (await import('node:fs')).unlinkSync('tools/.goto-share.mjs');
 done('E2E M3');

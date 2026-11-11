@@ -149,15 +149,13 @@ describe('co-op protocol', () => {
     step(h, g, host, guest, a, 10);
     expect(h.model.rows.length).toBe(0);
     expect(g.model.rows.length).toBe(0);
-    // finish Sprout cooperatively: [L0],[L0],[L0],[L1]
+    // finish Sprout cooperatively: [L0],[L0],[L0+L1]
     const throwAndWait = () => {
       g.controller.throwShuttle();
       step(h, g, host, guest, a, 90);
     };
     throwAndWait();
     throwAndWait();
-    throwAndWait();
-    h.controller.toggleLever(0);
     h.controller.toggleLever(1);
     step(h, g, host, guest, a, 4);
     throwAndWait();

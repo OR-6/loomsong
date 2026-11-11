@@ -3,7 +3,7 @@
  * lever / shuttle motion and LoomModel changes. No Three.js, so unit tests
  * can drive it with synthetic joint streams.
  */
-import { BOBBIN, LEVER, LEVERS, NUDGE, PINCH, POKE, SHUTTLE, TOKEN, bobbinX, leverX, nudgeX, tokenX, warpX, WARPS, shuttleY, BASKET, skeinPos } from '../config.js';
+import { BOBBIN, LEVER, LEVERS, LOOM, NUDGE, PINCH, POKE, SHUTTLE, TOKEN, bobbinX, leverX, nudgeX, tokenX, warpX, WARPS, shuttleY, BASKET, skeinPos } from '../config.js';
 import type { PinchEdge } from '../input/pinch.js';
 import { Slider } from '../input/slider.js';
 import { isLifted } from '../puzzle/tieup.js';
@@ -43,6 +43,8 @@ export type Target =
 
 export interface ControllerHooks {
   pluck?(warp: number, speed: number): void;
+  /** A fingertip strummed a thread (free play: a note, never a row). */
+  strum?(warp: number, speed: number): void;
   leverClick?(k: number, latched: boolean): void;
   grab?(target: Exclude<Target, null>): void;
   pass?(row: number): void;
@@ -151,7 +153,10 @@ export class LoomController {
   }
 
   update(input: Record<Side, HandInput>, dt: number): void {
-    for (const side of ['right', 'left'] as const) this.updateHand(side, input[side]);
+    for (const side of ['right', 'left'] as const) {
+      this.updateHand(side, input[side]);
+      this.fingerStrum(side, input[side], dt);
+    }
 
     // Settling (levers to detents; shuttle throw/return).
     for (const l of this.levers) l.settle(dt, LEVER_SETTLE);
@@ -348,6 +353,38 @@ export class LoomController {
     this.shuttle.target = this.model.shuttleSide;
     this.hooks.pass?.(before);
   }
+
+  /**
+   * The threads are strings: a fingertip sweeping across them (between the
+   * heddle and the cloth, just above the bed) plucks each one it crosses,
+   * louder the faster you strum. Play any time; it never weaves.
+   */
+  private fingerStrum(side: Side, h: HandInput, dt: number): void {
+    const prev = this.prevTip[side];
+    const p = h.index;
+    const ok =
+      h.tracked && !h.pinching && this.holding[side] === null && this.enabled &&
+      p.z > LOOM.heddleZ - 0.005 && p.z < LOOM.clothFrontZ - 0.005 && p.y > 0.004 && p.y < LOOM.liftedY + 0.02;
+    if (ok && prev.ok) {
+      const lo = Math.min(prev.x, p.x);
+      const hi = Math.max(prev.x, p.x);
+      const speed = dt > 0 ? Math.abs(p.x - prev.x) / dt : 0;
+      for (let n = 0; n < WARPS; n++) {
+        const i = p.x > prev.x ? n : WARPS - 1 - n; // a sweep sounds in the direction of travel
+        const wx = warpX(i);
+        if (wx > lo && wx <= hi && this.clock - this.lastStrum[i] > 0.09) {
+          this.lastStrum[i] = this.clock;
+          this.hooks.strum?.(i, speed);
+        }
+      }
+    }
+    prev.x = p.x;
+    prev.ok = ok;
+    this.clock += side === 'right' ? dt : 0;
+  }
+  private prevTip: Record<Side, { x: number; ok: boolean }> = { left: { x: 0, ok: false }, right: { x: 0, ok: false } };
+  private lastStrum = new Float32Array(WARPS).fill(-1);
+  private clock = 0;
 
   private strum(dt: number): void {
     const x = this.shuttleX();

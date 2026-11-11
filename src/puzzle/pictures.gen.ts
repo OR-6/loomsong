@@ -8,11 +8,10 @@ export const CHAPTERS: Chapter[] = [
   {
     "id": "garden",
     "name": "Garden",
-    "idea": "one lever per row",
+    "idea": "levers add up",
     "levels": [
       "sprout",
       "tulip",
-      "tree",
       "duck"
     ]
   },
@@ -24,7 +23,6 @@ export const CHAPTERS: Chapter[] = [
       "cup",
       "heart",
       "house",
-      "mushroom",
       "star"
     ]
   },
@@ -47,7 +45,6 @@ export const CHAPTERS: Chapter[] = [
       "fish",
       "crab",
       "octopus",
-      "jelly",
       "boat"
     ]
   }
@@ -61,22 +58,20 @@ export const PICTURES: PictureLevel[] = [
     "mystery": false,
     "color": 0x4f9a3a,
     "picture": [
-      "..#..#..",
-      "...##...",
+      ".#.##.#.",
       "...##...",
       "...##..."
     ],
     "tieUp": [
       24,
-      36
+      66
     ],
     "target": [
       24,
       24,
-      24,
-      36
+      90
     ],
-    "par": 3,
+    "par": 2,
     "rootMidi": 62
   },
   {
@@ -108,37 +103,6 @@ export const PICTURES: PictureLevel[] = [
     "rootMidi": 60
   },
   {
-    "id": "tree",
-    "name": "Tree",
-    "chapter": "garden",
-    "mystery": false,
-    "color": 0x2f8f5b,
-    "picture": [
-      "...##...",
-      "..####..",
-      ".######.",
-      "########",
-      "...##...",
-      "...##..."
-    ],
-    "tieUp": [
-      24,
-      255,
-      126,
-      60
-    ],
-    "target": [
-      24,
-      24,
-      255,
-      126,
-      60,
-      24
-    ],
-    "par": 7,
-    "rootMidi": 65
-  },
-  {
     "id": "duck",
     "name": "Duck",
     "chapter": "garden",
@@ -153,8 +117,8 @@ export const PICTURES: PictureLevel[] = [
       ".######."
     ],
     "tieUp": [
-      126,
-      255,
+      254,
+      124,
       15,
       6
     ],
@@ -166,8 +130,8 @@ export const PICTURES: PictureLevel[] = [
       15,
       6
     ],
-    "par": 7,
-    "rootMidi": 67
+    "par": 9,
+    "rootMidi": 65
   },
   {
     "id": "cup",
@@ -198,7 +162,7 @@ export const PICTURES: PictureLevel[] = [
       219
     ],
     "par": 7,
-    "rootMidi": 64
+    "rootMidi": 67
   },
   {
     "id": "heart",
@@ -216,8 +180,8 @@ export const PICTURES: PictureLevel[] = [
     ],
     "tieUp": [
       24,
+      102,
       129,
-      66,
       36
     ],
     "target": [
@@ -229,7 +193,7 @@ export const PICTURES: PictureLevel[] = [
       102
     ],
     "par": 6,
-    "rootMidi": 69
+    "rootMidi": 64
   },
   {
     "id": "house",
@@ -246,9 +210,9 @@ export const PICTURES: PictureLevel[] = [
       "##.##.##"
     ],
     "tieUp": [
-      129,
+      195,
+      60,
       66,
-      36,
       24
     ],
     "target": [
@@ -260,38 +224,7 @@ export const PICTURES: PictureLevel[] = [
       24
     ],
     "par": 7,
-    "rootMidi": 62
-  },
-  {
-    "id": "mushroom",
-    "name": "Mushroom",
-    "chapter": "home",
-    "mystery": false,
-    "color": 0xc8453a,
-    "picture": [
-      "..####..",
-      ".######.",
-      "##.##.##",
-      "########",
-      "...##...",
-      "...##..."
-    ],
-    "tieUp": [
-      24,
-      129,
-      66,
-      36
-    ],
-    "target": [
-      24,
-      24,
-      255,
-      219,
-      126,
-      60
-    ],
-    "par": 8,
-    "rootMidi": 60
+    "rootMidi": 69
   },
   {
     "id": "star",
@@ -308,8 +241,8 @@ export const PICTURES: PictureLevel[] = [
       ".##..##."
     ],
     "tieUp": [
-      129,
-      66,
+      102,
+      195,
       36,
       24
     ],
@@ -322,7 +255,7 @@ export const PICTURES: PictureLevel[] = [
       24
     ],
     "par": 9,
-    "rootMidi": 65
+    "rootMidi": 62
   },
   {
     "id": "moon",
@@ -353,7 +286,7 @@ export const PICTURES: PictureLevel[] = [
       60
     ],
     "par": 10,
-    "rootMidi": 67
+    "rootMidi": 60
   },
   {
     "id": "ghost",
@@ -384,7 +317,7 @@ export const PICTURES: PictureLevel[] = [
       60
     ],
     "par": 8,
-    "rootMidi": 64
+    "rootMidi": 65
   },
   {
     "id": "owl",
@@ -402,7 +335,7 @@ export const PICTURES: PictureLevel[] = [
     ],
     "tieUp": [
       36,
-      129,
+      195,
       66,
       24
     ],
@@ -415,7 +348,7 @@ export const PICTURES: PictureLevel[] = [
       66
     ],
     "par": 11,
-    "rootMidi": 69
+    "rootMidi": 67
   },
   {
     "id": "cat",
@@ -432,7 +365,7 @@ export const PICTURES: PictureLevel[] = [
       ".######."
     ],
     "tieUp": [
-      30,
+      62,
       129,
       66,
       36
@@ -446,7 +379,7 @@ export const PICTURES: PictureLevel[] = [
       129
     ],
     "par": 11,
-    "rootMidi": 62
+    "rootMidi": 64
   },
   {
     "id": "fish",
@@ -475,7 +408,7 @@ export const PICTURES: PictureLevel[] = [
       28
     ],
     "par": 9,
-    "rootMidi": 60
+    "rootMidi": 69
   },
   {
     "id": "crab",
@@ -494,7 +427,8 @@ export const PICTURES: PictureLevel[] = [
     "tieUp": [
       126,
       129,
-      36
+      36,
+      1
     ],
     "target": [
       165,
@@ -505,7 +439,7 @@ export const PICTURES: PictureLevel[] = [
       129
     ],
     "par": 9,
-    "rootMidi": 65
+    "rootMidi": 62
   },
   {
     "id": "octopus",
@@ -536,38 +470,7 @@ export const PICTURES: PictureLevel[] = [
       316
     ],
     "par": 7,
-    "rootMidi": 67
-  },
-  {
-    "id": "jelly",
-    "name": "Jellyfish",
-    "chapter": "sea",
-    "mystery": true,
-    "color": 0x9b7fd6,
-    "picture": [
-      "..####..",
-      ".######.",
-      "########",
-      ".#.##.#.",
-      ".#.##.#.",
-      "#..##..#"
-    ],
-    "tieUp": [
-      129,
-      66,
-      36,
-      24
-    ],
-    "target": [
-      153,
-      90,
-      90,
-      255,
-      126,
-      60
-    ],
-    "par": 8,
-    "rootMidi": 64
+    "rootMidi": 60
   },
   {
     "id": "boat",
@@ -599,6 +502,6 @@ export const PICTURES: PictureLevel[] = [
       8
     ],
     "par": 9,
-    "rootMidi": 69
+    "rootMidi": 65
   }
 ];

@@ -9,17 +9,16 @@ import { writeFileSync } from 'node:fs';
 
 // Chapters: each introduces one idea. Rows are drawn top→bottom.
 const CHAPTERS = [
-  { id: 'garden', name: 'Garden', idea: 'one lever per row', rule: 'rows', pics: [
-    { id: 'sprout', name: 'Sprout', color: 0x4f9a3a, rows: ['..#..#..', '...##...', '...##...', '...##...'] },
+  { id: 'garden', name: 'Garden', idea: 'levers add up', rule: 'rows', pics: [
+    // the aha in level 1: the top row is the stem AND the leaves, so the leaf lever joins the stem lever
+    { id: 'sprout', name: 'Sprout', color: 0x4f9a3a, rows: ['.#.##.#.', '...##...', '...##...'], tie: [0b00011000, 0b01000010] },
     { id: 'tulip', name: 'Tulip', color: 0xe2563b, rows: ['.#.##.#.', '.######.', '..####..', '...##...', '...##...'] },
-    { id: 'tree', name: 'Tree', color: 0x2f8f5b, rows: ['...##...', '..####..', '.######.', '########', '...##...', '...##...'] },
-    { id: 'duck', name: 'Duck', color: 0xe9a21a, rows: ['.##.....', '####....', '.##.....', '.######.', '########', '.######.'] },
+    { id: 'duck', name: 'Duck', color: 0xe9a21a, rule: 'parts', rows: ['.##.....', '####....', '.##.....', '.######.', '########', '.######.'] },
   ] },
   { id: 'home', name: 'Home', idea: 'two levers at once', rule: 'parts', pics: [
     { id: 'cup', name: 'Cup', color: 0x3d8fd1, rows: ['##.##.##', '########', '#######.', '#######.', '.#####..', '..###...'] },
     { id: 'heart', name: 'Heart', color: 0xe2563b, rows: ['.##..##.', '########', '########', '.######.', '..####..', '...##...'] },
     { id: 'house', name: 'House', color: 0xf08a4b, rows: ['...##...', '..####..', '.######.', '########', '##.##.##', '##.##.##'] },
-    { id: 'mushroom', name: 'Mushroom', color: 0xc8453a, rows: ['..####..', '.######.', '##.##.##', '########', '...##...', '...##...'] },
     { id: 'star', name: 'Star', color: 0xf2b632, rows: ['...##...', '...##...', '########', '.######.', '..####..', '.##..##.'] },
   ] },
   { id: 'night', name: 'Night', idea: 'mystery levers', rule: 'parts', mystery: true, pics: [
@@ -32,7 +31,6 @@ const CHAPTERS = [
     { id: 'fish', name: 'Fish', color: 0xf08a4b, weft: 0x6cc0f0, rows: ['..###...', '~#####~#', '###~####', '~#####~#', '~~###~~~'] },
     { id: 'crab', name: 'Crab', color: 0xd85a30, rows: ['#......#', '#.#..#.#', '.######.', '########', '.######.', '#.#..#.#'] },
     { id: 'octopus', name: 'Octopus', color: 0xd4537e, weft: 0x6cc0f0, rows: ['~~####~~', '~######~', '~#~##~#~', '~######~', '#~#~#~#~', '#~#~#~#~'] },
-    { id: 'jelly', name: 'Jellyfish', color: 0x9b7fd6, rows: ['..####..', '.######.', '########', '.#.##.#.', '.#.##.#.', '#..##..#'] },
     { id: 'boat', name: 'Boat', color: 0xe2563b, weft: 0x6cc0f0, rows: ['...#....', '...##...', '...###..', '...#....', '~######~', '~######~'] },
   ] },
 ];
@@ -82,6 +80,24 @@ const combosOf = (rows, tie) => [...new Set(rows)].filter((r) => !tie.includes(r
  * mirror image), chosen so as many rows as possible need levers combined.
  * Uses the fewest levers that work, or one more (≤ 4) if that adds combos.
  */
+/** Rows that can be made more than one way with these levers (a choice the knots can reward). */
+const choicesOf = (rows, tie) => {
+  let n = 0;
+  for (const r of new Set(rows)) {
+    let ways = 0;
+    for (let s = 1; s < 1 << tie.length; s++) {
+      let m = 0;
+      for (let k = 0; k < tie.length; k++) if ((s >> k) & 1) m |= tie[k];
+      if (m === r) ways++;
+    }
+    if (ways > 1) n++;
+  }
+  return n;
+};
+/** Lever sets already used by earlier levels (no two levels share one). */
+const usedSets = new Set();
+const sig = (tie) => [...tie].sort((a, b) => a - b).join(',');
+
 function partsTieUp(rows) {
   const D = [...new Set(rows)];
   const cand = new Set();
@@ -97,7 +113,7 @@ function partsTieUp(rows) {
     const rec = (s) => {
       if (pick.length === L) {
         if (!canMake(D, pick)) return;
-        const score = combosOf(D, pick) * 10 - pick.reduce((n, m) => n + runs(m), 0);
+        const score = combosOf(D, pick) * 10 + choicesOf(D, pick) * 6 - pick.reduce((n, m) => n + runs(m), 0) - (usedSets.has(sig(pick)) ? 100 : 0);
         if (score > bestScore) { bestScore = score; best = [...pick]; }
         return;
       }
@@ -105,9 +121,9 @@ function partsTieUp(rows) {
     };
     rec(0);
     if (best) {
-      if (!found) { found = best; if (combosOf(D, best) >= Math.ceil(D.length / 2) || L === 4) break; continue; }
-      if (combosOf(D, best) > combosOf(D, found)) found = best;
-      break;
+      // keep looking up to 4 levers; take the best-scoring set overall
+      const score = (t) => combosOf(D, t) * 10 + choicesOf(D, t) * 6 - (usedSets.has(sig(t)) ? 100 : 0) - t.length * 2;
+      if (!found || score(best) > score(found)) found = best;
     }
   }
   return found;
@@ -132,14 +148,16 @@ for (const ch of CHAPTERS) {
   for (const p of ch.pics) {
     const target = p.rows.map(rowVal).reverse(); // weave bottom row first
     const warps = target.map((r) => r & 255);
-    const tie = ch.rule === 'parts' ? partsTieUp(warps) ?? bestTieUp(warps) : bestTieUp(warps);
+    const rule = p.rule ?? ch.rule;
+    const tie = p.tie ? [...p.tie] : rule === 'parts' ? partsTieUp(warps) ?? bestTieUp(warps) : bestTieUp(warps);
+    if (tie) usedSets.add(sig(tie));
     if (!tie) { console.error('NOT WEAVABLE:', p.id); process.exitCode = 1; continue; }
     // Order levers so the first row's lever comes first (tutorial clarity).
     // Garden: the first row's lever first (tutorial). Parts: biggest piece first.
     tie.sort((a, b) => (warps[0] === b) - (warps[0] === a) || pc(b) - pc(a));
     const pr = par(tie, warps);
     const combos = warps.filter((r) => !tie.includes(r)).length;
-    console.log(`${ch.id.padEnd(7)} ${p.id.padEnd(10)} levers ${tie.length} rows ${target.length} combos ${combos} par ${pr}`);
+    console.log(`${ch.id.padEnd(7)} ${p.id.padEnd(10)} levers ${tie.length} rows ${target.length} combos ${combos} choices ${choicesOf(warps, tie)} par ${pr}  [${tie.map((m) => m.toString(2).padStart(8, '0').split('').reverse().join('').replace(/0/g, '.').replace(/1/g, '#')).join(' ')}]`);
     out.push({ id: p.id, name: p.name, chapter: ch.id, mystery: !!ch.mystery, color: p.color, ...(p.weft ? { weft: p.weft } : {}), picture: p.rows, tieUp: tie, target, par: pr, rootMidi: ROOTS[i++ % ROOTS.length] });
   }
 }

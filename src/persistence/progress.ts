@@ -12,7 +12,7 @@ export interface Progress {
 }
 
 /** Workshop unlocks when the Garden chapter (the first four pictures) is done. */
-export const WORKSHOP_UNLOCK = ['sprout', 'tulip', 'tree', 'duck'];
+export const WORKSHOP_UNLOCK = ['sprout', 'tulip', 'duck'];
 
 export function workshopUnlocked(p: Pick<Progress, 'best'>): boolean {
   return WORKSHOP_UNLOCK.every((id) => (p.best[id] ?? 0) > 0);

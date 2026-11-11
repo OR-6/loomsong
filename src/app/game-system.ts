@@ -59,6 +59,7 @@ const HINT_TEXT: Record<HintStep, string> = {
   undo: 'Pull to undo',
   card: 'Match the next row',
   knots: 'Each lever move unties a knot',
+  combo: 'Two levers at once!',
   none: '',
 };
 
@@ -68,6 +69,8 @@ export interface GameDebug {
   onBeat?: number;
   /** The celebration ribbon's text ('' when hidden). */
   banner?: string;
+  /** Threads strummed by a fingertip (debug/E2E). */
+  strums?: number;
   deskY: number | null;
   deskSource: string | null;
   loomOrigin: number[] | null;
@@ -194,6 +197,11 @@ export class GameSystem extends createSystem({
         this.view.pluckWarp(i);
         this.debug.plucks++;
       },
+      strum: (i, speed) => {
+        audio.pluck(i, Math.min(1, 0.15 + speed * 0.8), 0, 0.22);
+        this.view.pluckWarp(i);
+        this.debug.strums = (this.debug.strums ?? 0) + 1;
+      },
       leverClick: (k, latched) => {
         if (this.quietLevers) return;
         audio.click(latched);
@@ -305,8 +313,12 @@ export class GameSystem extends createSystem({
     this.model.on((e) => {
       if (e.type === 'lever') {
         this.view.setShed(e.shed);
-        // First try of a mystery lever: it takes its colour, with a little chime.
-        if (e.latched && this.view.revealLever(e.lever)) audio.reveal();
+        // First try of a mystery lever: it takes its colour, with a little chime,
+        // and the try is free (probing is deduction, not a knot spent)
+        if (e.latched && this.view.revealLever(e.lever)) {
+          audio.reveal();
+          this.model.leverFlips = Math.max(0, this.model.leverFlips - 1);
+        }
         this.view.card.setUsed(this.model.leverFlips);
       }
       if (e.type === 'weft') this.view.setWeftNow(e.weft);
@@ -416,6 +428,11 @@ export class GameSystem extends createSystem({
         else this.view.plushes.finish();
       },
       hint: (step, lever) => {
+        // the aha lands with a bright chord and a burst of gold over the threads
+        if (step === 'combo') {
+          audio.onBeat();
+          this.view.fx.confetti(0, LOOM.liftedY, LOOM.heddleZ + 0.02, 30, 0.5, true);
+        }
         this.hintLever = lever;
         this.tutor.set(this.hintText(step));
         if (this.debug) this.debug.hint = step;
