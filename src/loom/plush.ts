@@ -32,7 +32,7 @@ import { Label } from '../ui/label.js';
 import { LOOM, WARPS } from '../config.js';
 import { isLifted, type Mask8 } from '../puzzle/tieup.js';
 import { knitTexture, weaveTexture } from './textures.js';
-import { cloneModel, loomModels } from './models.js';
+import { cloneModel, loomModels, mergeStatic } from './models.js';
 
 /** A soft felt pennant: a subdivided triangle, top edge at y = 0, gently cupped. */
 function pennantGeometry(): BufferGeometry {
@@ -140,6 +140,7 @@ export function buildPlush(rows: readonly Mask8[], color: number): Group {
   addFace(g, rows, color);
   addFeetAndTag(g, rows, color);
   g.userData.height = rows.length * cell;
+  mergeStatic(g, () => false); // eyes+smile, cheeks, feet: one draw each per plush
   return g;
 }
 

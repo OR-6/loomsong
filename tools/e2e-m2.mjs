@@ -91,8 +91,12 @@ check('level 4 won at par (3 stars)', s.debug.stars === 3 && s.debug.flow !== 'p
 check('finishing the Garden unlocks the workshop style', state().debug.workshopUnlocked === true);
 check('plaque total → 11 stars', s.debug.plaque.endsWith('* 11'), s.debug.plaque);
 shot('m2-02-level4-win', s.debug.loomOrigin);
-await wait(L.target.length * 450 + 3500);
-s = state();
+// the Duck finishes the Garden: its finale (the whole shelf sings) plays before the next chapter
+for (let i = 0; i < 60; i++) {
+  await wait(500);
+  s = state();
+  if (s.debug.level === 'cup' && s.debug.flow === 'play') break;
+}
 check('advanced to level 5 (Cup)', s.debug.level === 'cup' && s.debug.flow === 'play', `${s.debug.level} ${s.debug.flow}`);
 
 // ---------- C. high contrast ----------

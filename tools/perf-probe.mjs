@@ -6,8 +6,9 @@ export default async function run({ page, frame }) {
     const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
     await sleep(300);
     let meshes = 0, casters = 0, transparent = 0, inst = 0;
+    const shown = (o) => { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; };
     g.view.root.traverse((o) => {
-      if (!o.isMesh || !o.visible) return;
+      if (!o.isMesh || !shown(o)) return;
       meshes++;
       if (o.castShadow) casters++;
       if (o.material?.transparent) transparent++;

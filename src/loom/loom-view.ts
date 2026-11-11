@@ -39,7 +39,7 @@ import { TargetCard } from '../ui/target-card.js';
 import { THEMES, type Palette, type Theme } from '../ui/theme.js';
 import { PLAQUE, Plaque } from '../ui/plaque.js';
 import { grainTexture, knitTexture, weaveTexture, yarnTexture } from './textures.js';
-import { cloneModel, loomModels, materialOf } from './models.js';
+import { cloneModel, loomModels, materialOf, mergeStatic } from './models.js';
 import { Plushes, puffGeometry } from './plush.js';
 import { Basket } from './basket.js';
 import { GhostHand } from './ghost-hand.js';
@@ -363,6 +363,9 @@ export class LoomView {
         bed.material = new MeshPhysicalMaterial({ color: src.color, roughness: 0.9, sheen: 1, sheenRoughness: 0.75, sheenColor: new Color(0x8fb0dd) });
         src.dispose();
       }
+      // draw-call diet: fold the frame's static parts into one mesh per material
+      // (parts the game mirrors, recolours or hides by name stay separate)
+      mergeStatic(this.frameNode, (o) => o !== this.frameNode && /^(Lever|SlotFloor|SlotDot|SlotArrow|FrontBeamCrank|FrontBeamHandle|BobbinRod|Bed$|ContactShadow)/.test(o.name));
       add(this.frameNode);
     } else this.buildProceduralFrame(theme, wood, rail, add);
 
