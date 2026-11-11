@@ -47,6 +47,7 @@ import { Basket } from './basket.js';
 import { DailyBall } from './daily-ball.js';
 import { ToyPhone } from './toy-phone.js';
 import { motion } from '../ui/motion.js';
+import { squareTheFrame } from './beams.js';
 import { RoomMood } from './room-mood.js';
 import { GhostHand } from './ghost-hand.js';
 import { Fx } from './fx.js';
@@ -418,6 +419,16 @@ export class LoomView {
         bed.material = new MeshPhysicalMaterial({ color: src.color, roughness: 0.9, sheen: 1, sheenRoughness: 0.75, sheenColor: new Color(0x8fb0dd) });
         src.dispose();
       }
+      // square, chamfered beams with pegged joints (the model's round tubes read as plastic pipe)
+      squareTheFrame(
+        this.frameNode,
+        (m) => {
+          const sm = m as MeshStandardMaterial;
+          sm.map = grainTexture();
+          sm.needsUpdate = true;
+        },
+        new MeshStandardMaterial({ color: 0x6b3e26, roughness: 0.9, envMapIntensity: 0.3, name: 'FramePegWalnut' }),
+      );
       // draw-call diet: fold the frame's static parts into one mesh per material
       // (parts the game mirrors, recolours or hides by name stay separate)
       mergeStatic(this.frameNode, (o) => o !== this.frameNode && /^(Lever|SlotFloor|SlotDot|SlotArrow|FrontBeamCrank|FrontBeamHandle|BobbinRod|Bed$|ContactShadow)/.test(o.name));
