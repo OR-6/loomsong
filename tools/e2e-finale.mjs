@@ -26,4 +26,8 @@ if (process.argv[2] && seen) {
 }
 for (let i = 0; i < 40; i++) { await wait(500); f = run('tools/finale-state.mjs'); if (f.level !== 'duck') break; }
 check('then the next chapter begins', f.level !== 'duck', JSON.stringify(f));
+// the Garden's pictures, sewn into a quilt, fly to the wall ahead
+let q = run('tools/quilt-where.mjs');
+for (let i = 0; i < 12 && !q.quilts.garden; i++) { await wait(500); q = run('tools/quilt-where.mjs'); }
+check('the Garden quilt flew to the wall', !!q.quilts.garden && !q.flying, JSON.stringify(q));
 done('chapter finale');

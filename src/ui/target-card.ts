@@ -186,12 +186,17 @@ export class TargetCard {
           // Sea: rows woven in the second weft show their water colour
           g.fillStyle = lifted ? lift : row & 256 && this.weft !== null ? hex(this.weft) : ground;
         }
-        g.fillRect(px(x) + 1, px(y) + 1, px(cell) - 2, px(cell) - 2);
-        if (!highContrast) {
-          // a faint grid: count columns against the threads
-          g.strokeStyle = this.sparkles ? '#b8b2d8' : '#d8cbb0';
-          g.lineWidth = 1.5;
-          g.strokeRect(px(x) + 1, px(y) + 1, px(cell) - 2, px(cell) - 2);
+        if (highContrast) {
+          g.fillRect(px(x) + 1, px(y) + 1, px(cell) - 2, px(cell) - 2);
+        } else {
+          // painted squares with paper showing between them (no ruled grid): each a touch
+          // uneven in size and tone, like gouache dabbed on card
+          const j = ((i * 7 + r * 13) % 5) / 5; // deterministic wobble 0..1
+          const gap = px(cell) * (0.07 + 0.03 * j);
+          roundRect(g, px(x) + gap, px(y) + gap * (1.2 - 0.4 * j), px(cell) - gap * 2, px(cell) - gap * 2, px(cell) * 0.12);
+          g.fill();
+          g.fillStyle = `rgba(${j < 0.5 ? '255,255,255' : '60,40,20'},${0.04 + 0.04 * j})`;
+          g.fill();
         }
         if (highContrast) {
           g.strokeStyle = '#000';
@@ -215,7 +220,7 @@ export class TargetCard {
         g.stroke();
         g.restore();
       }
-      if (r === nextRow && stars === 0) drawArrow(g, px(pad + markW / 2), cy, px(0.0075));
+      if (r === nextRow && stars === 0) drawPin(g, px(pad + markW / 2), cy, px(0.0075));
     }
     this.tex.needsUpdate = true;
     this.sizeW = wM;
@@ -275,7 +280,28 @@ function drawCross(g: CanvasRenderingContext2D, x: number, y: number, s: number)
   g.restore();
 }
 
-function drawArrow(g: CanvasRenderingContext2D, x: number, y: number, s: number) {
+/** A dressmaker's pin pushed into the card beside the next row: a red glass head and a steel shaft pointing at it. */
+function drawPin(g: CanvasRenderingContext2D, x: number, y: number, s: number) {
+  g.save();
+  g.strokeStyle = '#8a8f96';
+  g.lineWidth = s * 0.22;
+  g.lineCap = 'round';
+  g.beginPath();
+  g.moveTo(x - s * 0.55, y);
+  g.lineTo(x + s * 1.15, y);
+  g.stroke();
+  g.fillStyle = '#d9533c';
+  g.beginPath();
+  g.arc(x - s * 0.6, y, s * 0.55, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = 'rgba(255,255,255,0.55)';
+  g.beginPath();
+  g.arc(x - s * 0.78, y - s * 0.18, s * 0.16, 0, Math.PI * 2);
+  g.fill();
+  g.restore();
+}
+
+export function drawArrow(g: CanvasRenderingContext2D, x: number, y: number, s: number) {
   g.save();
   g.fillStyle = '#3b2a20';
   g.beginPath();

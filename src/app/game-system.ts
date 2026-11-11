@@ -11,6 +11,8 @@ import {
   SphereGeometry,
   Matrix4,
   Vector3,
+  Group,
+  Quaternion,
   VisibilityState,
   XRAnchor,
   XRPlane,
@@ -33,6 +35,7 @@ import { CHAPTERS, DAILY_LEVELS, LEVELS, chapterStates, dailyLevel, dayKey, leve
 import type { Level } from '../puzzle/levels.js';
 import { PLUSH, ROW_BEAT, SPOTS, type DeskItem, type ShelfItem } from '../loom/plush.js';
 import { DAILY_BALL } from '../loom/daily-ball.js';
+import { QUILT_W, buildQuilt } from '../loom/quilt.js';
 import { isLifted } from '../puzzle/tieup.js';
 const PLUSH_SLOTS = SPOTS;
 /** `?debug=1`: show frame rate and draw calls on a tag behind the card. */
@@ -81,6 +84,8 @@ export interface GameDebug {
   onBeat?: number;
   /** The celebration ribbon's text ('' when hidden). */
   banner?: string;
+  /** Where the quilts hang this session (debug/E2E). */
+  wall?: number[];
   /** Where the last carried plush ended up (debug/E2E). */
   lastDrop?: string;
   /** Threads strummed by a fingertip (debug/E2E). */
@@ -135,6 +140,16 @@ export class GameSystem extends createSystem({
   /** This session's loom came back from the last one. */
   private resumed = false;
   private medleyOrder: number[] = [];
+  /** Finished chapters' quilts, hung on the real wall in front of the seat (world space). */
+  private quiltRoot = new Group();
+  private quilts = new Map<string, Group>();
+  /** The wall the quilts hang on this session: a point straight ahead at the hanging height, its normal and its along-wall direction. */
+  private wall: { at: Vector3; n: Vector3; t: Vector3; size: number } | null = null;
+  private wallSearchIn = 0;
+  /** A just-finished chapter's quilt flies from the shelf to the wall once its finale has played. */
+  private quiltFly: { id: string; t: number; from: Vector3; to: Vector3; q0: Quaternion; q1: Quaternion; g: Group } | null = null;
+  private quiltFlyIn = -1;
+  private quiltFlyId = '';
   private planeYs: number[] = [];
   private bloom = 0;
   private sessionTime = 0;
@@ -336,6 +351,9 @@ export class GameSystem extends createSystem({
 
     this.loomEntity = this.world.createTransformEntity(this.view.root);
     this.loomHome = this.view.root.parent;
+    this.quiltRoot.name = 'Quilts';
+    this.world.createTransformEntity(this.quiltRoot);
+    this.quiltRoot.visible = false;
     this.loomEntity.object3D!.visible = false;
     this.world.createTransformEntity(this.view.glows.left);
     this.world.createTransformEntity(this.view.glows.right);
@@ -791,6 +809,9 @@ export class GameSystem extends createSystem({
   /** XR session ended: drop the anchor and re-run "set the table" next time. */
   private endSession(): void {
     this.sessionTime = 0;
+    this.wall = null;
+    this.quiltRoot.visible = false;
+    this.quiltFly = null;
     if (this.calibrator) {
       this.calibrator = null;
       this.debug.calibrating = '';
@@ -906,6 +927,11 @@ export class GameSystem extends createSystem({
     this.bannerLeft = this.bannerDur = 6;
     this.bannerY = 0.13;
     this.debug.banner = `${f.chapter} complete!`;
+    // after the medley, the chapter's pictures, sewn into a quilt, fly to the wall
+    if (f.level.chapter) {
+      this.quiltFlyId = f.level.chapter;
+      this.quiltFlyIn = Math.max(0, this.singUntil - this.time) + 0.4;
+    }
   }
 
   /** The wind-up key: every finished plush on the shelf sings in turn, left to right (the shelf is a music box). */
@@ -932,6 +958,134 @@ export class GameSystem extends createSystem({
     this.singUntil = this.time + total;
     audio.holdMusic(total + 0.3);
     this.view.setPipMood(total > 0.6 ? 'happy' : 'sad');
+  }
+
+  /**
+   * Chapter quilts on the real wall. Every second until one is found, look for
+   * a vertical plane straight ahead of the seat (0.4–4 m, facing the player);
+   * hang each finished chapter's quilt there side by side, a little above eye
+   * height. A chapter finished now flies over from the shelf. No wall in the
+   * room data: no quilts this session (nothing floats in the air).
+   */
+  private updateQuilts(dt: number): void {
+    if (this.coopLink) return;
+    if (!this.wall) {
+      this.wallSearchIn -= dt;
+      if (this.wallSearchIn > 0) return;
+      this.wallSearchIn = 1;
+      this.wall = this.findWall();
+      if (!this.wall) return;
+      this.debug.wall = this.wall.at.toArray().map((n) => Math.round(n * 100) / 100);
+    }
+    this.quiltRoot.visible = true;
+    // hang every finished chapter (except one still waiting for its finale)
+    const done = CHAPTERS.filter((c) => c.levels.every((id) => (this.progress.best[id] ?? 0) > 0));
+    for (let k = 0; k < done.length; k++) {
+      const ch = done[k];
+      if (this.quilts.has(ch.id) || ch.id === this.quiltFlyId || this.quiltFly?.id === ch.id) continue;
+      const g = this.makeQuilt(ch.id);
+      if (!g) continue;
+      this.quiltSlot(k, done.length, g.position);
+      g.lookAt(this.tmp2.copy(g.position).add(this.wall.n));
+      g.scale.setScalar(this.wall.size);
+      this.quiltRoot.add(g);
+      this.quilts.set(ch.id, g);
+    }
+    // the finale's flight
+    if (this.quiltFlyIn >= 0) {
+      this.quiltFlyIn -= dt;
+      if (this.quiltFlyIn < 0 && this.quiltFlyId) {
+        const id = this.quiltFlyId;
+        const g = this.makeQuilt(id);
+        if (g) {
+          const k = done.findIndex((c) => c.id === id);
+          const from = new Vector3(-this.controller.bankSide * PLUSH.shelfX, 0.1, PLUSH.shelfZ);
+          this.view.root.localToWorld(from);
+          const to = this.quiltSlot(Math.max(0, k), done.length, new Vector3());
+          const q1 = new Quaternion();
+          g.position.copy(to);
+          g.lookAt(this.tmp2.copy(to).add(this.wall.n));
+          q1.copy(g.quaternion);
+          const q0 = new Quaternion().copy(this.view.root.getWorldQuaternion(new Quaternion()));
+          g.position.copy(from);
+          g.quaternion.copy(q0);
+          g.scale.setScalar(0.15);
+          this.quiltRoot.add(g);
+          this.quiltFly = { id, t: 0, from, to, q0, q1, g };
+          audio.hop();
+        }
+        this.quiltFlyId = '';
+      }
+    }
+    const f = this.quiltFly;
+    if (f) {
+      f.t = Math.min(1, f.t + dt / 1.6);
+      const e = f.t < 0.5 ? 4 * f.t * f.t * f.t : 1 - Math.pow(-2 * f.t + 2, 3) / 2;
+      f.g.position.lerpVectors(f.from, f.to, e);
+      f.g.position.y += 0.25 * Math.sin(Math.PI * f.t); // a gentle arc up and over
+      f.g.quaternion.slerpQuaternions(f.q0, f.q1, e);
+      f.g.rotation.z += 0.12 * Math.sin(f.t * Math.PI * 4) * (1 - f.t); // flutters like cloth
+      f.g.scale.setScalar(0.15 + (this.wall!.size - 0.15) * e);
+      if (f.t >= 1) {
+        this.quilts.set(f.id, f.g);
+        this.quiltFly = null;
+        audio.click(true);
+        const name = CHAPTERS.find((c) => c.id === f.id)?.name ?? '';
+        this.showNotice(`Your ${name} quilt is on the wall`, 4.5, 'centre');
+      }
+    }
+  }
+
+  /** Where quilt k of n hangs: side by side along the wall, centred straight ahead. */
+  private quiltSlot(k: number, n: number, out: Vector3): Vector3 {
+    const w = this.wall!;
+    return out.copy(w.at).addScaledVector(w.t, (k - (n - 1) / 2) * (QUILT_W + 0.08) * w.size);
+  }
+
+  private makeQuilt(id: string): Group | null {
+    const ch = CHAPTERS.find((c) => c.id === id);
+    if (!ch) return null;
+    const panels = ch.levels.map((l) => LEVELS.find((x) => x.id === l)).filter((l): l is Level => !!l).map((l) => ({ rows: l.target.map((r) => r & 255), color: l.color ?? 0xe2563b }));
+    return buildQuilt(ch.name, panels, this.shown().font);
+  }
+
+  /** The wall straight ahead of the seat (from the room's vertical planes), or null. */
+  private findWall(): { at: Vector3; n: Vector3; t: Vector3; size: number } | null {
+    this.forwardFlat(this.fwd);
+    let best: { at: Vector3; n: Vector3; t: Vector3; size: number } | null = null;
+    let bestT = Infinity;
+    const c = new Vector3();
+    const n = new Vector3();
+    const q = new Quaternion();
+    const inv = new Matrix4();
+    for (const e of this.queries.planes.entities) {
+      const pl = e.getValue(XRPlane, '_plane') as (XRPlane & { semanticLabel?: string }) | undefined;
+      const obj = e.object3D;
+      if (!pl || !obj || pl.orientation !== 'vertical') continue;
+      if (pl.semanticLabel && !/wall|other/i.test(pl.semanticLabel)) continue; // doors and windows are not for hanging things
+      obj.updateMatrixWorld();
+      obj.getWorldPosition(c);
+      n.set(0, 1, 0).applyQuaternion(obj.getWorldQuaternion(q));
+      n.y = 0;
+      if (n.lengthSq() < 1e-4) continue;
+      n.normalize();
+      if (n.dot(this.tmp.copy(this.head).sub(c)) < 0) n.negate(); // face the room
+      const denom = this.fwd.dot(n);
+      if (denom > -0.5) continue; // not facing the seat
+      const t = this.tmp.copy(c).sub(this.head).dot(n) / denom;
+      if (t < 0.4 || t > 4 || t >= bestT) continue;
+      // where the line of sight meets the wall, at the hanging height; it must be on the wall
+      const at = new Vector3().copy(this.head).addScaledVector(this.fwd, t);
+      at.y = this.head.y + 0.18;
+      inv.copy(obj.matrixWorld).invert();
+      const local = this.tmp.copy(at).applyMatrix4(inv);
+      if (!insidePolygon(pl.polygon, local.x, local.z, 0.15)) continue;
+      bestT = t;
+      at.addScaledVector(n, 0.012); // just off the wall
+      // bigger on a far wall, so it reads from the seat (about 14° across)
+      best = { at, n: n.clone(), t: new Vector3(0, 1, 0).cross(n).normalize(), size: Math.min(2.1, Math.max(1, (t * 0.24) / QUILT_W)) };
+    }
+    return best;
   }
 
   /** The picture-of-the-day ball: offered once the first picture is woven, hidden while today's is on the loom. */
@@ -1275,6 +1429,7 @@ export class GameSystem extends createSystem({
     this.debug.challenge = this.flow.challenge;
     this.debug.anchored = this.loomEntity.hasComponent(XRAnchor) && this.loomEntity.getValue(XRAnchor, 'attached') === true;
     if (this.debug.anchored) this.saveLoomPose();
+    this.updateQuilts(dt);
     this.debug.levelIndex = this.flow.index;
   }
 
