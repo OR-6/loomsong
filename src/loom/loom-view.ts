@@ -33,6 +33,7 @@ import {
   BufferGeometry,
   Float32BufferAttribute,
   DoubleSide,
+  BackSide,
   type Material,
 } from '@iwsdk/core';
 import { TargetCard } from '../ui/target-card.js';
@@ -1304,6 +1305,42 @@ export class LoomView {
     this.setRows(this.rowsCache);
     this.writeWarps();
   }
+
+  /**
+   * Capture-only "photo set" for marketing shots: a walnut desktop under the
+   * loom and a warm backdrop round it (hides the emulator's placeholder room).
+   * Never on in the game.
+   */
+  photoSet(on: boolean): void {
+    if (on && !this.photo) {
+      const g = new Group();
+      g.name = 'PhotoSet';
+      // a plain pale-maple tabletop (a busy grain read as sand dunes)
+      const desk = new Mesh(new PlaneGeometry(1.8, 1.1), new MeshStandardMaterial({ color: 0xe2c29c, roughness: 0.62 }));
+      desk.rotation.x = -Math.PI / 2;
+      desk.position.set(0, -0.0008, 0.12);
+      desk.receiveShadow = true;
+      const c = document.createElement('canvas');
+      c.width = 4;
+      c.height = 256;
+      const x = c.getContext('2d')!;
+      const grd = x.createLinearGradient(0, 0, 0, 256);
+      grd.addColorStop(0, '#fbf1dc');
+      grd.addColorStop(0.55, '#f1d9b4');
+      grd.addColorStop(1, '#d9ac78');
+      x.fillStyle = grd;
+      x.fillRect(0, 0, 4, 256);
+      const bgTex = new CanvasTexture(c);
+      bgTex.colorSpace = SRGBColorSpace;
+      const back = new Mesh(new SphereGeometry(1.6, 32, 16), new MeshBasicMaterial({ map: bgTex, side: BackSide, depthWrite: false }));
+      back.renderOrder = -10;
+      g.add(back, desk);
+      this.photo = g;
+      this.root.add(g);
+    }
+    if (this.photo) this.photo.visible = on;
+  }
+  private photo: Group | null = null;
 
   /** Sea: the level's second weft colour (null: a single cream weft). */
   setWeftColor(color: number | null): void {

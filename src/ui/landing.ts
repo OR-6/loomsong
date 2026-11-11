@@ -16,43 +16,68 @@ import { mountCaller, shouldCall, unmountCaller } from './caller.js';
 export function mountLanding(world: World): void {
   const el = document.createElement('div');
   el.id = 'landing';
+  const sitePhoto = (f: string) => `${import.meta.env.BASE_URL}site/${f}`;
   el.innerHTML = `
     <div class="frame">
       <i class="spool tl"></i><i class="spool tr"></i><i class="spool bl"></i><i class="spool br"></i>
       <main class="felt">
         <section class="hero">
-          <div class="weave" aria-hidden="true">
-            <div class="warps"></div>
-            <div class="cloth"></div>
-            <svg class="pip" viewBox="0 0 46 40" width="46" height="40">
-              <path d="M6 30 q16 9 34 0 l-3 6 q-14 5 -28 0z" fill="#b5703f"/>
-              <ellipse cx="22" cy="22" rx="15" ry="11" fill="#f7c948"/>
-              <circle cx="31" cy="13" r="9" fill="#f7c948"/>
-              <path d="M39 12 l7 3 -7 3z" fill="#f08a3c"/>
-              <circle cx="34" cy="11" r="2" fill="#2b2320"/>
-              <ellipse cx="18" cy="21" rx="7" ry="4.5" fill="#f2b632" transform="rotate(-15 18 21)"/>
-              <circle cx="11" cy="27" r="4.5" fill="#fbf1dc"/>
-            </svg>
-          </div>
           <div class="pitch">
-            <h1>Loomsong</h1>
+            <div class="mark">
+              <div class="weave" aria-hidden="true">
+                <div class="warps"></div>
+                <div class="cloth"></div>
+                <svg class="pip" viewBox="0 0 46 40" width="46" height="40">
+                  <path d="M6 30 q16 9 34 0 l-3 6 q-14 5 -28 0z" fill="#b5703f"/>
+                  <ellipse cx="22" cy="22" rx="15" ry="11" fill="#f7c948"/>
+                  <circle cx="31" cy="13" r="9" fill="#f7c948"/>
+                  <path d="M39 12 l7 3 -7 3z" fill="#f08a3c"/>
+                  <circle cx="34" cy="11" r="2" fill="#2b2320"/>
+                  <ellipse cx="18" cy="21" rx="7" ry="4.5" fill="#f2b632" transform="rotate(-15 18 21)"/>
+                  <circle cx="11" cy="27" r="4.5" fill="#fbf1dc"/>
+                </svg>
+              </div>
+              <h1>Loomsong</h1>
+            </div>
             <p id="tagline">A tiny loom on your real desk. Hands only.</p>
             <p class="lede">Lift the levers, slide Pip across, and each row you weave sings. Finish a picture and it comes alive as a little knitted toy.</p>
-            <button id="enter-xr" type="button">Enter mixed reality</button>
-            <p class="note" id="xr-unsupported" hidden>This browser can't open mixed reality. Open this page in your headset's browser, or join a friend's loom from your phone below.</p>
-            <p class="note">Sit at a desk with your controllers down and hand tracking on.</p>
+            <div class="go">
+              <button id="enter-xr" type="button">Enter mixed reality</button>
+              <p class="note">Sit at a desk with your controllers down and hand tracking on.</p>
+            </div>
+            <div class="nohead" id="xr-unsupported" hidden>
+              <p>This browser can't open mixed reality. Open this page in your headset's browser, or join a friend's loom as their caller:</p>
+              <div class="row"><input id="call-code" maxlength="4" placeholder="CODE" aria-label="Friend's room code" autocomplete="off" /><button type="button" id="call-join">Join as caller</button></div>
+            </div>
             <div id="style-pick" role="radiogroup" aria-label="Loom style" hidden>
+              <span class="lbl">Loom style</span>
               <button type="button" data-theme="toy" role="radio">Toy</button>
               <button type="button" data-theme="workshop" role="radio">Workshop</button>
             </div>
           </div>
+          <figure class="photo hero-photo">
+            <i class="peg" aria-hidden="true"></i>
+            <img src="${sitePhoto('hero-34.jpg')}" alt="The toy loom on a desk: a duck half woven in yellow yarn, Pip the bird on its perch, lever knobs in red, teal, pink and green" width="1100" height="619" />
+          </figure>
         </section>
 
-        <ol class="steps" aria-label="How it plays">
-          <li><b>Lift the levers</b><span>Each lever lifts its own threads. Pick the ones that make the next row on the card.</span></li>
-          <li><b>Slide Pip across</b><span>Pinch the little bird and slide it through. The row is woven, and its threads ring out.</span></li>
-          <li><b>Watch it come alive</b><span>A finished picture pops off the loom as a plush and hops onto your shelf.</span></li>
-        </ol>
+        <section class="line" aria-label="How it plays">
+          <svg class="yarn" viewBox="0 0 1000 60" preserveAspectRatio="none" aria-hidden="true"><path d="M0 8 Q 500 70 1000 8" fill="none" stroke="#e8553e" stroke-width="4" stroke-linecap="round"/></svg>
+          <ol class="steps">
+            <li><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('levers-close.jpg')}" alt="Red threads lifted by the red lever" width="1100" height="619" /></figure>
+              <b>Lift the levers</b><span>Each lever lifts its own threads. Pick the ones that make the next row on the card.</span></li>
+            <li><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('pip-pinch.jpg')}" alt="A glowing ghost hand shows how to pinch Pip" width="1100" height="619" /></figure>
+              <b>Slide Pip across</b><span>Pinch the little bird and slide it through. The row is woven, and its threads ring out.</span></li>
+            <li><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('plush-dance.jpg')}" alt="The finished duck pops off the loom as a knitted plush" width="1100" height="619" /></figure>
+              <b>Watch it come alive</b><span>A finished picture pops off the loom as a plush and hops onto your shelf.</span></li>
+          </ol>
+        </section>
+
+        <section class="more" aria-label="What else is on the desk">
+          <figure class="photo small"><img loading="lazy" src="${sitePhoto('shelf.jpg')}" alt="Finished plushes on a little shelf with a brass wind-up key" width="1100" height="619" /></figure>
+          <p><b>Four chapters, eighteen pictures.</b> Garden teaches your hands, Home combines levers, Night hides what they lift, and Sea weaves in two colours. Wind the key on your shelf and your plushes sing their songs in turn.</p>
+          <figure class="photo small"><img loading="lazy" src="${sitePhoto('sea-boat.jpg')}" alt="A red boat woven on blue water rows" width="1100" height="619" /></figure>
+        </section>
 
         <figure id="share-card" hidden>
           <img id="cloth-img" alt="Your last woven cloth" />
@@ -96,9 +121,16 @@ export function mountLanding(world: World): void {
     world.launchXR();
   });
   if (!world.xrEnabled) {
-    btn.disabled = true;
+    // no headset here: the main action becomes joining a friend's loom as the caller
+    el.querySelector<HTMLElement>('.go')!.hidden = true;
     el.querySelector<HTMLElement>('#xr-unsupported')!.hidden = false;
   }
+  const callCode = el.querySelector<HTMLInputElement>('#call-code')!;
+  const callJoin = () => void coop.join(callCode.value, 'caller');
+  el.querySelector('#call-join')!.addEventListener('click', callJoin);
+  callCode.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') callJoin();
+  });
   const pick = el.querySelector<HTMLElement>('#style-pick')!;
   const sync = () => {
     const p = loadProgress();

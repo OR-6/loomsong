@@ -3,99 +3,135 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" href="data:," />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <meta name="description" content="A tiny toy loom on your real desk, in mixed reality. Lift the levers, slide Pip the bird across, and every picture you weave sings and comes alive as a knitted plush. Hands only." />
+    <meta property="og:title" content="Loomsong" />
+    <meta property="og:description" content="A tiny toy loom on your real desk. Hands only. Every picture you weave sings and comes alive." />
+    <meta property="og:image" content="./site/og.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#2b3a67" />
     <title>Loomsong</title>
     <style>
       @font-face { font-family: 'Lilita One'; src: url('./fonts/LilitaOne-Regular.ttf') format('truetype'); font-display: swap; }
       @font-face { font-family: 'Fraunces'; src: url('./fonts/Fraunces-SoftSemiBold.ttf') format('truetype'); font-display: swap; }
       :root {
-        --felt: #2b3a67; --felt-deep: #223057; --wood: #e0a96c; --wood-dark: #c48a4f; --walnut: #6b3e26;
-        --paper: #fbf1dc; --ink: #3b2a20; --tomato: #e8553e; --mustard: #f2b632; --teal: #1fb3a0; --cream: #f3e6cc;
+        --felt: #2b3a67; --felt-deep: #223057; --wood: #e0a96c; --wood-dark: #c48a4f; --walnut: #6b3e26; --walnut-deep: #4a2a18;
+        --paper: #fbf1dc; --ink: #3b2a20; --tomato: #e8553e; --mustard: #f2b632; --teal: #11796d; --cream: #f3e6cc;
         --display: 'Lilita One', system-ui, sans-serif;
       }
-      html, body { margin: 0; height: 100%; background: var(--felt-deep); color: var(--paper);
+      html, body { margin: 0; height: 100%; background: var(--walnut-deep); color: var(--paper);
         font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
       #scene-container { position: fixed; inset: 0; }
-      #landing { position: fixed; inset: 0; overflow: auto; background: #1e1611; padding: 16px; box-sizing: border-box; }
+      /* the walnut desk the loom sits on */
+      #landing { position: fixed; inset: 0; overflow: auto; padding: 22px 16px 40px; box-sizing: border-box;
+        background:
+          repeating-linear-gradient(178deg, #0000 0 38px, #ffffff08 38px 40px, #0000 40px 95px, #00000014 95px 97px),
+          linear-gradient(180deg, #5c3520, #4a2a18); }
       #landing *, #landing *::before, #landing *::after { box-sizing: border-box; }
 
       /* the honey-wood loom frame, with a spool on each corner post */
-      #landing .frame { position: relative; max-width: 1080px; margin: 0 auto; padding: 22px; border-radius: 26px;
+      #landing .frame { position: relative; max-width: 1120px; margin: 0 auto; padding: 22px; border-radius: 26px;
         background:
           repeating-linear-gradient(90deg, #0000 0 34px, #ffffff12 34px 36px, #0000 36px 77px, #0000000f 77px 78px),
           linear-gradient(180deg, var(--wood), var(--wood-dark));
-        box-shadow: 0 10px 0 #8a5a33, 0 18px 40px #0008; }
-      #landing .spool { position: absolute; width: 30px; height: 30px; border-radius: 50%; background: var(--paper);
+        box-shadow: 0 10px 0 #8a5a33, 0 24px 50px #000a; }
+      #landing .spool { position: absolute; width: 30px; height: 30px; border-radius: 50%; background: var(--paper); z-index: 1;
         box-shadow: inset 0 0 0 7px var(--tomato), 0 3px 0 #0003; }
-      #landing .spool.tr, #landing .spool.bl { box-shadow: inset 0 0 0 7px var(--teal), 0 3px 0 #0003; }
+      #landing .spool.tr, #landing .spool.bl { box-shadow: inset 0 0 0 7px #1fb3a0, 0 3px 0 #0003; }
       #landing .tl { top: -8px; left: -8px; } #landing .tr { top: -8px; right: -8px; }
       #landing .bl { bottom: -8px; left: -8px; } #landing .br { bottom: -8px; right: -8px; }
 
       /* the navy felt bed */
-      #landing .felt { border-radius: 14px; padding: clamp(20px, 4vw, 44px);
+      #landing .felt { border-radius: 14px; padding: clamp(22px, 4vw, 48px);
         background: radial-gradient(#ffffff0a 1px, #0000 1.5px) 0 0 / 7px 7px, var(--felt);
-        box-shadow: inset 0 4px 12px #0006; display: flex; flex-direction: column; gap: 36px; }
+        box-shadow: inset 0 4px 12px #0006; display: flex; flex-direction: column; gap: 44px; }
 
-      /* hero: the woven duck beside the pitch */
-      #landing .hero { display: grid; grid-template-columns: auto 1fr; gap: clamp(24px, 5vw, 64px); align-items: center; }
-      #landing .weave { --cell: clamp(26px, 4.2vw, 40px); --gap: 3px; position: relative;
-        width: calc(8 * var(--cell) + 7 * var(--gap) + 28px); padding: 34px 14px 18px; border-radius: 12px;
-        background: var(--felt-deep); box-shadow: inset 0 3px 10px #0007; }
-      #landing .weave .warps { position: absolute; inset: 0 14px; pointer-events: none;
-        background: repeating-linear-gradient(90deg, #0000 0 calc((var(--cell) + var(--gap)) / 2 - 1.5px), #f3e6cc99 calc((var(--cell) + var(--gap)) / 2 - 1.5px) calc((var(--cell) + var(--gap)) / 2 + 1.5px), #0000 calc((var(--cell) + var(--gap)) / 2 + 1.5px) calc(var(--cell) + var(--gap))); }
+      /* photos pinned to the felt with a wooden clothes peg */
+      #landing .photo { position: relative; margin: 0; background: #fffaf0; padding: 8px 8px 10px; border-radius: 3px;
+        box-shadow: 0 6px 0 #0004, 0 14px 26px #0005; }
+      #landing .photo img { display: block; width: 100%; height: auto; border-radius: 2px; }
+      #landing .peg { position: absolute; top: -18px; left: 50%; width: 16px; height: 40px; margin-left: -8px; border-radius: 4px; z-index: 2;
+        background: linear-gradient(90deg, #d9a066 0 45%, #b5793f 45% 55%, #d9a066 55%); box-shadow: 0 3px 0 #0003; }
+      #landing .peg::after { content: ''; position: absolute; left: 3px; right: 3px; top: 16px; height: 6px; border-radius: 3px; background: #8b8b8b; }
+
+      /* hero: the pitch, and the real loom photo */
+      #landing .hero { display: grid; grid-template-columns: minmax(340px, 1fr) 1.1fr; gap: clamp(28px, 4vw, 56px); align-items: center; }
+      #landing .hero-photo { transform: rotate(1.6deg); }
+      #landing .pitch { position: relative; z-index: 1; min-width: 0; }
+      #landing .mark { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+      #landing .weave { --cell: 11px; --gap: 2px; position: relative; flex: none;
+        width: calc(8 * var(--cell) + 7 * var(--gap) + 16px); padding: 18px 8px 8px; border-radius: 9px;
+        background: var(--felt-deep); box-shadow: inset 0 2px 6px #0007; }
+      #landing .weave .warps { position: absolute; inset: 0 8px; pointer-events: none;
+        background: repeating-linear-gradient(90deg, #0000 0 calc((var(--cell) + var(--gap)) / 2 - 1px), #f3e6cc88 calc((var(--cell) + var(--gap)) / 2 - 1px) calc((var(--cell) + var(--gap)) / 2 + 1px), #0000 calc((var(--cell) + var(--gap)) / 2 + 1px) calc(var(--cell) + var(--gap))); }
       #landing .cloth { position: relative; display: grid; gap: var(--gap); }
       #landing .cloth .row { display: grid; grid-template-columns: repeat(8, var(--cell)); gap: var(--gap); }
-      #landing .cloth i { height: calc(var(--cell) * 0.82); border-radius: 6px; opacity: 0; transform: scaleY(0.4);
-        box-shadow: inset 0 -4px 0 #0002, inset 0 3px 0 #ffffff55; }
+      #landing .cloth i { height: calc(var(--cell) * 0.82); border-radius: 3px; opacity: 0; transform: scaleY(0.4);
+        box-shadow: inset 0 -2px 0 #0002, inset 0 1px 0 #ffffff55; }
       #landing .cloth i.px { background: var(--pic); }
       #landing .cloth i.gr { background: var(--cream); }
-      #landing .cloth .row.in i { animation: beat .32s cubic-bezier(.3, 1.6, .5, 1) forwards; }
-      #landing .cloth .row.in i:nth-child(2n) { animation-delay: .03s; }
+      #landing .cloth .row.in i { animation: beat .3s cubic-bezier(.3, 1.6, .5, 1) forwards; }
       @keyframes beat { to { opacity: 1; transform: none; } }
-      #landing .pip { position: absolute; left: 0; width: 46px; height: 40px; opacity: 0;
-        top: calc(34px + var(--y, 0) * (var(--cell) * 0.82 + var(--gap)) - 26px); }
-      #landing .pip.flip { transform: scaleX(-1); }
+      #landing .pip { position: absolute; left: 0; width: 26px; height: 23px; opacity: 0;
+        top: calc(18px + var(--y, 0) * (var(--cell) * 0.82 + var(--gap)) - 15px); }
       #landing .pip.fly-r { animation: fly-r .45s ease-in-out forwards; }
       #landing .pip.fly-l { animation: fly-l .45s ease-in-out forwards; }
-      @keyframes fly-r { from { opacity: 1; left: -36px; } to { opacity: 1; left: calc(100% - 10px); } }
-      @keyframes fly-l { from { opacity: 1; left: calc(100% - 10px); transform: scaleX(-1); } to { opacity: 1; left: -36px; transform: scaleX(-1); } }
-      #landing .pip.rest { animation: none; opacity: 1; left: calc(100% - 22px); top: -16px; transform: scaleX(-1) rotate(-4deg); }
+      @keyframes fly-r { from { opacity: 1; left: -20px; } to { opacity: 1; left: calc(100% - 6px); } }
+      @keyframes fly-l { from { opacity: 1; left: calc(100% - 6px); transform: scaleX(-1); } to { opacity: 1; left: -20px; transform: scaleX(-1); } }
+      #landing .pip.rest { animation: none; opacity: 1; left: calc(100% - 14px); top: -12px; transform: scaleX(-1) rotate(-4deg); }
 
-      #landing h1 { font-family: var(--display); font-weight: 400; font-size: clamp(52px, 8vw, 92px); line-height: .95; margin: 0 0 10px;
-        color: var(--mustard); text-shadow: 0 5px 0 var(--walnut); letter-spacing: .005em; }
-      #landing #tagline { font-family: var(--display); font-size: clamp(20px, 2.4vw, 26px); margin: 0 0 10px; color: var(--paper); }
-      #landing .lede { font-size: 17px; line-height: 1.5; margin: 0 0 22px; max-width: 34em; color: #e8ddc8; }
-      #landing .note { font-size: 14px; line-height: 1.45; margin: 10px 0 0; max-width: 36em; color: #c9c5d8; }
+      #landing h1 { font-family: var(--display); font-weight: 400; font-size: clamp(48px, 5.4vw, 74px); line-height: .95; margin: 0;
+        color: var(--mustard); text-shadow: 0 5px 0 var(--walnut); }
+      #landing #tagline { font-family: var(--display); font-size: clamp(21px, 2.3vw, 27px); line-height: 1.15; margin: 0 0 12px; color: var(--paper); }
+      #landing .lede { font-size: 17px; line-height: 1.55; margin: 0 0 24px; max-width: 32em; color: #e8ddc8; }
+      #landing .note { font-size: 14px; line-height: 1.45; margin: 12px 0 0; max-width: 34em; color: #c9c5d8; }
       #enter-xr { font-family: var(--display); font-size: 26px; padding: 16px 34px 18px; border-radius: 18px; border: 0; cursor: pointer;
         background: var(--tomato); color: #fff6e8; box-shadow: 0 7px 0 #a8341f, 0 12px 20px #0005; transition: transform .08s, box-shadow .08s; }
       #enter-xr:active { transform: translateY(5px); box-shadow: 0 2px 0 #a8341f; }
-      #enter-xr:disabled { background: #8d8aa3; box-shadow: 0 7px 0 #5c5970; cursor: default; }
-      #style-pick { display: flex; gap: 8px; margin-top: 16px; }
+      #landing .nohead { background: var(--paper); color: var(--ink); border-radius: 10px; padding: 16px 18px; max-width: 30em; box-shadow: 0 4px 0 #0003; }
+      #landing .nohead[hidden] { display: none; }
+      #landing .nohead p { margin: 0 0 12px; font-size: 15px; line-height: 1.45; }
+      #landing .row { display: flex; gap: 8px; flex-wrap: wrap; }
+      #landing .row input { width: 6.5em; text-align: center; text-transform: uppercase; letter-spacing: .2em; font: 600 17px system-ui, sans-serif;
+        padding: 9px 10px; border-radius: 12px; border: 2px solid var(--walnut); background: #fff; color: var(--ink); }
+      #landing .row button, #coop .row button { font: 400 18px var(--display); padding: 9px 18px 11px; border-radius: 12px; border: 0; cursor: pointer;
+        background: var(--walnut); color: var(--paper); box-shadow: 0 4px 0 #4a2a18; }
+      #call-join { background: var(--tomato) !important; box-shadow: 0 4px 0 #a8341f !important; }
+      #style-pick { display: flex; gap: 8px; align-items: center; margin-top: 18px; }
       #style-pick[hidden] { display: none; }
+      #style-pick .lbl { font-size: 14px; color: #c9c5d8; margin-right: 4px; }
       #style-pick button { font: 400 16px var(--display); padding: 7px 16px; border-radius: 10px; border: 2px solid var(--mustard);
         background: transparent; color: var(--paper); cursor: pointer; }
       #style-pick button[data-theme='workshop'] { font-family: 'Fraunces', Georgia, serif; font-weight: 600; }
       #style-pick button[aria-checked='true'] { background: var(--mustard); color: var(--ink); }
 
-      /* how it plays: three pattern cards, slightly askew, numbered by knobs (it is a sequence) */
-      #landing .steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; counter-reset: step; }
-      #landing .steps li { counter-increment: step; position: relative; background: var(--paper); color: var(--ink); border-radius: 6px;
-        padding: 22px 18px 18px 18px; box-shadow: 0 4px 0 #0003; font-size: 15px; line-height: 1.45; }
-      #landing .steps li:nth-child(1) { transform: rotate(-1.2deg); }
-      #landing .steps li:nth-child(2) { transform: rotate(.8deg); }
-      #landing .steps li:nth-child(3) { transform: rotate(-.6deg); }
-      #landing .steps li::before { content: counter(step); position: absolute; top: -16px; left: 16px; width: 34px; height: 34px;
-        border-radius: 50%; display: grid; place-items: center; font: 400 18px var(--display); color: #fff6e8;
-        background: var(--tomato); box-shadow: inset -3px -4px 0 #0002, 0 3px 0 #0003; }
-      #landing .steps li:nth-child(2)::before { background: var(--teal); }
-      #landing .steps li:nth-child(3)::before { background: #e8679e; }
-      #landing .steps b { display: block; font: 400 21px var(--display); margin-bottom: 6px; color: var(--walnut); }
+      /* how it plays: three photos pegged to a yarn line strung across the felt (it is a sequence) */
+      #landing .line { position: relative; padding-top: 6px; }
+      #landing .yarn { position: absolute; left: -6px; right: -6px; top: 0; width: calc(100% + 12px); height: 60px; }
+      #landing .steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(18px, 3vw, 34px); counter-reset: step; }
+      #landing .steps li { counter-increment: step; font-size: 15px; line-height: 1.5; color: #e8ddc8; }
+      #landing .steps li .photo { margin: 24px 0 16px; }
+      #landing .steps li:nth-child(1) .photo { transform: rotate(-2.2deg); margin-top: 30px; }
+      #landing .steps li:nth-child(2) .photo { transform: rotate(1.4deg); margin-top: 44px; }
+      #landing .steps li:nth-child(3) .photo { transform: rotate(-1deg); margin-top: 30px; }
+      #landing .steps b { display: block; font: 400 23px var(--display); color: var(--paper); margin-bottom: 4px; }
+      #landing .steps b::before { content: counter(step); display: inline-grid; place-items: center; width: 30px; height: 30px; margin-right: 10px;
+        border-radius: 50%; font-size: 17px; color: #fff6e8; background: var(--tomato); box-shadow: inset -3px -4px 0 #0002; vertical-align: 2px; }
+      #landing .steps li:nth-child(2) b::before { background: #1fb3a0; }
+      #landing .steps li:nth-child(3) b::before { background: #e8679e; }
+
+      /* more on the desk */
+      #landing .more { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: clamp(18px, 3vw, 34px); align-items: center; }
+      #landing .more .photo:first-child { transform: rotate(-1.5deg); }
+      #landing .more .photo:last-child { transform: rotate(1.8deg); }
+      #landing .more p { margin: 0; font-size: 16px; line-height: 1.6; color: #e8ddc8; text-align: center; }
+      #landing .more b { display: block; font: 400 24px var(--display); color: var(--mustard); margin-bottom: 6px; }
 
       #share-card { margin: 0; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; justify-content: center; }
       #share-card[hidden] { display: none; }
-      #cloth-img { max-width: min(200px, 60vw); border-radius: 8px; border: 6px solid var(--paper); box-shadow: 0 4px 0 #0004; image-rendering: auto; }
+      #cloth-img { max-width: min(200px, 60vw); border-radius: 3px; border: 8px solid #fffaf0; box-shadow: 0 5px 0 #0004; image-rendering: auto; }
       #share-btn { font: 400 19px var(--display); padding: 10px 22px 12px; border-radius: 14px; border: 0; cursor: pointer;
-        background: var(--teal); color: #fff6e8; box-shadow: 0 5px 0 #137a6e; }
+        background: var(--teal); color: #fff6e8; box-shadow: 0 5px 0 #0b544c; }
       #share-note { display: block; font-size: 13px; color: #c9c5d8; max-width: 90vw; word-break: break-all; margin-top: 6px; }
 
       /* settings: paper luggage tags with a yarn loop, like the hints in the game */
@@ -106,10 +142,13 @@
       #landing .tag::before, #hand-pick::before { content: ''; position: absolute; left: 12px; top: 50%; width: 8px; height: 8px; margin-top: -4px;
         border-radius: 50%; background: var(--felt); box-shadow: 0 0 0 2px var(--tomato); }
       #landing .tag[aria-checked='true'], #landing .tag[aria-pressed='true'] { background: var(--mustard); }
+      /* the tag shape clips outlines, so focus is drawn inside it */
+      #landing .tag:focus-visible { outline: none; box-shadow: inset 0 0 0 3px var(--tomato); }
       #hand-pick { display: flex; gap: 6px; align-items: center; cursor: default; }
       #hand-pick .lbl { margin-right: 2px; }
       #hand-pick button { font: inherit; padding: 4px 10px; border-radius: 8px; border: 1.5px solid #3b2a2033; background: transparent; color: var(--ink); cursor: pointer; }
       #hand-pick button[aria-checked='true'] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+      #hand-pick button:focus-visible { outline: 3px solid var(--tomato); outline-offset: 1px; }
 
       /* play together: a paper card that unfolds */
       #coop { background: var(--paper); color: var(--ink); border-radius: 10px; padding: 0 22px; box-shadow: 0 4px 0 #0003; max-width: 760px;
@@ -119,22 +158,34 @@
       #coop summary::after { content: '+'; float: right; color: var(--tomato); }
       #coop[open] summary::after { content: '–'; }
       #coop p { margin: 0 0 12px; max-width: 60ch; }
-      #coop .row { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 12px; }
-      #coop button { font: 400 17px var(--display); padding: 9px 18px 11px; border-radius: 12px; border: 0; cursor: pointer;
-        background: var(--walnut); color: var(--paper); box-shadow: 0 4px 0 #4a2a18; }
+      #coop .row { margin: 4px 0 12px; }
       #coop-code { width: 6.5em; text-align: center; text-transform: uppercase; letter-spacing: .2em; font: 600 17px system-ui, sans-serif;
         padding: 9px 10px; border-radius: 12px; border: 2px solid var(--walnut); background: #fff; color: var(--ink); }
       #coop-status { min-height: 1.4em; font-weight: 700; color: var(--walnut); }
       #coop .fine { font-size: 13px; color: #6b5a4e; padding-bottom: 6px; }
 
       #landing button:focus-visible, #landing input:focus-visible, #landing summary:focus-visible { outline: 3px solid var(--mustard); outline-offset: 3px; }
-      @media (max-width: 760px) {
-        #landing { padding: 10px; }
+      @media (min-width: 1200px) { #landing .steps li { font-size: 16px; } }
+      @media (max-width: 860px) {
+        #landing .hero { grid-template-columns: 1fr; }
+        #landing .hero-photo { order: -1; transform: rotate(1deg); margin-top: 10px; }
+        #landing .steps { grid-template-columns: 1fr; gap: 10px; }
+        #landing .steps li .photo { max-width: 520px; }
+        #landing .yarn { display: none; }
+        #landing .more { grid-template-columns: 1fr 1fr; }
+        #landing .more p { grid-column: 1 / -1; order: -1; }
+      }
+      @media (max-width: 520px) {
+        #landing { padding: 14px 10px 30px; }
         #landing .frame { padding: 14px; }
-        #landing .hero { grid-template-columns: 1fr; justify-items: center; text-align: center; }
-        #landing .lede, #landing .note { margin-left: auto; margin-right: auto; }
-        #landing .steps { grid-template-columns: 1fr; gap: 26px; }
-        #style-pick { justify-content: center; }
+        #landing .spool { width: 22px; height: 22px; box-shadow: inset 0 0 0 5px var(--tomato), 0 2px 0 #0003; }
+        #landing .spool.tr, #landing .spool.bl { box-shadow: inset 0 0 0 5px #1fb3a0, 0 2px 0 #0003; }
+        #landing .tl { top: -5px; left: -5px; } #landing .tr { top: -5px; right: -5px; }
+        #landing .bl { bottom: -5px; left: -5px; } #landing .br { bottom: -5px; right: -5px; }
+        #landing .mark { gap: 10px; }
+        #landing h1 { font-size: clamp(38px, 12vw, 56px); }
+        #landing .weave { --cell: 8px; }
+        #landing .more { grid-template-columns: 1fr; }
       }
       @media (prefers-reduced-motion: reduce) {
         #landing .cloth i { opacity: 1; transform: none; animation: none !important; }

@@ -470,6 +470,8 @@ export class GameSystem extends createSystem({
       audio,
       /** World positions of interactables, for E2E scripts. */
       targets: () => this.targets(),
+      /** Capture-only photo set (desk + warm backdrop) for marketing shots. */
+      photo: (on: boolean) => this.view.photoSet(on),
     };
 
     this.cleanupFuncs.push(
