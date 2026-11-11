@@ -124,7 +124,7 @@ export class GameSystem extends createSystem({
   private time = 0;
   private progress!: Progress;
   private notice = '';
-  private noticeAt: 'token' | 'nudge' | 'centre' | 'unlock' = 'token';
+  private noticeAt: 'token' | 'nudge' | 'centre' | 'unlock' | 'shelf' = 'token';
   /** The current chapter's pictures on the shelf (finished ones are pokeable plushes). */
   private shelf: ShelfItem[] = [];
   private singUntil = 0;
@@ -133,6 +133,8 @@ export class GameSystem extends createSystem({
   /** Lever clicks during a programmatic drop make no sound. */
   private quietLevers = false;
   private undoNotch = 0;
+  /** Game time at which each shelf slot's medley turn starts (-1: none). */
+  private sparkleAt = new Array(PLUSH_SLOTS).fill(-1);
   /** A chapter was just completed: its finale waits for the last plush to reach the shelf. */
   private finale: { chapter: string; items: ShelfItem[]; level: Level } | null = null;
   private plushVecs = Array.from({ length: PLUSH_SLOTS }, () => new Vector3());
@@ -752,7 +754,7 @@ export class GameSystem extends createSystem({
     const side = this.controller.bankSide;
     this.view.fx.confetti(-side * PLUSH.shelfX, PLUSH.shelfTopY + 0.03, PLUSH.shelfZ, 140, 0.8);
     audio.chirp('cheer');
-    this.showNotice(`${f.chapter} complete!`, 5);
+    this.showNotice(`${f.chapter} complete!`, 5, 'shelf');
   }
 
   /** The wind-up key: every finished plush on the shelf sings in turn, left to right (the shelf is a music box). */
@@ -766,6 +768,7 @@ export class GameSystem extends createSystem({
       if (!it?.done) continue;
       const secs = this.schedulePictureSong(it.rows, t);
       this.view.plushes.sing(i, secs, t);
+      this.sparkleAt[i] = this.time + t; // a gold sparkle over each plush as its turn starts
       t += secs + 0.2;
     }
     const total = t;
@@ -828,6 +831,7 @@ export class GameSystem extends createSystem({
         break;
       case 'windKey':
         if (c.keySpot) Object.assign(at, c.keySpot);
+        at.x -= side * 0.05; // out past the key, never over a plush
         text = 'Play the shelf';
         break;
       case 'swap':
@@ -901,7 +905,7 @@ export class GameSystem extends createSystem({
     this.showNotice(ch.name, 2.5, 'centre');
   }
 
-  private showNotice(text: string, seconds: number, at: 'token' | 'nudge' | 'centre' | 'unlock' = 'token'): void {
+  private showNotice(text: string, seconds: number, at: 'token' | 'nudge' | 'centre' | 'unlock' | 'shelf' = 'token'): void {
     this.notice = text;
     this.noticeAt = at;
     this.noticeTimer = seconds;
@@ -1133,6 +1137,7 @@ export class GameSystem extends createSystem({
       this.noticeTimer -= dt;
       if (this.noticeAt === 'token') m.position.set(0, CARD.baseY + this.view.card.heightM + 0.03, CARD.z); // above the card
       else if (this.noticeAt === 'unlock') m.position.set(tokenX(this.controller.bankSide), 0.06, TOKEN.z);
+      else if (this.noticeAt === 'shelf') m.position.set(-this.controller.bankSide * PLUSH.shelfX, 0.115, PLUSH.shelfZ); // over the shelf that's celebrating
       else if (this.noticeAt === 'centre') m.position.set(0, CARD.baseY + this.view.card.heightM + 0.03, CARD.z); // above the card, never over the threads
       else m.position.set(nudgeX(this.controller.bankSide), 0.075, (NUDGE.upZ + NUDGE.downZ) / 2);
       if (this.noticeTimer <= 0) this.showNotice('', 0);
@@ -1148,7 +1153,7 @@ export class GameSystem extends createSystem({
       const up = this.model.latched[k];
       // floats right above that very knob, wherever it is (latched knobs sit further back)
       this.controller.leverPos(k, this.tagAt);
-      m.position.set(this.tagAt.x + side * 0.02, this.tagAt.y + 0.075, this.tagAt.z); // high over that knob, above Pip's head
+      m.position.set(this.tagAt.x + side * 0.05, this.tagAt.y + 0.075, this.tagAt.z); // high over that knob, nudged into the box (clear of Pip)
       if (up === (step === 'unlatch')) this.view.setLeverHighlight(k, 0, up, pulse);
     } else if (step === 'weft') {
       // the swap spool on Pip's side breathes, with the tag above it
@@ -1220,6 +1225,12 @@ export class GameSystem extends createSystem({
     this.view.basket.hover(Math.max(sk(c.hover.left), sk(c.hover.right)));
     this.syncPlushSpots();
     this.syncTip(dt);
+    for (let i = 0; i < this.sparkleAt.length; i++) {
+      if (this.sparkleAt[i] < 0 || this.time < this.sparkleAt[i]) continue;
+      this.sparkleAt[i] = -1;
+      const p = c.plushSpots[i];
+      if (p) this.view.fx.confetti(p.x, p.y + 0.02, p.z, 22, 0.35, true);
+    }
     // the finale starts once the last plush has hopped onto the shelf
     if (this.finale && this.flow.phase === 'between' && !this.view.plushes.busy) this.playFinale();
     // while the plush dances on its stage, the plate and token step aside

@@ -1172,6 +1172,7 @@ export class LoomView {
     this.animatePip(dt);
     this.animateRow(dt);
     this.animateArrival(dt);
+    if (this.rowArrow.visible) this.rowArrow.scale.setScalar(1.35 + 0.2 * Math.sin(this.clock * 4)); // a gentle beckon
     if (this.undoNudge > 0) {
       this.undoNudge = Math.max(0, this.undoNudge - dt / 0.9);
       const k = 1 - this.undoNudge;
@@ -1511,6 +1512,10 @@ function makeToken(): Group {
     new MeshStandardMaterial({ color: 0xc9a14a, roughness: 0.35, metalness: 0.7 }),
   );
   g.add(rim);
+  // a cream ring round the edge: it reads as a button you can press, not a stray disc
+  const edge = new Mesh(new TorusGeometry(TOKEN.radius, 0.0016, 8, 40), new MeshStandardMaterial({ color: 0xfff1d6, roughness: 0.6 }));
+  edge.rotation.x = Math.PI / 2;
+  g.add(edge);
   return g;
 }
 

@@ -407,15 +407,15 @@ export class Plushes {
     // a butterfly wind-up key: brass shaft out of the shelf end, two loops for fingers
     {
       const brass = new MeshStandardMaterial({ color: 0xd9a441, metalness: 0.55, roughness: 0.35 });
-      const shaft = new Mesh(new CylinderGeometry(0.0026, 0.0026, 0.016, 12), brass);
+      const shaft = new Mesh(new CylinderGeometry(0.0036, 0.0036, 0.016, 12), brass);
       shaft.rotation.z = Math.PI / 2;
       shaft.position.x = 0.008;
-      const hub = new Mesh(new SphereGeometry(0.005, 12, 8), brass);
+      const hub = new Mesh(new SphereGeometry(0.0062, 12, 8), brass);
       hub.position.x = 0.017;
       const bow = new Group();
       bow.name = 'WindKeyBow';
       for (const sy of [-1, 1]) {
-        const loop = new Mesh(new TorusGeometry(0.011, 0.0032, 10, 28), brass);
+        const loop = new Mesh(new TorusGeometry(0.011, 0.0042, 10, 28), brass);
         loop.rotation.y = Math.PI / 2; // loops in the shelf-end plane
         loop.position.set(0, sy * 0.0135, 0);
         bow.add(loop);
