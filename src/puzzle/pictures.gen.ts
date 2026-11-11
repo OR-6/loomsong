@@ -600,34 +600,34 @@ export const DAILY: PictureLevel[] = [
     "rootMidi": 69
   },
   {
-    "id": "day-apple",
-    "name": "Apple",
+    "id": "day-pear",
+    "name": "Pear",
     "chapter": "daily",
     "mystery": false,
-    "color": 0xe2563b,
+    "color": 0xa9b82e,
     "picture": [
       "....##..",
       "...#....",
-      ".##.###.",
-      "########",
-      "########",
+      "..####..",
+      "..####..",
+      ".######.",
       ".######."
     ],
     "tieUp": [
-      231,
-      102,
+      66,
+      12,
       48,
       8
     ],
     "target": [
       126,
-      255,
-      255,
-      118,
+      126,
+      60,
+      60,
       8,
       48
     ],
-    "par": 11,
+    "par": 9,
     "rootMidi": 62
   },
   {
