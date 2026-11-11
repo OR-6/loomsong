@@ -771,7 +771,7 @@ export class LoomView {
     // Plaque leans on the front beam, shifted away from the token.
     const tilt = (PLAQUE.tiltDeg * Math.PI) / 180;
     // lying almost flat on the desk in front of the loom, clear of the cloth
-    this.plaque.mesh.position.set(-side * 0.035, 0.004, LOOM.frontBeamZ + 0.05);
+    this.plaque.mesh.position.set(-side * 0.035, 0.0078, LOOM.frontBeamZ + 0.05); // the slat's low edge just on the desk
     this.plaque.mesh.rotation.set(-1.31, 0, 0); // ~15° up from flat
     this.layoutLevers();
     this.setBobbinT(0);
