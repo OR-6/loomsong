@@ -86,7 +86,8 @@
       /* in the logo mark only the duck's own cells show: a clear little duck, not a bead grid */
       #landing .mark .warps { display: none; }
       #landing .mark .weave { background: none; box-shadow: none; padding-left: 0; padding-right: 0; }
-      #landing .mark .cloth i.gr { visibility: hidden; }
+      #landing .mark .cloth .row.in i.gr { animation: none; opacity: .14; transform: none; }
+      #landing .mark .pip.rest { left: 2px; top: -19px; transform: rotate(-6deg); }
       #landing .cloth .row.in i { animation: beat .3s cubic-bezier(.3, 1.6, .5, 1) forwards; }
       @keyframes beat { to { opacity: 1; transform: none; } }
       #landing .pip { position: absolute; left: 0; width: 26px; height: 23px; opacity: 0;
@@ -100,7 +101,7 @@
       #landing h1 { font-family: var(--display); font-weight: 400; font-size: clamp(48px, 5.4vw, 74px); line-height: .95; margin: 0;
         color: var(--mustard); text-shadow: 0 5px 0 var(--walnut); }
       #landing #tagline { font-family: var(--display); font-size: clamp(21px, 2.3vw, 27px); line-height: 1.15; margin: 0 0 12px; color: var(--paper); text-wrap: balance; }
-      #landing .lede { font: 600 17px/1.6 var(--serif); margin: 0 0 24px; max-width: 32em; color: #e8ddc8; }
+      #landing .lede { text-wrap: pretty; font: 600 17px/1.6 var(--serif); margin: 0 0 24px; max-width: 32em; color: #e8ddc8; }
       #landing .note { font: 600 14px/1.5 var(--serif); margin: 12px 0 0; max-width: 34em; color: #c9c5d8; }
       #enter-xr { font-family: var(--display); font-size: 26px; padding: 16px 34px 18px; border-radius: 18px; border: 0; cursor: pointer;
         background: var(--tomato); color: #fff6e8; box-shadow: 0 7px 0 #a8341f, 0 12px 20px #0005; transition: transform .08s, box-shadow .08s; }
@@ -123,40 +124,47 @@
       #style-pick button[data-theme='workshop'] { font-family: 'Fraunces', Georgia, serif; font-weight: 600; }
       #style-pick button[aria-checked='true'] { background: var(--mustard); color: var(--ink); }
 
-      /* how it plays: three photos pegged to a sagging yarn line, each with its own tag (it is a sequence) */
+      /* how it plays: hand-hung photos on a sagging yarn, each with its note on a paper tag (it is a sequence) */
       #landing .line { position: relative; padding-top: 8px; }
       #landing .yarn { position: absolute; left: -10px; right: -10px; top: 0; width: calc(100% + 20px); height: 90px; }
-      #landing .steps { list-style: none; margin: 0; padding: 0; display: flex; gap: clamp(18px, 3vw, 36px); align-items: flex-start; }
-      #landing .steps li { font: 600 15px/1.55 var(--serif); color: #e8ddc8; }
-      #landing .steps .s1 { flex: 1.05; margin-top: 30px; }
-      #landing .steps .s2 { flex: 0.9; margin-top: 74px; }
-      #landing .steps .s3 { flex: 1.15; margin-top: 44px; }
-      #landing .steps .s1 .photo { transform: rotate(-2.4deg); }
-      #landing .steps .s2 .photo { transform: rotate(1.8deg); }
-      #landing .steps .s3 .photo { transform: rotate(-1.1deg); }
+      #landing .steps { list-style: none; margin: 0; padding: 0; display: flex; align-items: flex-start; }
+      #landing .steps li { position: relative; }
+      #landing .steps .s1 { flex: 1.12; margin-top: 26px; z-index: 2; }
+      #landing .steps .s2 { flex: 0.86; margin: 78px 0 0 -18px; z-index: 3; }
+      #landing .steps .s3 { flex: 1.02; margin: 40px 0 0 18px; z-index: 1; }
+      #landing .steps .s1 .photo { transform: rotate(-3.6deg); }
+      #landing .steps .s2 .photo { transform: rotate(2.7deg); }
+      #landing .steps .s3 .photo { transform: rotate(-1.2deg); }
+      #landing .steps .s1 .peg { left: 34%; }
+      #landing .steps .s2 .peg { left: 63%; transform: rotate(6deg); }
+      #landing .steps .s3 .peg { left: 46%; transform: rotate(-4deg); }
       #landing .steps img { aspect-ratio: 4 / 3; object-fit: cover; }
-      #landing .steps .s1 img { object-position: 62% 40%; }
-      #landing .steps .s2 img { object-position: 78% 30%; }
-      #landing .steps .s3 img { object-position: 40% 35%; }
-      #landing .steps p { margin: 16px 4px 0; max-width: 30ch; }
-      /* the step's name on a little paper tag hanging off its peg */
-      #landing .hang { position: absolute; bottom: 16px; left: 14px; z-index: 3; font: 400 16px var(--display); color: var(--ink);
-        background: var(--paper); padding: 5px 12px 6px 22px; white-space: nowrap; transform: rotate(4deg); box-shadow: 0 3px 0 #0003;
-        clip-path: polygon(10px 0, 100% 0, 100% 100%, 10px 100%, 0 calc(100% - 10px), 0 10px); }
-      #landing .hang::before { content: ''; position: absolute; left: 9px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%;
+      /* the step's note on a paper luggage tag tucked under its photo */
+      #landing .hang { position: relative; z-index: 4; width: min(100%, 280px); margin: -22px 0 0 16px; padding: 12px 16px 13px 30px;
+        font: 600 14.5px/1.5 var(--serif); color: var(--ink); background: var(--paper); box-shadow: 0 4px 0 #0003; transform: rotate(1.6deg);
+        clip-path: polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 0 calc(100% - 12px), 0 12px); text-wrap: pretty; }
+      #landing .hang::before { content: ''; position: absolute; left: 11px; top: 18px; width: 7px; height: 7px; border-radius: 50%;
         background: var(--felt); box-shadow: 0 0 0 1.5px var(--tomato); }
-      #landing .s2 .hang { left: auto; right: 14px; transform: rotate(-3deg); }
+      #landing .hang b { display: block; font: 400 19px/1.1 var(--display); color: var(--walnut); margin-bottom: 4px; }
+      #landing .s2 .hang { margin-left: auto; margin-right: 6px; transform: rotate(-2.2deg); }
+      #landing .s3 .hang { margin-left: 34px; transform: rotate(.8deg); }
 
       /* more on the desk */
-      #landing .more { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: clamp(18px, 3vw, 34px); align-items: center; }
-      #landing .more .photo:first-child { transform: rotate(-1.5deg); }
-      #landing .more .photo:last-child { transform: rotate(1.8deg); }
-      #landing .note-card { background: var(--paper); color: var(--ink); padding: 20px 22px 18px; border-radius: 3px; box-shadow: 0 5px 0 #0003; transform: rotate(.7deg); }
+      #landing .more { position: relative; display: grid; grid-template-columns: 1fr 1.15fr 1fr; gap: clamp(18px, 3vw, 34px); align-items: start; padding-top: 34px; }
+      #landing .small-yarn { top: 4px; height: 60px; }
+      #landing .more > .photo:first-of-type { margin-top: 10px; }
+      #landing .more .note-card { margin-top: 30px; }
+      #landing .more > .photo:last-of-type { margin-top: 0; }
+      #landing .more > .photo:first-of-type { transform: rotate(-2.8deg); }
+      #landing .more > .photo:last-of-type { transform: rotate(3.1deg); }
+      #landing .more > .photo:first-of-type .peg { left: 28%; }
+      #landing .more > .photo:last-of-type .peg { left: 66%; }
+      #landing .note-card { position: relative; background: var(--paper); color: var(--ink); padding: 20px 22px 18px; border-radius: 3px; box-shadow: 0 5px 0 #0003; transform: rotate(.7deg); }
       #landing .note-card b { display: block; font: 400 22px/1.15 var(--display); color: var(--walnut); margin-bottom: 8px; }
-      #landing .note-card p { margin: 0; font: 600 15px/1.6 var(--serif); }
+      #landing .note-card p { margin: 0; font: 600 15px/1.6 var(--serif); text-wrap: pretty; }
+      #landing .note-card .peg { left: 22%; transform: rotate(-8deg); }
       #landing .more img { aspect-ratio: 4 / 3; object-fit: cover; }
-      #landing .more .photo:first-child img { object-position: 50% 50%; }
-      #landing .more .photo:last-child img { object-position: 45% 45%; }
+      #landing .more > .photo:last-of-type img { object-position: 45% 45%; }
 
 
       #landing .drawer { display: flex; gap: clamp(20px, 4vw, 48px); align-items: center; justify-content: center; flex-wrap: wrap; }
@@ -172,7 +180,14 @@
 
       /* settings: paper luggage tags with a yarn loop, like the hints in the game */
       #landing h2.before { margin: 0; text-align: center; font: 400 22px var(--display); color: var(--mustard); }
-      #settings { display: flex; flex-wrap: wrap; gap: 14px 18px; justify-content: center; align-items: center; }
+      #settings { display: flex; flex-wrap: wrap; gap: 16px 30px; justify-content: center; align-items: center; padding-left: 20px; }
+      #landing .tagwrap { position: relative; display: inline-flex; }
+      #landing .tagwrap:nth-child(1) { transform: rotate(-2deg); }
+      #landing .tagwrap:nth-child(2) { transform: rotate(1.5deg); }
+      #landing .tagwrap:nth-child(3) { transform: rotate(-1deg); }
+      /* a loop of red yarn through the punched hole */
+      #landing .string { position: absolute; z-index: 2; left: -20px; top: 50%; width: 36px; height: 18px; margin-top: -9px; pointer-events: none;
+        border: 2.5px solid var(--tomato); border-right-color: transparent; border-radius: 50%; }
       #landing .tag::after { content: 'Off'; margin-left: 10px; font-size: 12px; font-weight: 700; padding: 1px 7px; border-radius: 6px; background: #3b2a2014; }
       #landing .tag[aria-checked='true']::after, #landing .tag[aria-pressed='true']::after { content: 'On'; background: #3b2a20; color: var(--mustard); }
       #landing .tag, #hand-pick { position: relative; font: 600 15px var(--serif); color: var(--ink); background: var(--paper);
@@ -183,10 +198,14 @@
       #landing .tag[aria-checked='true'], #landing .tag[aria-pressed='true'] { background: var(--mustard); }
       /* the tag shape clips outlines, so focus is drawn inside it */
       #landing .tag:focus-visible { outline: none; box-shadow: inset 0 0 0 3px var(--tomato); }
-      #hand-pick { display: flex; gap: 6px; align-items: center; cursor: default; }
-      #hand-pick .lbl { margin-right: 2px; }
-      #hand-pick button { font: inherit; padding: 4px 10px; border-radius: 8px; border: 1.5px solid #3b2a2033; background: transparent; color: var(--ink); cursor: pointer; }
-      #hand-pick button[aria-checked='true'] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+      #hand-pick { display: flex; gap: 8px; align-items: center; cursor: default; background: none !important; clip-path: none !important; padding: 0 !important; color: var(--paper); }
+      #hand-pick::before { display: none; }
+      #hand-pick .lbl { margin-right: 2px; font: 600 15px var(--serif); color: #e8ddc8; }
+      /* three little tags to choose from */
+      #hand-pick button { position: relative; font: 600 14px var(--serif); padding: 6px 12px 6px 22px; border: 0; background: var(--paper); color: var(--ink); cursor: pointer;
+        clip-path: polygon(9px 0, 100% 0, 100% 100%, 9px 100%, 0 calc(100% - 9px), 0 9px); }
+      #hand-pick button::before { content: ''; position: absolute; left: 9px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: var(--felt); }
+      #hand-pick button[aria-checked='true'] { background: var(--mustard); }
       #hand-pick button:focus-visible { outline: 3px solid var(--tomato); outline-offset: 1px; }
 
       /* play together: a paper card pegged to the felt, with the caller's phone beside it */
@@ -194,24 +213,33 @@
         border-radius: 4px; padding: 26px 28px 22px; box-shadow: 0 5px 0 #0003; max-width: 820px; width: 100%; align-self: center; transform: rotate(-.4deg); }
       #coop .phone { padding: 6px; transform: rotate(-3deg); margin: -44px 0 -10px; }
       #coop .phone img { border-radius: 14px; }
-      #coop h2 { margin: 0 0 8px; font: 400 25px/1.15 var(--display); color: var(--walnut); }
+      #coop h2 { text-wrap: balance; margin: 0 0 8px; font: 400 25px/1.15 var(--display); color: var(--walnut); }
       #coop p { margin: 0 0 12px; max-width: 58ch; font: 600 15px/1.55 var(--serif); }
-      #coop .row { margin: 6px 0 10px; }
+      #coop .row { margin: 6px 0 10px; align-items: center; }
+      #coop .row button, #coop-code { height: 44px; padding-top: 0; padding-bottom: 0; }
+      #coop .or { font: 600 14px var(--serif); color: #6b5a4e; }
+      #coop-join { background: var(--tomato) !important; box-shadow: 0 4px 0 #a8341f !important; }
       #coop-code { width: 6.5em; text-align: center; text-transform: uppercase; letter-spacing: .2em; font: 600 17px system-ui, sans-serif;
         padding: 9px 10px; border-radius: 12px; border: 2px solid var(--walnut); background: #fff; color: var(--ink); }
       #coop-status { min-height: 1.4em; font-weight: 700; color: var(--walnut); margin: 0 !important; }
       #coop .fine { font: 600 13px/1.5 var(--serif); color: #6b5a4e; margin: 6px 0 0; }
 
+      #landing .foot { display: flex; gap: 14px 22px; justify-content: center; flex-wrap: wrap; margin-top: -10px; }
+      #landing .foot-tag { position: relative; font: 600 13px/1.4 var(--serif); color: #e8ddc8; padding: 6px 14px 7px 24px; background: #ffffff10;
+        clip-path: polygon(9px 0, 100% 0, 100% 100%, 9px 100%, 0 calc(100% - 9px), 0 9px); text-decoration: none; }
+      #landing a.foot-tag { color: var(--mustard); text-decoration: underline; text-underline-offset: 3px; }
+      #landing a.foot-tag:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--mustard); }
       #landing button:focus-visible, #landing input:focus-visible, #landing summary:focus-visible { outline: 3px solid var(--mustard); outline-offset: 3px; }
       @media (min-width: 1200px) { #landing .steps li { font-size: 16px; } }
       @media (max-width: 860px) {
         #landing .hero { grid-template-columns: 1fr; }
         #landing .hero-photo { transform: rotate(1deg); margin-top: 18px; }
-        #landing .steps { flex-direction: column; gap: 26px; }
-        #landing .steps li { margin-top: 18px !important; max-width: 520px; align-self: center; }
+        #landing .steps { flex-direction: column; gap: 34px; }
+        #landing .steps li { margin: 16px auto 0 !important; max-width: 480px; width: 100%; }
         #landing .yarn { display: none; }
         #landing .more { grid-template-columns: 1fr 1fr; }
-        #landing .more p { grid-column: 1 / -1; order: -1; }
+        #landing .more .note-card { grid-column: 1 / -1; order: -1; margin-top: 0; }
+        #landing .small-yarn { display: none; }
       }
       @media (max-width: 520px) {
         #landing { padding: 14px 10px 30px; }

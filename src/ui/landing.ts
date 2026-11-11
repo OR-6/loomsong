@@ -62,7 +62,7 @@ export function mountLanding(world: World): void {
               aria-label="Gameplay: the levers lift, Pip flies across to weave the last rows of a duck, and the finished duck pops off the loom as a knitted plush">
               <source src="${sitePhoto('loom-clip.mp4')}" type="video/mp4" />
             </video>
-            <figcaption class="cap-tag">Real gameplay, recorded in the emulator</figcaption>
+            <figcaption class="cap-tag">Recorded in the game</figcaption>
           </figure>
         </section>
 
@@ -72,18 +72,22 @@ export function mountLanding(world: World): void {
             <path d="M-10 6 Q 230 80 480 52 T 1010 14" fill="none" stroke="#f07a62" stroke-width="2.2" stroke-dasharray="5 6" stroke-linecap="round"/>
           </svg>
           <ol class="steps">
-            <li class="s1"><figure class="photo"><i class="peg"></i><span class="hang">1 &nbsp;Lift the levers</span><img loading="lazy" src="${sitePhoto('levers-close.jpg')}" alt="The red lever lifts its threads" width="1100" height="619" /></figure>
-              <p>Each lever lifts its own threads. Pick the ones that make the next row on the card.</p></li>
-            <li class="s2"><figure class="photo"><i class="peg"></i><span class="hang">2 &nbsp;Slide Pip across</span><img loading="lazy" src="${sitePhoto('pip-pinch.jpg')}" alt="A glowing ghost hand shows how to pinch Pip" width="1100" height="619" /></figure>
-              <p>Pinch the little bird and slide it through. The row is woven, and its threads ring out.</p></li>
-            <li class="s3"><figure class="photo"><i class="peg"></i><span class="hang">3 &nbsp;Watch it come alive</span><img loading="lazy" src="${sitePhoto('plush-dance.jpg')}" alt="The finished duck pops off the loom as a knitted plush" width="1100" height="619" /></figure>
-              <p>A finished picture pops off the loom as a plush and hops onto your shelf.</p></li>
+            <li class="s1"><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('levers-close.jpg')}" alt="The red lever lifts its threads" width="800" height="600" /></figure>
+              <div class="hang"><b>1. Lift the levers</b>Each lever lifts its own threads. Pick the ones that make the next row on the card.</div></li>
+            <li class="s2"><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('pip-pinch.jpg')}" alt="A glowing ghost hand shows how to pinch Pip" width="800" height="600" /></figure>
+              <div class="hang"><b>2. Slide Pip across</b>Pinch the little bird and slide it through. The row is woven, and its threads ring out.</div></li>
+            <li class="s3"><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('plush-dance.jpg')}" alt="The finished duck pops off the loom as a knitted plush" width="800" height="600" /></figure>
+              <div class="hang"><b>3. Watch it come alive</b>A finished picture pops off the loom as a plush and hops onto your shelf.</div></li>
           </ol>
         </section>
 
         <section class="more" aria-label="What else is on the desk">
+          <svg class="yarn small-yarn" viewBox="0 0 1000 60" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M-10 30 Q 300 4 520 22 T 1010 10" fill="none" stroke="#1a8f80" stroke-width="4" stroke-linecap="round"/>
+            <path d="M-10 30 Q 300 4 520 22 T 1010 10" fill="none" stroke="#5cc9b9" stroke-width="1.8" stroke-dasharray="5 6" stroke-linecap="round"/>
+          </svg>
           <figure class="photo small"><i class="peg"></i><img loading="lazy" src="${sitePhoto('shelf.jpg')}" alt="Finished plushes on a little shelf with a brass wind-up key" width="800" height="600" /></figure>
-          <div class="note-card"><b>Four chapters, eighteen pictures</b><p>Garden teaches your hands, Home combines levers, Night hides what they lift, and Sea weaves in two colours. Wind the key on your shelf and your plushes sing their songs in turn.</p></div>
+          <div class="note-card"><i class="peg"></i><b>Four chapters, eighteen pictures</b><p>Garden teaches your hands, Home combines levers, Night hides what they lift, and Sea weaves in two colours. Wind the key on your shelf and your plushes sing their songs in turn.</p></div>
           <figure class="photo small"><i class="peg"></i><img loading="lazy" src="${sitePhoto('sea-boat.jpg')}" alt="A red boat woven on blue water rows" width="1100" height="619" /></figure>
         </section>
 
@@ -100,14 +104,14 @@ export function mountLanding(world: World): void {
         <div class="prep">
         <h2 class="before">Before you start</h2>
         <div id="settings" aria-label="Settings">
-          <button type="button" class="tag" id="hc" role="switch" aria-checked="false">High contrast</button>
-          <button type="button" class="tag" id="music" role="switch" aria-checked="true">Music</button>
-          <button type="button" class="tag" id="fit" aria-pressed="false">Fit to my hands</button>
+          <span class="tagwrap"><i class="string" aria-hidden="true"></i><button type="button" class="tag" id="hc" role="switch" aria-checked="false">High contrast</button></span>
+          <span class="tagwrap"><i class="string" aria-hidden="true"></i><button type="button" class="tag" id="music" role="switch" aria-checked="true">Music</button></span>
+          <span class="tagwrap"><i class="string" aria-hidden="true"></i><button type="button" class="tag" id="fit" aria-pressed="false">Fit to my hands</button></span>
           <div role="radiogroup" aria-label="Lever side" id="hand-pick">
-            <span class="lbl">Levers</span>
-            <button type="button" data-hand="auto" role="radio" title="On the side of the hand you place the loom with">Auto</button>
-            <button type="button" data-hand="left" role="radio">Left</button>
-            <button type="button" data-hand="right" role="radio">Right</button>
+            <span class="lbl">Levers on the</span>
+            <button type="button" data-hand="auto" role="radio" title="On the side of the hand you place the loom with">placing hand</button>
+            <button type="button" data-hand="left" role="radio">left</button>
+            <button type="button" data-hand="right" role="radio">right</button>
           </div>
         </div>
         </div>
@@ -120,14 +124,20 @@ export function mountLanding(world: World): void {
             <p>The weaver hosts a loom in their headset and reads out the code. Open this page on your phone and join: you see the card and press the levers while they slide Pip. A friend in a second headset can join as the shuttle thrower instead.</p>
             <div class="row">
               <button type="button" id="coop-host">Host a loom</button>
+              <span class="or">or</span>
               <input id="coop-code" maxlength="4" placeholder="CODE" aria-label="Room code" autocomplete="off" />
               <button type="button" id="coop-join">Join</button>
               <button type="button" id="coop-leave" hidden>Leave</button>
             </div>
             <p id="coop-status" role="status"></p>
-            <p class="fine">Connects you directly to the other player over WebRTC, through a public PeerJS server. No accounts, no voice.</p>
+            <p class="fine">A direct link between your two devices. No accounts, no voice.</p>
           </div>
         </section>
+
+        <footer class="foot">
+          <span class="foot-tag">Made for a mixed-reality game jam, November 2026. Built with IWSDK.</span>
+          <a class="foot-tag" href="${import.meta.env.BASE_URL}audio/CREDITS.md">Sound credits (all CC0)</a>
+        </footer>
       </main>
     </div>`;
   document.body.appendChild(el);
