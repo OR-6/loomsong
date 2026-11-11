@@ -37,6 +37,7 @@ export type Target =
   | { kind: 'skein'; i: number }
   | { kind: 'plush'; i: number }
   | { kind: 'windKey' }
+  | { kind: 'daily' }
   | { kind: 'swap' }
   | { kind: 'nudge'; dir: 1 | -1 }
   | null;
@@ -65,11 +66,14 @@ export interface ControllerHooks {
   drop?(i: number, p: Vec3Like | null): void;
   /** The shelf's wind-up key: the whole shelf plays its songs in turn. */
   windKey?(): void;
+  /** The picture-of-the-day ball was poked or pinched. */
+  daily?(): void;
   /** Sea: a swap spool by a perch was touched: Pip changes yarn. */
   swap?(): void;
 }
 
 const KEY_TARGET = { kind: 'windKey' } as const;
+const DAILY_TARGET = { kind: 'daily' } as const;
 const SWAP_TARGET = { kind: 'swap' } as const;
 
 /** Lever settle speed in t/s, shuttle return speed in m/s. */
@@ -105,6 +109,8 @@ export class LoomController {
   plushSpots: ({ x: number; y: number; z: number } | null)[] = [];
   /** The wind-up key on the shelf end (null: no shelf). */
   keySpot: { x: number; y: number; z: number } | null = null;
+  /** The picture-of-the-day ball (null: not offered). */
+  dailySpot: { x: number; y: number; z: number } | null = null;
   /** Sea's swap spools by each perch (null: this level has one weft). */
   swapSpot: { x: number; y: number; z: number } | null = null;
   /** Nudge arrows present (default placement)? */
@@ -203,6 +209,8 @@ export class LoomController {
         this.carrying[side] = false;
       } else if (t?.kind === 'windKey') {
         this.hooks.windKey?.();
+      } else if (t?.kind === 'daily') {
+        this.hooks.daily?.();
       } else if (t?.kind === 'swap') {
         if (!this.shuttle.held) this.hooks.swap?.();
       } else if (t?.kind === 'nudge') {
@@ -269,6 +277,8 @@ export class LoomController {
       this.hooks.plush?.(t.i);
     } else if (t.kind === 'windKey') {
       this.hooks.windKey?.();
+    } else if (t.kind === 'daily') {
+      this.hooks.daily?.();
     } else if (t.kind === 'swap') {
       if (!this.shuttle.held) this.hooks.swap?.();
     } else if (t.kind === 'nudge') {
@@ -447,7 +457,7 @@ export class LoomController {
   }
 
   private sliderOf(t: Exclude<Target, null>): Slider {
-    if (t.kind === 'token' || t.kind === 'nudge' || t.kind === 'skein' || t.kind === 'plush' || t.kind === 'windKey' || t.kind === 'swap') return this.bobbin; // never held
+    if (t.kind === 'token' || t.kind === 'nudge' || t.kind === 'skein' || t.kind === 'plush' || t.kind === 'windKey' || t.kind === 'daily' || t.kind === 'swap') return this.bobbin; // never held
     if (t.kind === 'shuttle') return this.shuttle;
     if (t.kind === 'bobbin') return this.bobbin;
     return this.levers[t.k];
@@ -531,6 +541,14 @@ export class LoomController {
       if (dk < bestD) {
         bestD = dk;
         best = KEY_TARGET;
+      }
+    }
+    if (this.dailySpot) {
+      const c = this.dailySpot;
+      const dd = Math.hypot(p.x - c.x, p.y - c.y, p.z - c.z) - 0.014;
+      if (dd < bestD) {
+        bestD = dd;
+        best = DAILY_TARGET;
       }
     }
     if (this.nudgeEnabled) {

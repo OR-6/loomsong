@@ -12,7 +12,8 @@ await poke(cal, w.key);
 w = run('tools/key-where.mjs');
 const singing = w.left.filter((x) => x > 0).length;
 check('the key started a medley', w.singUntil > before + 3, `until ${w.singUntil.toFixed(2)} from ${before.toFixed(2)}`);
-check('several plushes are queued in turn', singing >= 2 && w.waits.some((x) => x > 0.5), JSON.stringify(w));
+// sprout (3 rows) then tulip (5 rows), each 0.3 s a row, after the winding clicks: the second is still to come or playing
+check('several plushes play in turn', singing >= 1 && w.singUntil - before > 0.55 + 0.9 + 0.2 + 1.5 - 0.3, JSON.stringify({ singing, until: w.singUntil - before }));
 if (process.argv[2]) {
   const p = w.key;
   xr('set-transform', { device: 'hand-right', position: { x: p[0] + 0.3, y: p[1] + 0.3, z: p[2] + 0.3 } });

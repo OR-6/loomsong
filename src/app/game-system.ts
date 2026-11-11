@@ -29,9 +29,10 @@ import { Placement, loomPose } from './placement.js';
 import { Label } from '../ui/label.js';
 import { audio } from '../audio/synth.js';
 import { LevelFlow, TIMING, type HintStep } from './level-flow.js';
-import { CHAPTERS, LEVELS, chapterStates, levelAt } from '../puzzle/catalog.js';
+import { CHAPTERS, DAILY_LEVELS, LEVELS, chapterStates, dailyLevel, dayKey, levelAt, pictureById, streakOf } from '../puzzle/catalog.js';
 import type { Level } from '../puzzle/levels.js';
 import { PLUSH, ROW_BEAT, SPOTS, type DeskItem, type ShelfItem } from '../loom/plush.js';
+import { DAILY_BALL } from '../loom/daily-ball.js';
 import { isLifted } from '../puzzle/tieup.js';
 const PLUSH_SLOTS = SPOTS;
 /** IWSDK keeps its persistent room anchor's handle here. */
@@ -151,6 +152,13 @@ export class GameSystem extends createSystem({
   private singUntil = 0;
   /** Seconds until the 'New style unlocked' tag shows (0: none pending). */
   private unlockNoticeIn = 0;
+  /** A notice that waits for the moment to pass (e.g. the streak, after the plush lands). */
+  private laterNotice = '';
+  private laterNoticeIn = 0;
+  /** Today's key and whether its picture is woven (refreshed on each level load). */
+  private today = '';
+  private dailyDone = false;
+  private dailyVec = new Vector3();
   /** Lever clicks during a programmatic drop make no sound. */
   private quietLevers = false;
   private undoNotch = 0;
@@ -248,6 +256,7 @@ export class GameSystem extends createSystem({
       carry: (i, p) => this.view.plushes.carry(i, p),
       drop: (i, p) => this.dropPlush(i, p),
       windKey: () => this.playShelf(),
+      daily: () => this.startDaily(),
       swap: () => {
         this.model.setWeft(this.model.weft ? 0 : 1);
         audio.swapYarn();
@@ -381,6 +390,7 @@ export class GameSystem extends createSystem({
         this.shelf = shelfItems(level, this.progress);
         this.view.plushes.setShelf(this.shelf, CHAPTERS.find((c) => c.id === level.chapter)?.name ?? '');
         this.view.plushes.setDesk(deskItems(this.progress));
+        this.syncDaily();
         this.syncBasket(level);
         this.view.setShed(0, true);
         this.view.setRows(this.model.rows);
@@ -403,7 +413,14 @@ export class GameSystem extends createSystem({
         audio.chirp('cheer');
         // It comes alive: the woven picture pops out as a plush.
         const lv = this.flow.level;
-        this.view.plushes.celebrate(lv.id, lv.target, lv.color ?? this.shown().palette.weft, this.flow.challenge ? -1 : this.progress.placed?.[lv.id] ? PLUSH.slots + LEVELS.findIndex((l) => l.id === lv.id) : shelfSlot(lv));
+        this.view.plushes.celebrate(lv.id, lv.target, lv.color ?? this.shown().palette.weft, this.heroSpot(lv));
+        if (this.flow.daily) {
+          // today's picture joins the streak; say so once the plush has hopped onto the desk
+          const n = streakOf(this.progress.days ?? [], this.flow.daily);
+          this.laterNotice = n >= 2 ? `${n} days in a row!` : 'A new picture tomorrow';
+          this.laterNoticeIn = 4.6;
+          this.syncDaily();
+        }
         this.controller.releaseAll();
         // the levers drop back to rest with a clack as the picture comes alive (not a move: flips restored)
         const flips = this.model.leverFlips;
@@ -807,7 +824,7 @@ export class GameSystem extends createSystem({
   /** A shelf plush was poked: it sings its picture. */
   private singPlush(i: number): void {
     const id = this.view.plushes.idAt(i);
-    const lv = id ? LEVELS.find((l) => l.id === id) : undefined;
+    const lv = id ? pictureById(id) : undefined;
     if (!lv || this.time < this.singUntil) return;
     audio.resume();
     const secs = this.schedulePictureSong(lv.target, 0);
@@ -848,7 +865,7 @@ export class GameSystem extends createSystem({
     for (let i = 0; i < SPOTS; i++) if (this.view.plushes.idAt(i) && this.view.plushes.plushCentre(i, this.plushVecs[i])) order.push(i);
     order.sort((a, b) => this.plushVecs[a].x - this.plushVecs[b].x);
     for (const i of order) {
-      const lv = LEVELS.find((l) => l.id === this.view.plushes.idAt(i));
+      const lv = pictureById(this.view.plushes.idAt(i) ?? '');
       if (!lv) continue;
       const secs = this.schedulePictureSong(lv.target, t);
       this.view.plushes.sing(i, secs, t);
@@ -860,6 +877,71 @@ export class GameSystem extends createSystem({
     this.singUntil = this.time + total;
     audio.holdMusic(total + 0.3);
     this.view.setPipMood(total > 0.6 ? 'happy' : 'sad');
+  }
+
+  /** The picture-of-the-day ball: offered once the first picture is woven, hidden while today's is on the loom. */
+  private syncDaily(): void {
+    this.today = dayKey();
+    this.dailyDone = (this.progress.days ?? []).includes(this.today);
+    const offered = this.progress.tutorialDone && !this.coopLink && !this.flow?.daily;
+    const lv = dailyLevel(this.today);
+    this.view.daily.set(offered ? (this.dailyDone ? 'done' : 'new') : 'hidden', lv.color ?? 0xe2563b);
+    const side = this.controller.bankSide;
+    this.dailyVec.set(-side * DAILY_BALL.x, DAILY_BALL.y, DAILY_BALL.z);
+  }
+
+  /** Weave today's picture (once a day; the ball says when the next one comes). */
+  private startDaily(): void {
+    if (this.flow.phase !== 'play' || this.coopLink || this.flow.daily) return;
+    this.syncDaily();
+    if (this.dailyDone) {
+      audio.tick();
+      this.showNotice('A new picture tomorrow', 3, 'centre');
+      return;
+    }
+    const lv = dailyLevel(this.today);
+    audio.restyle();
+    this.flow.startChallenge(lv, this.today);
+    this.showNotice(`Today: ${lv.name}`, 3, 'centre');
+  }
+
+  /** Where a just-woven picture's plush goes: its shelf slot, or the desk (already placed there, or a picture of the day). */
+  private heroSpot(lv: Level): number {
+    if (this.flow.daily) {
+      const d = deskIndex(lv.id);
+      if (d < 0) return -1;
+      if (!this.progress.placed?.[lv.id]) {
+        const at = this.freeDeskSpot();
+        if (!at) return -1;
+        (this.progress.placed ??= {})[lv.id] = at;
+        saveProgress(this.progress);
+      }
+      const [x, z] = this.progress.placed![lv.id];
+      this.view.plushes.prepareDesk(PLUSH.slots + d, x, z);
+      return PLUSH.slots + d;
+    }
+    if (this.flow.challenge) return -1;
+    if (this.progress.placed?.[lv.id]) {
+      const d = deskIndex(lv.id);
+      return d < 0 ? shelfSlot(lv) : PLUSH.slots + d;
+    }
+    return shelfSlot(lv);
+  }
+
+  /** A free spot on the desk beside the shelf and basket for a new plush (null: none fits). */
+  private freeDeskSpot(): [number, number] | null {
+    const s = this.controller.bankSide;
+    const spots: [number, number][] = [
+      [-s * 0.42, 0.17], [-s * 0.47, 0.11], [s * 0.36, 0.19], [-s * 0.4, 0.23], [s * 0.43, 0.15],
+      [s * 0.3, 0.23], [-s * 0.5, 0.18], [s * 0.48, 0.21], [-s * 0.33, 0.27], [s * 0.38, 0.26],
+    ];
+    const taken = Object.values(this.progress.placed ?? {});
+    for (const [x, z] of spots) {
+      if (taken.some(([tx, tz]) => Math.hypot(tx - x, tz - z) < 0.055)) continue;
+      if (!this.onTable({ x, y: 0.01, z })) continue;
+      return [x, z];
+    }
+    return null;
   }
 
   /**
@@ -894,8 +976,8 @@ export class GameSystem extends createSystem({
     const inBasket = Math.hypot(p.x + side * BASKET.x, p.z - BASKET.z) < 0.085; // the chapter basket
     const onPlaque = Math.abs(p.x) < 0.11 && p.z > 0.09 && p.z < 0.2; // the level plaque
     const tooHigh = p.y > 0.2;
-    const d = LEVELS.findIndex((l) => l.id === id);
-    if (d < 0 || d >= PLUSH.desk || nearShelf || inLoom || inBank || inBasket || onPlaque || tooHigh || !this.onTable(p)) {
+    const d = deskIndex(id);
+    if (d < 0 || nearShelf || inLoom || inBank || inBasket || onPlaque || tooHigh || !this.onTable(p)) {
       plushes.putBack(i);
       audio.pluck(2, 0.35, 0, 0.05);
       this.debug.lastDrop = 'back';
@@ -944,6 +1026,9 @@ export class GameSystem extends createSystem({
     this.view.setSwapHighlight(sw(c.hover.left) || sw(c.hover.right) ? 1 : 0, this.swapGlow);
     const key = (t: unknown) => (t as { kind?: string } | null)?.kind === 'windKey';
     this.view.plushes.hoverKey(key(c.hover.left) || key(c.hover.right));
+    c.dailySpot = this.view.daily.root.visible && this.flow?.phase === 'play' ? this.dailyVec : null;
+    const dy = (t: unknown) => (t as { kind?: string } | null)?.kind === 'daily';
+    this.view.daily.hover(dy(c.hover.left) || dy(c.hover.right));
   }
 
   /** Hover tooltips for the secondary controls (levers and Pip have their own hints). */
@@ -980,6 +1065,13 @@ export class GameSystem extends createSystem({
         at.y = TOKEN.y;
         at.z = TOKEN.z;
         break;
+      case 'daily': {
+        if (c.dailySpot) Object.assign(at, c.dailySpot);
+        const n = streakOf(this.progress.days ?? [], this.today);
+        text = this.dailyDone ? (n >= 2 ? `${n} days in a row` : 'A new one tomorrow') : `Today: ${dailyLevel(this.today).name}`;
+        lift = 0.045;
+        break;
+      }
       case 'windKey':
         if (c.keySpot) Object.assign(at, c.keySpot);
         at.x -= side * 0.05; // out past the key, never over a plush
@@ -1014,7 +1106,7 @@ export class GameSystem extends createSystem({
         const spot = c.plushSpots[i];
         if (id && spot && this.view.plushes.carried < 0) {
           Object.assign(at, spot);
-          const name = LEVELS.find((l) => l.id === id)?.name ?? '';
+          const name = pictureById(id)?.name ?? '';
           text = i < PLUSH.slots ? `${name}: poke to sing, pinch to carry` : `${name}: poke to sing`;
           lift = 0.045;
         }
@@ -1361,6 +1453,10 @@ export class GameSystem extends createSystem({
   /** Position the tutorial label over its target and pulse that target. */
   private syncHint(dt: number) {
     const step = this.flow.hintStep;
+    if (this.laterNoticeIn > 0) {
+      this.laterNoticeIn -= dt;
+      if (this.laterNoticeIn <= 0) this.showNotice(this.laterNotice, 4, 'centre');
+    }
     if (this.unlockNoticeIn > 0) {
       this.unlockNoticeIn -= dt;
       if (this.unlockNoticeIn <= 0) this.showNotice('New style unlocked', 6, 'unlock');
@@ -1577,9 +1673,17 @@ function shelfItems(level: Level, progress: Progress): ShelfItem[] {
   });
 }
 
-/** Finished plushes living on the desk, by desk index (= picture index). */
+/** Every picture that can become a plush, in desk-spot order: chapters, then pictures of the day. */
+const ALL_PICTURES = [...LEVELS, ...DAILY_LEVELS].slice(0, PLUSH.desk);
+
+/** A picture's desk spot index (-1: none). */
+function deskIndex(id: string): number {
+  return ALL_PICTURES.findIndex((l) => l.id === id);
+}
+
+/** Finished plushes living on the desk, by desk index. */
 function deskItems(progress: Progress): (DeskItem | null)[] {
-  return LEVELS.slice(0, PLUSH.desk).map((l) => {
+  return ALL_PICTURES.map((l) => {
     const at = progress.placed?.[l.id];
     if (!at || !((progress.best[l.id] ?? 0) > 0)) return null;
     return { id: l.id, rows: l.target, color: l.color ?? 0xe2563b, x: at[0], z: at[1] };
@@ -1608,7 +1712,9 @@ function targetCode(t: unknown): number {
     case 'skein':
       return 20 + (x.k ?? (x as { i?: number }).i ?? 0);
     case 'plush':
-      return 30 + ((x as { i?: number }).i ?? 0);
+      return 100 + ((x as { i?: number }).i ?? 0);
+    case 'daily':
+      return 42;
     case 'windKey':
       return 40;
     case 'swap':

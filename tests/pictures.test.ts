@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { CHAPTERS, PICTURES } from '../src/puzzle/pictures.gen';
-import { LEVELS, dailyLevel, dayKey, levelAt } from '../src/puzzle/catalog';
+import { CHAPTERS, DAILY, PICTURES } from '../src/puzzle/pictures.gen';
+import { DAILY_LEVELS, LEVELS, dailyLevel, dayKey, levelAt, pictureById, streakOf } from '../src/puzzle/catalog';
 import { computePar, rowReachable } from '../src/puzzle/par';
 import { WARPS } from '../src/config';
 
@@ -40,11 +40,34 @@ describe('picture levels', () => {
     expect(levelAt(LEVELS.length - 1).id).toBe(PICTURES.at(-1)!.id);
     expect(levelAt(LEVELS.length).id).toBe('bonus1');
   });
-  it('daily cloth is stable for a day and changes across days', () => {
+  it('the picture of the day is stable for a day and the whole set comes round before a repeat', () => {
     expect(dailyLevel('2026-11-10')).toEqual(dailyLevel('2026-11-10'));
-    const week = ['10', '11', '12', '13', '14', '15', '16'].map((d) => dailyLevel(`2026-11-${d}`).id);
-    expect(new Set(week).size).toBe(7);
+    const n = DAILY_LEVELS.length;
+    const run = Array.from({ length: n }, (_, k) => dailyLevel(new Date(Date.UTC(2026, 10, 1 + k)).toISOString().slice(0, 10)).id);
+    expect(new Set(run).size).toBe(n);
     expect(dayKey(new Date(2026, 10, 9))).toBe('2026-11-09');
+    expect(dailyLevel('2026-11-30').chapter).toBe('daily');
+  });
+  it('pictures of the day are weavable, true par, readable, and new pictures', () => {
+    expect(DAILY.length).toBeGreaterThanOrEqual(20);
+    for (const p of DAILY) {
+      expect(p.tieUp.length, p.id).toBeLessThanOrEqual(4);
+      expect(p.picture.every((r) => r.length === WARPS), p.id).toBe(true);
+      expect(p.target, p.id).toEqual(p.picture.map(bits).reverse());
+      expect(p.target.every((r) => r > 0), `${p.id} has an empty row`).toBe(true);
+      for (const row of p.target) expect(rowReachable(p.tieUp, row), `${p.id} row`).toBe(true);
+      expect(p.par, p.id).toBe(computePar(p.tieUp, p.target));
+      expect(PICTURES.some((q) => q.picture.join() === p.picture.join()), p.id).toBe(false);
+      expect(pictureById(p.id)?.name).toBe(p.name);
+    }
+  });
+  it('the streak counts days in a row, ending today or yesterday', () => {
+    expect(streakOf([], '2026-11-11')).toBe(0);
+    expect(streakOf(['2026-11-11'], '2026-11-11')).toBe(1);
+    expect(streakOf(['2026-11-09', '2026-11-10', '2026-11-11'], '2026-11-11')).toBe(3);
+    expect(streakOf(['2026-11-09', '2026-11-10'], '2026-11-11')).toBe(2); // today's still to do
+    expect(streakOf(['2026-11-08', '2026-11-10', '2026-11-11'], '2026-11-11')).toBe(2);
+    expect(streakOf(['2026-10-31', '2026-11-01'], '2026-11-01')).toBe(2); // across a month
   });
   it("Sea's two-colour pictures: '~' rows carry the weft bit, a row never mixes cream and water", () => {
     const sea = PICTURES.filter((p) => p.weft);

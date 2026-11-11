@@ -3,7 +3,7 @@
  * the generator. Plus a date-seeded daily cloth.
  */
 import type { Level } from './levels.js';
-import { CHAPTERS, PICTURES } from './pictures.gen.js';
+import { CHAPTERS, DAILY, PICTURES } from './pictures.gen.js';
 import { difficultyFor, generateLevel, rng } from './generator.js';
 
 export { CHAPTERS };
@@ -45,22 +45,45 @@ export function dayKey(d = new Date()): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
-const DAILY_COLORS = [0xe2563b, 0x2a9d8f, 0x3d5a80, 0xd4537e, 0x534ab7, 0xf2a024, 0x2f8f5b];
+/** The pictures of the day, as levels (one a day, in order, for everyone). */
+export const DAILY_LEVELS: Level[] = DAILY.map((p) => ({
+  id: p.id,
+  name: p.name,
+  tieUp: [...p.tieUp],
+  target: [...p.target],
+  rootMidi: p.rootMidi,
+  par: p.par,
+  color: p.color,
+  chapter: 'daily',
+  mystery: false,
+}));
 
-/** The day's cloth: the same picture for everyone that day, in a day colour. */
+/** Days since 2026-01-01 for a local-date key. */
+function dayNumber(key: string): number {
+  const [y, m, d] = key.split('-').map(Number);
+  return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(2026, 0, 1)) / 86400000);
+}
+
+/** The day's picture: the same for everyone that day; the whole set comes round before any repeats. */
 export function dailyLevel(key = dayKey()): Level {
-  let h = 2166136261;
-  for (const c of key) h = Math.imul(h ^ c.charCodeAt(0), 16777619);
-  const r = rng(h >>> 0);
-  const base = LEVELS[Math.floor(r() * LEVELS.length)];
-  return {
-    ...base,
-    id: `daily-${key}`,
-    name: base.name,
-    color: DAILY_COLORS[Math.floor(r() * DAILY_COLORS.length)],
-    rootMidi: 57 + Math.floor(r() * 12),
-    mystery: false,
-  };
+  const n = DAILY_LEVELS.length;
+  return DAILY_LEVELS[((dayNumber(key) % n) + n) % n];
+}
+
+/** Days in a row with the daily picture woven, ending today (or yesterday, if today's is still to do). */
+export function streakOf(days: readonly string[], today = dayKey()): number {
+  const have = new Set(days);
+  let d = dayNumber(today);
+  if (!have.has(today)) d--;
+  let n = 0;
+  const keyOf = (k: number) => new Date(Date.UTC(2026, 0, 1) + k * 86400000).toISOString().slice(0, 10);
+  while (have.has(keyOf(d - n))) n++;
+  return n;
+}
+
+/** Any finished picture by id: a chapter picture or a picture of the day. */
+export function pictureById(id: string): Level | undefined {
+  return LEVELS.find((l) => l.id === id) ?? DAILY_LEVELS.find((l) => l.id === id);
 }
 
 /** Basket state of each chapter: the one being played, open, or still locked. */

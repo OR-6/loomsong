@@ -1,66 +1,44 @@
-# Loomsong (working title)
+# Loomsong
 
-A hands-only mixed-reality puzzle game for Meta Quest, built with the Immersive Web SDK (IWSDK 1.0.1, WebXR).
+A hands-only mixed-reality puzzle game for Meta Quest, built with the Immersive Web SDK (IWSDK 1.0.1, WebXR). It runs in the headset's browser: no install, no account.
 
-A tiny toy loom unfolds on your real desk. Slide a lever away from you to lift threads, then slide the shuttle across: it strums the lifted threads like a harp and lays a row of cloth. Each level shows a target pattern on a small card, and you work out which lever combinations weave it. When the cloth is finished, it plays itself back as a melody.
+A little wooden toy loom unfolds on your real desk. Each level shows a small pixel picture on a card. Slide levers away from you to lift threads, then pinch Pip, a yarn-ball bird, and slide him across: he strums the lifted threads like a harp and lays one row of the picture. Work out which levers make each row. Finish the picture and it pops out of the cloth as a plush that dances, sings its picture, and goes to live on your shelf, or anywhere on your real desk.
 
-**Play:** https://or-6.github.io/loomsong/ (open it in the headset's browser with hand tracking on). Milestone snapshots stay at `/m0/`, `/m1/`, `/m2/` and `/m3/`.
+**Play:** https://or-6.github.io/loomsong/ (open it in the headset's browser with hand tracking on).
 
-> **Status:** M4, in progress. Everything below has been verified in the IWSDK emulator (IWER) only. **It has not yet been run on a headset.** On-device testing is scheduled before submission.
+> **Status:** verified in the IWSDK emulator (IWER) with emulated hands. **It has not yet been run on a headset.** On-device testing is scheduled before submission.
 
-## The idea: your desk is the haptics
+## The idea: your desk is the controller, the shelf and the save file
 
-Hand tracking has no touch. Loomsong puts every interaction on a real surface:
-- levers slide away from you along the desk;
-- the shuttle slides left and right across it;
-- your hand rests on something solid while it plays.
-
-That means real contact, no mid-air reaching, no arm fatigue, and none of the depth guessing that makes mid-air pinching hard. Passthrough is the point, not decoration: the loom is sized to and placed on your actual table.
+Hand tracking has no touch, so Loomsong puts every interaction on a real surface. Levers slide along the desk, Pip slides across it, and your hand rests on something solid while you play: real contact, no reaching into the air. Passthrough is the point, not decoration. The loom stands on your actual table, your plushes stay where you put them on it, and next time the loom comes back to the same spot in your room.
 
 ## Judge instructions
 
 1. Open https://or-6.github.io/loomsong/ in the headset's browser (Quest 3 or 3S). Turn hand tracking on and put the controllers down.
-2. Sit at a desk with decent light. Press **Enter XR**.
-3. **Rest one hand flat on the desk for a second.** The loom unfolds there. (If no hand is seen, it appears at a default height after 8 s; poke the yellow arrows to raise or lower it.)
-4. Follow the hints: slide the glowing lever away from you, then slide the shuttle across. Your first row plays within a minute.
-5. Pinch-and-slide or just poke. Poking a lever toggles it, poking the shuttle throws it, and poking or pulling the bobbin unpicks the last row.
-6. There's nothing to log into. Progress stays in the browser. Finish levels 1–3 to unlock the Workshop style.
+2. Sit at a table with decent light. Press **Enter mixed reality**.
+3. **Rest one hand flat on the table for a second.** The loom unfolds there. (No hand seen? It appears at a default height after a few seconds; poke the yellow arrows to raise or lower it.)
+4. Follow the ghost hand: slide the glowing lever away from you, then pinch Pip and slide him across. Your first row plays within a minute.
+5. Pinch-and-slide, or just poke: poking works on every control.
+6. Nothing to log into. Progress stays in the browser.
 
-## How each hard requirement is met
+## What's in it
 
-| # | Requirement | How Loomsong meets it | Evidence |
-|---|---|---|---|
-| R1 | Fully usable with hands | No controller path anywhere. Placement, levers, shuttle, undo, style switch and nudge arrows all take pinch **or** poke. | Emulator E2E suites drive everything with emulated hands only (`npm run test:e2e`) |
-| R2 | Seated, two-foot test | Every interactable sits within 60 cm of the seated head at the default desk height | `npm run check:reach` (worst case 59.3 cm) |
-| R3 | Easy in and out, clean pause | No login, no tutorial wall. Progress is saved. Play pauses on session blur and page hide, and audio suspends with it. | `src/app/game-system.ts`; blur pause is unit-level only (the emulator can't force blur) |
-| R4 | Satisfying in ≤ 10 minutes | The first row plays in under a minute. Levels are 4–12 rows (authored 4–6; generated grow slowly). | Level 1 E2E; real stopwatch timing on device is pending |
-| R5 | Original, not a wrapper | Game and models are built in this repo (Blender scripts in `tools/blender/`). Two CC0 photo textures from ambientCG are baked into the models. Libraries and assets are listed below. | Source, licences |
-| R6 | Free | No ads, IAP or paywalls | `npm run check:rules` |
-| R7 | No logos or people | Abstract loom; no brand names in the app | `npm run check:rules` |
-| R8 | HTTPS link, no login | Static build on GitHub Pages | https://or-6.github.io/loomsong/ |
-| R9 | Available through the winner announcement | Hosted on GitHub Pages, kept live through Dec 31 | — |
-| R10 | No edits after the deadline | Tag `submitted`; no deploys after the deadline | — |
-| R11 | Video < 3 min | Real capture, no AI-generated video | Pending |
-
-## Features
-
-- **Set the table.** A flat, still palm places the loom. It snaps to a detected table plane only if your palm is over that plane, and the desk must sit 25–85 cm below your eyes. Fallbacks: a default height with nudge arrows. The loom gets an optional spatial anchor.
-- **Interaction.**
-  - Pinch-slide uses our own hysteresis on raw joint data (engage at 2.0 cm, release at 3.5 cm), One-Euro smoothing, magnetic detents, "past 60% completes the throw", and tracking loss over 150 ms counts as a release.
-  - Poke works on every control.
-  - Hand occluders let threads pass behind your real fingers.
-- **Puzzles.** Levels 1–3 are hand-authored; level 4 onwards is generated from a seed, is solvable by construction, and is scored against a computed par. Stars, a star-total nameplate and endless play.
-- **Sound.** Real recordings, all CC0 (`public/audio/CREDITS.md`). Each thread is a kalimba note on a pentatonic scale that changes per level. Levers clack in wood, the beater thunks, undo rustles cloth, hovering ticks, and a glockenspiel run plays in the level's key when a picture is finished, and Pip chirps (real bird recordings) when a row is right, wrong or a picture is done. A Web Audio synth fills in until the samples load (about 250 KB). Every sound has a visual twin: warps twang, the cloth glows and the stars light up.
-- **Sharing.** A finished cloth becomes a `#w=` link. Opening it starts a "weave this" challenge.
-- **Styles.** "Toy loom" is the default; "Workshop" unlocks after levels 1–3.
-- **Play together (beta).** Two people at two desks share one loom. The host works the levers and the guest throws the shuttle; both see and hear the same cloth. Open "Play together" on the 2D page: one player hosts and reads out a 4-letter code, the other joins with it, and both enter XR. Co-op is never part of the first-run flow.
+- **15 hand-made pictures in four chapters.** Garden teaches that levers add up (the first picture already needs two levers at once). Home is mostly combinations. In Night, a lever's threads stay hidden until you try it (the first try of each is free). In Sea, rows of water need a second colour of yarn that you swap mid-picture. Every level has its own lever set; knots above the card count your moves, and the fewest moves earn three stars.
+- **Pictures come alive.** A finished picture pops out as a plush made from the woven cells, dances on a little felt stage while its song plays, then hops onto the chapter shelf. Poke a plush and it sings its picture; turn the brass wind-up key and every plush plays in turn, like a music box. Finishing a chapter plays the whole shelf.
+- **Plushes on your desk.** Pinch a plush, carry it off the shelf and set it down anywhere on the table. It stays there between sessions. When the table is a detected surface, a plush only stays over it (drop it off the edge and it hops back). The wind-up key plays your plushes left to right as they stand, so arranging the desk rearranges the tune.
+- **The room remembers.** Once the loom is held by IWSDK's persistent spatial anchor, its pose is saved. Next session, if the same anchor comes back and the spot is still within seated reach, the loom unfolds right where you left it. "Move the loom" in the settings sets a new spot.
+- **A picture of the day.** A gift-wrapped yarn ball beside the basket holds today's picture (21 of them, the same for everyone that day). Weave it and its plush hops onto your desk; days in a row are counted.
+- **Music.** Every thread is a recorded kalimba note on a pentatonic scale. Run a fingertip over the threads to play them like a harp. A small generative music box plays underneath, with a melody for each chapter; rows thrown on the beat earn a gold shower.
+- **Play together.** Host a loom and read out the four-letter code. A friend can join from **any phone** as your caller: only the caller sees the picture, so you have to talk it through. Two headsets can also share one loom (one works the levers, the other throws the shuttle).
+- **Sharing.** A finished cloth becomes a `#w=` link; opening it starts a "weave this" challenge.
+- **Styles.** "Toy loom" is the default; "Workshop" unlocks after the Garden chapter.
 
 ## Accessibility
 
 - **Input:** pinch or poke on every control; one hand is enough; either hand works; the lever bank follows your hand or can be set left or right.
 - **Fit to my hands** (on the 2D page): three pinches and a 2 s hold tune pinch thresholds, smoothing and target size (1.0–1.8×).
-- **High contrast:** pure white/black yarn, a black-and-white card and opaque labels. Pattern status never relies on hue: ticks, crosses, arrows and hatching carry it.
-- **No timers, no fail states, undo always available.**
+- **High contrast:** pure white/black yarn, a black-and-white card and opaque labels. Row status never relies on hue: ticks, crosses, arrows and hatching carry it.
+- **No timers, no fail states, undo always available.** Levers are named by colour in the hints ("Lift the red lever").
 - In-world text has a cap height of at least 1.5 cm, with at most 5 words per label.
 
 **Honest caveat:** these features have **not** been validated with disabled players. Calibration's tremor handling is unit-tested with synthetic jitter only, because the emulator's hand is perfectly steady. Feedback is very welcome.
@@ -79,7 +57,7 @@ npm run dev          # IWSDK-managed dev server + emulator (https://localhost:80
 npm test             # unit tests (vitest)
 npm run check:reach  # R2 reach check
 npm run check:rules  # brands, audio files, network, monetisation, tagline
-npm run test:e2e     # emulator E2E (needs: npx @iwsdk/cli dev up --ai-mode agent --headless --allow-browser-automation)
+npm run e2e          # every emulator E2E suite (needs: npx @iwsdk/cli dev up --ai-mode agent --headless --allow-browser-automation)
 npm run test:e2e:coop  # two-tab co-op E2E over the real PeerJS broker (needs internet)
 npm run build        # static build in dist/
 ```
@@ -115,8 +93,8 @@ Dev only (not shipped): `@iwsdk/cli`, `@iwsdk/vite-plugin-dev`, `@iwsdk/referenc
 
 ## Known limits
 
-- **Not yet run on a headset.** Hand-tracking feel, audio latency, real frame rate, placement accuracy on real desks and persistent-anchor behaviour in Quest Browser are all unverified.
+- **Not yet run on a headset.** Hand-tracking feel, audio latency, real frame rate, placement accuracy on real desks and persistent-anchor restore in the headset's browser are all unverified (the emulator restores anchors from local storage).
 - The headless emulator runs at about 60 fps against a 72 Hz target, so the frame guard degrades there by design. Real-device timing is unknown.
 - If controllers are connected, IWSDK may fetch controller models from `cdn.jsdelivr.net` (a library default). Hands-only play makes no external requests.
-- **Co-op is a beta.** It has been tested between two tabs of the emulator over the real PeerJS broker, never between two headsets. It depends on PeerJS's free public servers, which can be busy or unavailable; if they are, the 2D page says so and solo play is unaffected.
-- Bundle: about 0.95 MB gzip in total; the main chunk is 632 kB. Co-op adds a 24 kB chunk, loaded only when used.
+- **Co-op is a beta.** It has been tested between emulator tabs (headset and phone caller) over the real PeerJS broker, never between two real devices. It depends on PeerJS's free public servers, which can be busy or unavailable; if they are, the 2D page says so and solo play is unaffected.
+- Co-op and the phone caller load their code only when used.

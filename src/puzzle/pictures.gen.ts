@@ -505,3 +505,643 @@ export const PICTURES: PictureLevel[] = [
     "rootMidi": 65
   }
 ];
+
+/** The picture of the day, in order (one a day for everyone). */
+export const DAILY: PictureLevel[] = [
+  {
+    "id": "day-bell",
+    "name": "Bell",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0xf2b632,
+    "picture": [
+      "...##...",
+      "..####..",
+      "..####..",
+      ".######.",
+      "########",
+      "...##..."
+    ],
+    "tieUp": [
+      231,
+      102,
+      36,
+      24
+    ],
+    "target": [
+      24,
+      255,
+      126,
+      60,
+      60,
+      24
+    ],
+    "par": 7,
+    "rootMidi": 67
+  },
+  {
+    "id": "day-mushroom",
+    "name": "Mushroom",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0xd85a30,
+    "picture": [
+      "..####..",
+      ".##.###.",
+      "########",
+      "...##...",
+      "..####.."
+    ],
+    "tieUp": [
+      255,
+      118,
+      60,
+      24
+    ],
+    "target": [
+      60,
+      24,
+      255,
+      118,
+      60
+    ],
+    "par": 9,
+    "rootMidi": 64
+  },
+  {
+    "id": "day-pine",
+    "name": "Pine",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0x2f8f5b,
+    "picture": [
+      "...##...",
+      "..####..",
+      "...##...",
+      ".######.",
+      "########",
+      "...##..."
+    ],
+    "tieUp": [
+      60,
+      129,
+      66,
+      24
+    ],
+    "target": [
+      24,
+      255,
+      126,
+      24,
+      60,
+      24
+    ],
+    "par": 9,
+    "rootMidi": 69
+  },
+  {
+    "id": "day-apple",
+    "name": "Apple",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0xe2563b,
+    "picture": [
+      "....##..",
+      "...#....",
+      ".##.###.",
+      "########",
+      "########",
+      ".######."
+    ],
+    "tieUp": [
+      231,
+      102,
+      48,
+      8
+    ],
+    "target": [
+      126,
+      255,
+      255,
+      118,
+      8,
+      48
+    ],
+    "par": 11,
+    "rootMidi": 62
+  },
+  {
+    "id": "day-key",
+    "name": "Key",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0xd9a441,
+    "picture": [
+      ".##.....",
+      "#..#####",
+      "#..#.#.#",
+      ".##....."
+    ],
+    "tieUp": [
+      249,
+      169,
+      6
+    ],
+    "target": [
+      6,
+      169,
+      249,
+      6
+    ],
+    "par": 7,
+    "rootMidi": 60
+  },
+  {
+    "id": "day-rabbit",
+    "name": "Rabbit",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0xb9a48a,
+    "picture": [
+      "..#.#...",
+      "..#.#...",
+      "..###...",
+      ".#####..",
+      ".######.",
+      "..##.##."
+    ],
+    "tieUp": [
+      62,
+      108,
+      28,
+      20
+    ],
+    "target": [
+      108,
+      126,
+      62,
+      28,
+      20,
+      20
+    ],
+    "par": 7,
+    "rootMidi": 65
+  },
+  {
+    "id": "day-sun",
+    "name": "Sun",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0xf2a024,
+    "picture": [
+      "#..##..#",
+      "..####..",
+      ".######.",
+      ".######.",
+      "..####..",
+      "#..##..#"
+    ],
+    "tieUp": [
+      102,
+      60,
+      129,
+      24
+    ],
+    "target": [
+      153,
+      60,
+      126,
+      126,
+      60,
+      153
+    ],
+    "par": 8,
+    "rootMidi": 67
+  },
+  {
+    "id": "day-crown",
+    "name": "Crown",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0xe8b04a,
+    "picture": [
+      "#..##..#",
+      "##.##.##",
+      "########",
+      "########"
+    ],
+    "tieUp": [
+      63,
+      195,
+      129,
+      24
+    ],
+    "target": [
+      255,
+      255,
+      219,
+      153
+    ],
+    "par": 6,
+    "rootMidi": 64
+  },
+  {
+    "id": "day-butterfly",
+    "name": "Butterfly",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0xd4537e,
+    "picture": [
+      "##....##",
+      "###..###",
+      ".######.",
+      ".######.",
+      "###..###",
+      "##....##"
+    ],
+    "tieUp": [
+      102,
+      30,
+      129,
+      66
+    ],
+    "target": [
+      195,
+      231,
+      126,
+      126,
+      231,
+      195
+    ],
+    "par": 8,
+    "rootMidi": 69
+  },
+  {
+    "id": "day-snowman",
+    "name": "Snowman",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0x7fb3d9,
+    "picture": [
+      "...##...",
+      "..####..",
+      "...##...",
+      ".######.",
+      ".######.",
+      "..####.."
+    ],
+    "tieUp": [
+      66,
+      36,
+      24,
+      8
+    ],
+    "target": [
+      60,
+      126,
+      126,
+      24,
+      60,
+      24
+    ],
+    "par": 7,
+    "rootMidi": 62
+  },
+  {
+    "id": "day-icecream",
+    "name": "Ice cream",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0xe98aa8,
+    "picture": [
+      "..####..",
+      ".######.",
+      "########",
+      ".#.##.#.",
+      "..####..",
+      "...##..."
+    ],
+    "tieUp": [
+      231,
+      60,
+      66,
+      24
+    ],
+    "target": [
+      24,
+      60,
+      90,
+      255,
+      126,
+      60
+    ],
+    "par": 8,
+    "rootMidi": 60
+  },
+  {
+    "id": "day-frog",
+    "name": "Frog",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0x5aa83a,
+    "picture": [
+      ".##..##.",
+      "#.#..#.#",
+      "########",
+      "#......#",
+      ".######."
+    ],
+    "tieUp": [
+      60,
+      129,
+      66,
+      36
+    ],
+    "target": [
+      126,
+      129,
+      255,
+      165,
+      102
+    ],
+    "par": 12,
+    "rootMidi": 65
+  },
+  {
+    "id": "day-bear",
+    "name": "Bear",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0x9a6a44,
+    "picture": [
+      "##....##",
+      ".######.",
+      "#.#..#.#",
+      "###..###",
+      ".######."
+    ],
+    "tieUp": [
+      124,
+      129,
+      66,
+      36
+    ],
+    "target": [
+      126,
+      231,
+      165,
+      126,
+      195
+    ],
+    "par": 12,
+    "rootMidi": 67
+  },
+  {
+    "id": "day-rocket",
+    "name": "Rocket",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0x3d8fd1,
+    "picture": [
+      "...##...",
+      "..####..",
+      "..####..",
+      "..####..",
+      ".######.",
+      ".#.##.#."
+    ],
+    "tieUp": [
+      66,
+      36,
+      24,
+      16
+    ],
+    "target": [
+      90,
+      126,
+      60,
+      60,
+      60,
+      24
+    ],
+    "par": 5,
+    "rootMidi": 64
+  },
+  {
+    "id": "day-candle",
+    "name": "Candle",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0xf08a4b,
+    "picture": [
+      "...#....",
+      "...##...",
+      "..####..",
+      "..####..",
+      "..####..",
+      ".######."
+    ],
+    "tieUp": [
+      102,
+      36,
+      24,
+      8
+    ],
+    "target": [
+      126,
+      60,
+      60,
+      60,
+      24,
+      8
+    ],
+    "par": 7,
+    "rootMidi": 69
+  },
+  {
+    "id": "day-gift",
+    "name": "Gift",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0xe2563b,
+    "picture": [
+      "..#..#..",
+      "...##...",
+      "########",
+      "#..##..#",
+      "#..##..#",
+      "########"
+    ],
+    "tieUp": [
+      127,
+      129,
+      36,
+      24
+    ],
+    "target": [
+      255,
+      153,
+      153,
+      255,
+      24,
+      36
+    ],
+    "par": 9,
+    "rootMidi": 62
+  },
+  {
+    "id": "day-anchor",
+    "name": "Anchor",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0x3d5a80,
+    "picture": [
+      "...##...",
+      "..#..#..",
+      "...##...",
+      "#..##..#",
+      ".#.##.#.",
+      "..####.."
+    ],
+    "tieUp": [
+      129,
+      66,
+      36,
+      24
+    ],
+    "target": [
+      60,
+      90,
+      153,
+      24,
+      36,
+      24
+    ],
+    "par": 11,
+    "rootMidi": 60
+  },
+  {
+    "id": "day-acorn",
+    "name": "Acorn",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0xa86a32,
+    "picture": [
+      "...##...",
+      ".######.",
+      "########",
+      ".######.",
+      "..####..",
+      "...##..."
+    ],
+    "tieUp": [
+      195,
+      102,
+      60,
+      24
+    ],
+    "target": [
+      24,
+      60,
+      126,
+      255,
+      126,
+      24
+    ],
+    "par": 7,
+    "rootMidi": 65
+  },
+  {
+    "id": "day-ladybug",
+    "name": "Ladybug",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0xc7303a,
+    "picture": [
+      "..#..#..",
+      ".######.",
+      "##.##.##",
+      "########",
+      "##.##.##",
+      ".######."
+    ],
+    "tieUp": [
+      126,
+      195,
+      36,
+      24
+    ],
+    "target": [
+      126,
+      219,
+      255,
+      219,
+      126,
+      36
+    ],
+    "par": 11,
+    "rootMidi": 67
+  },
+  {
+    "id": "day-jelly",
+    "name": "Jellyfish",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0xc77dd6,
+    "picture": [
+      "..####..",
+      ".######.",
+      "########",
+      "#.#..#.#",
+      "#.#..#.#",
+      ".#.#.#.."
+    ],
+    "tieUp": [
+      126,
+      165,
+      60,
+      42
+    ],
+    "target": [
+      42,
+      165,
+      165,
+      255,
+      126,
+      60
+    ],
+    "par": 7,
+    "rootMidi": 64
+  },
+  {
+    "id": "day-robot",
+    "name": "Robot",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0x2a9d8f,
+    "picture": [
+      "...##...",
+      ".######.",
+      ".#.##.#.",
+      ".######.",
+      "########",
+      ".##..##."
+    ],
+    "tieUp": [
+      102,
+      129,
+      66,
+      24
+    ],
+    "target": [
+      102,
+      255,
+      126,
+      90,
+      126,
+      24
+    ],
+    "par": 9,
+    "rootMidi": 69
+  }
+];

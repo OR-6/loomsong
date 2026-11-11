@@ -54,6 +54,8 @@ export class LevelFlow {
   hintStep: HintStep = 'none';
   /** Playing a shared cloth ("weave this"): progress is not advanced. */
   challenge = false;
+  /** This challenge is the picture of the day (its day key), '' otherwise. */
+  daily = '';
   /** Co-op guest: the host decides wins and level changes. */
   mirror = false;
   private timer = 0;
@@ -84,6 +86,7 @@ export class LevelFlow {
 
   start(index = this.progress.level): void {
     this.challenge = false;
+    this.daily = '';
     this.index = Math.max(0, Math.floor(index));
     this.load(this.levelAt(this.index));
     this.tutorial = this.index === 0 && !this.progress.tutorialDone && !this.quiet;
@@ -96,8 +99,9 @@ export class LevelFlow {
   }
 
   /** Weave someone else's cloth; afterwards resume normal progression. */
-  startChallenge(level: Level): void {
+  startChallenge(level: Level, dailyKey = ''): void {
     this.challenge = true;
+    this.daily = dailyKey;
     this.tutorial = false;
     this.index = this.progress.level;
     this.load(level);
@@ -180,6 +184,7 @@ export class LevelFlow {
   /** Co-op guest: load the host's level without touching saved progress. */
   mirrorStart(index: number): void {
     this.challenge = false;
+    this.daily = '';
     this.tutorial = false;
     this.index = Math.max(0, Math.floor(index));
     this.load(this.levelAt(this.index));
@@ -254,6 +259,12 @@ export class LevelFlow {
       this.progress.best[id] = Math.max(this.progress.best[id] ?? 0, this.lastStars);
       this.progress.level = this.index + 1;
       this.progress.tutorialDone = true;
+    } else if (this.daily) {
+      // the picture of the day counts: its plush is kept, and the day joins the streak
+      const id = this.level.id;
+      this.progress.best[id] = Math.max(this.progress.best[id] ?? 0, this.lastStars);
+      const days = (this.progress.days ??= []);
+      if (!days.includes(this.daily)) days.push(this.daily);
     }
     this.progress.lastCloth = {
       tieUp: [...this.level.tieUp],

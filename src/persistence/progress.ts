@@ -13,6 +13,8 @@ export interface Progress {
   placed?: Record<string, [number, number]>;
   /** Where the loom stood, relative to the room's persistent anchor (resumed next session). */
   loom?: SavedLoom;
+  /** Days the picture of the day was woven (local-date keys, newest last). */
+  days?: string[];
 }
 
 export interface SavedLoom {
@@ -46,6 +48,7 @@ export function loadProgress(): Progress {
     lastCloth: validCloth(p.lastCloth) ? p.lastCloth : undefined,
     placed: validPlaced(p.placed),
     loom: validLoom(p.loom),
+    days: Array.isArray(p.days) ? p.days.filter((d) => typeof d === 'string' && /^\d{4}-\d\d-\d\d$/.test(d)).slice(-400) : undefined,
   };
 }
 

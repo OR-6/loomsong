@@ -43,6 +43,7 @@ import { grainTexture, knitTexture, weaveTexture, yarnTexture } from './textures
 import { cloneModel, loomModels, materialOf, mergeStatic } from './models.js';
 import { Plushes, puffGeometry } from './plush.js';
 import { Basket } from './basket.js';
+import { DailyBall } from './daily-ball.js';
 import { GhostHand } from './ghost-hand.js';
 import { Fx } from './fx.js';
 import { makeMat, MAT } from './mat.js';
@@ -226,6 +227,7 @@ export class LoomView {
   readonly mat = makeMat();
   readonly plushes = new Plushes();
   readonly basket = new Basket();
+  readonly daily = new DailyBall();
   readonly ghost = new GhostHand();
   readonly fx = new Fx();
 
@@ -291,7 +293,7 @@ export class LoomView {
     this.catcher.renderOrder = -1;
     this.root.add(this.catcher);
     // No mat: the player's real desk shows around the toy (it's mixed reality).
-    this.root.add(this.plushes.root, this.basket.root, this.ghost.root, this.fx.root);
+    this.root.add(this.plushes.root, this.basket.root, this.daily.root, this.ghost.root, this.fx.root);
     // Sea's swap spools (hidden unless the level has a second weft)
     {
       const flangeMat = new MeshStandardMaterial({ color: 0xf3e6cf, roughness: 0.7 });
@@ -654,6 +656,7 @@ export class LoomView {
     this.plushes.setSide(side);
     this.layUndoTail();
     this.basket.setSide(side);
+    this.daily.setSide(side);
     this.mat.position.x = -side * MAT.offsetX;
   }
 
@@ -1220,6 +1223,7 @@ export class LoomView {
     }
     this.plushes.update(dt);
     this.basket.update(dt);
+    this.daily.update(dt);
     this.fx.update(dt);
     // Twang decay.
     for (let i = 0; i < WARPS; i++) {

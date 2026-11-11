@@ -79,8 +79,8 @@ export const PLUSH = {
   haloSize: 0.17,
   /** Radius of the felt stage disc under the dancing plush (m). */
   stageR: 0.052,
-  /** Plushes that can live on the real desk (one spot per picture). */
-  desk: 16,
+  /** Plushes that can live on the real desk (one spot per picture: chapters, then pictures of the day). */
+  desk: 40,
   /** Size on the desk: bigger than on the shelf, so taking one out is a reward. */
   deskScale: 0.62,
 } as const;
@@ -637,6 +637,11 @@ export class Plushes {
       this.slotItems[i] = p;
       this.landT[i] = 1;
     }
+  }
+
+  /** A plush is about to arrive at desk spot i (the hero hops there): set where it stands. */
+  prepareDesk(i: number, x: number, z: number): void {
+    if (i >= PLUSH.slots) this.deskPos[i].set(x, 0, z);
   }
 
   /** Pinched and carried: the plush follows the pinch, dangling a little. */
