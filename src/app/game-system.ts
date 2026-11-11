@@ -935,6 +935,7 @@ export class GameSystem extends createSystem({
     const side = this.controller.bankSide;
     this.view.fx.confetti(-side * PLUSH.shelfX, PLUSH.shelfTopY + 0.03, PLUSH.shelfZ, 140, 0.8);
     audio.chirp('cheer');
+    audio.chapterJingle();
     this.banner.set(`${f.chapter} complete!`);
     this.banner.mesh.position.set(-this.controller.bankSide * PLUSH.shelfX, 0.13, PLUSH.shelfZ);
     this.banner.mesh.visible = true;

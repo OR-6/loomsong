@@ -30,7 +30,7 @@ Hand tracking has no touch, so Loomsong puts every interaction on a real surface
 - **Quilts on your wall.** Finish a chapter and its pictures, sewn into a little quilt, fly off the shelf and hang on the real wall straight ahead of your seat (found from the room's vertical planes; sized to read from the seat). They're there every session after, so your wall fills up as you play. No wall in the room data: no quilt is hung (nothing floats in the air).
 - **The room remembers.** Once the loom is held by IWSDK's persistent spatial anchor, its pose is saved. Next session, if the same anchor comes back and the spot is still within seated reach, the loom unfolds right where you left it. "Move the loom" in the settings sets a new spot.
 - **A picture of the day.** A wrapped present beside the basket holds today's picture (21 of them, the same for everyone that day). Weave it and its plush hops onto your desk; days in a row are counted, and the opened box shows tomorrow's picture as a silhouette.
-- **Music.** Every thread is a recorded kalimba note on a pentatonic scale. Run a fingertip over the threads to play them like a harp. A small generative music box plays underneath, with a melody for each chapter; rows thrown on the beat earn a gold shower.
+- **Music.** Every thread is a recorded kalimba note on a pentatonic scale. Run a fingertip over the threads to play them like a harp. Each chapter has its own piece by Scott Buckley (soft piano, strings, accordion), played quietly under the threads; the threads, every row and every plush's song are tuned to that piece's key, so the game always plays in harmony with the music.
 - **Play together.** Host a loom and read out the four-letter code. A friend can join from **any phone** as your caller: only the caller sees the picture, so you have to talk it through. Two headsets can also share one loom (one works the levers, the other throws the shuttle).
 - **Sharing.** A finished cloth becomes a `#w=` link; opening it starts a "weave this" challenge.
 - **Styles.** "Toy loom" is the default; "Workshop" unlocks after the Garden chapter.
@@ -92,6 +92,8 @@ Docs: `docs/IWSDK-NOTES.md` (platform findings, with evidence) and `docs/ART-DIR
 | Lilita One (Juan Montoreano) | Toy-style display font | SIL OFL 1.1 (`public/fonts/LilitaOne-OFL.txt`) |
 | Fraunces 72pt Soft SemiBold (The Fraunces Project Authors) | Workshop-style font, loaded on demand | SIL OFL 1.1 (`public/fonts/Fraunces-OFL.txt`) |
 | VCSL Kalimba, VSCO 2 CE glockenspiel (Versilian Studios); Kenney Impact, RPG and Interface sounds; Freesound bird calls by alegemaate, ReadeOnly and nfrae (Pip's voice) | Recorded sound effects in `public/audio/` | CC0 1.0 (see `public/audio/CREDITS.md`) |
+| Scott Buckley: 'Castles in the Sky', 'Home Was You', 'Sleep', 'Solace' (scottbuckley.com.au) | The chapters' music, in `public/audio/music/` | CC BY 4.0 (credited in `public/audio/CREDITS.md` and on the page) |
+| Kenney Music Jingles (pizzicato) | Win and chapter-complete flourishes | CC0 1.0 |
 | ambientCG Wood095, Fabric019 | Beech grain and knit yarn textures, baked into `public/models/loom.glb` | CC0 1.0 (ambientcg.com) |
 
 Dev only (not shipped): `@iwsdk/cli`, `@iwsdk/vite-plugin-dev`, `@iwsdk/reference`, `@meta-quest/metavr`, `vite`, `vitest`, `typescript`.

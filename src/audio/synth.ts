@@ -22,6 +22,8 @@ const audioUrl = (f: string) => `${import.meta.env.BASE_URL}audio/${f}`;
 const PENTA = [0, 2, 4, 7, 9];
 
 /** Background music level (before ducking). */
+/** Crossfade (s) where a recorded track loops back to its start. */
+const TRACK_XF = 4;
 const MUSIC_GAIN = 0.55;
 /** Bass roots per bar, in semitones from the key: I – vi – IV – V. */
 const PROGRESSION = [0, -3, 5, 7];
@@ -81,7 +83,9 @@ class Synth {
   /** The chapter whose music should play. */
   private chapter = 'garden';
   /** The recorded track playing now (null: the built-in music box), and its load state. */
-  private track: { name: string; src: AudioBufferSourceNode; gain: GainNode; t0: number; info: Track } | null = null;
+  private track: { name: string; src: AudioBufferSourceNode; gain: GainNode; voice: GainNode; t0: number; next: number; info: Track } | null = null;
+  /** A gentle dip where the threads sing (~0.9 kHz), so a recorded track never covers them. */
+  private trackEq: BiquadFilterNode | null = null;
   private trackBufs = new Map<string, AudioBuffer | 'loading' | 'failed'>();
 
   constructor() {
@@ -434,10 +438,26 @@ class Synth {
   /** Level complete. */
   arpeggio(): void {
     // (no thread run here: the picture's own song follows; the moment stays uncluttered)
-    // Glockenspiel run on top, shifted into the level's key (±6 semitones).
+    // a pizzicato flourish in the score's string family (or the glockenspiel run), shifted into the key
+    if (this.jingle('fx/jingle-03.ogg', 0.34, 0.2)) return;
     let shift = (((this.rootMidi - GLOCK_PC) % 12) + 12) % 12;
     if (shift > 6) shift -= 12;
     this.play('fx/glock-gliss.ogg', 0.28, 0.25, Math.pow(2, shift / 12));
+  }
+
+  /** A chapter finished: a longer pizzicato flourish, then the glockenspiel run. */
+  chapterJingle(): void {
+    this.jingle('fx/jingle-07.ogg', 0.38, 0.05);
+    let shift = (((this.rootMidi - GLOCK_PC) % 12) + 12) % 12;
+    if (shift > 6) shift -= 12;
+    this.play('fx/glock-gliss.ogg', 0.2, 0.9, Math.pow(2, shift / 12));
+  }
+
+  /** A Kenney pizzicato jingle (written in C), shifted into the game's key (±6 semitones). */
+  private jingle(name: string, gain: number, when: number): boolean {
+    let shift = ((this.rootMidi % 12) + 12) % 12;
+    if (shift > 6) shift -= 12;
+    return this.play(name, gain, when, Math.pow(2, shift / 12));
   }
 
   // ---- Background music: a soft generative music box in the level's key ----
@@ -542,7 +562,10 @@ class Synth {
       if (this.track) this.stopTrack(ctx, 1.2);
       return false;
     }
-    if (this.track?.name === info.file) return true;
+    if (this.track?.name === info.file) {
+      this.loopTrack(ctx);
+      return true;
+    }
     const buf = this.trackBufs.get(info.file);
     if (buf === undefined) {
       this.trackBufs.set(info.file, 'loading');
@@ -558,16 +581,49 @@ class Synth {
     // crossfade: the old track fades out, the new one fades in
     if (this.track) this.stopTrack(ctx, 1.5);
     this.stopPad();
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
-    src.loop = true;
+    if (!this.trackEq) {
+      this.trackEq = ctx.createBiquadFilter();
+      this.trackEq.type = 'peaking';
+      this.trackEq.frequency.value = 900;
+      this.trackEq.Q.value = 0.7;
+      this.trackEq.gain.value = -4;
+      this.trackEq.connect(this.musicBus);
+    }
     const gain = ctx.createGain();
     gain.gain.value = 0;
     gain.gain.setTargetAtTime(info.gain, ctx.currentTime, 0.8);
-    src.connect(gain).connect(this.musicBus);
-    src.start();
-    this.track = { name: info.file, src, gain, t0: ctx.currentTime, info };
+    gain.connect(this.trackEq);
+    const { src, voice } = this.trackVoice(ctx, buf, gain, ctx.currentTime, 0);
+    this.track = { name: info.file, src, gain, voice, t0: ctx.currentTime, next: ctx.currentTime + buf.duration - TRACK_XF, info };
     return true;
+  }
+
+  /** One pass through a track, fading in over `fadeIn` s (the loop's crossfade). */
+  private trackVoice(ctx: AudioContext, buf: AudioBuffer, out: AudioNode, when: number, fadeIn: number): { src: AudioBufferSourceNode; voice: GainNode } {
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const voice = ctx.createGain();
+    voice.gain.setValueAtTime(fadeIn > 0 ? 0 : 1, when);
+    if (fadeIn > 0) voice.gain.linearRampToValueAtTime(1, when + fadeIn);
+    src.connect(voice).connect(out);
+    src.start(when);
+    return { src, voice };
+  }
+
+  /** Near the end of a pass, the next pass starts underneath and the two crossfade: a seamless loop. */
+  private loopTrack(ctx: AudioContext): void {
+    const t = this.track;
+    const buf = t?.src.buffer;
+    if (!t || !buf || ctx.currentTime < t.next - 0.5) return;
+    const at = Math.max(ctx.currentTime + 0.05, t.next);
+    t.voice.gain.setValueAtTime(1, at);
+    t.voice.gain.linearRampToValueAtTime(0, at + TRACK_XF);
+    t.src.stop(at + TRACK_XF + 0.1);
+    const { src, voice } = this.trackVoice(ctx, buf, t.gain, at, TRACK_XF);
+    t.src = src;
+    t.voice = voice;
+    t.t0 = at;
+    t.next = at + buf.duration - TRACK_XF;
   }
 
   private stopTrack(ctx: AudioContext, fade: number): void {

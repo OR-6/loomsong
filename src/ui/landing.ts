@@ -130,7 +130,7 @@ export function mountLanding(world: World): void {
         </section>
 
         <footer class="foot">
-          <p class="slip"><i class="tape" aria-hidden="true"></i>Made for a mixed-reality game jam, November 2026, with IWSDK. Every sound is CC0: <a href="${import.meta.env.BASE_URL}audio/CREDITS.md">see the credits</a>.</p>
+          <p class="slip"><i class="tape" aria-hidden="true"></i>Made for a mixed-reality game jam, November 2026, with IWSDK. Music by Scott Buckley (CC BY 4.0); every other sound is CC0: <a href="${import.meta.env.BASE_URL}audio/CREDITS.md">see the credits</a>.</p>
         </footer>
       </main>
     </div>`;
