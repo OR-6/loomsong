@@ -79,16 +79,22 @@ const pass = async (toMax) => {
 let cur = 0, toMax = true;
 for (let r = 0; r < path.length; r++) {
   const want = path[r];
+  await wait(900); // a repeated row: Pip may weave it by himself
+  if (state().debug.rows.length > r) {
+    cur = want;
+    toMax = state().debug.shuttleT < 0.5;
+    continue;
+  }
   for (let k = 0; k < n; k++) if (((cur ^ want) >> k) & 1) await setLever(k, ((want >> k) & 1) === 1);
   cur = want;
+  toMax = state().debug.shuttleT < 0.5;
   await pass(toMax);
-  toMax = !toMax;
   const rows = state().debug.rows.length;
   if (rows !== r + 1 && state().debug.flow === 'play') { check(`row ${r + 1} woven`, false, `rows=${rows}`); break; }
 }
 s = state();
 check('level 4 won at par (3 stars)', s.debug.stars === 3 && s.debug.flow !== 'play', `flow=${s.debug.flow} stars=${s.debug.stars} rows=${JSON.stringify(s.debug.rows)}`);
-check('finishing the Garden unlocks the workshop style', state().debug.workshopUnlocked === true);
+check('the Workshop look waits (never during Garden)', state().debug.workshopUnlocked !== true);
 check('9 stars in all', Object.values(run('tools/read-progress.mjs').best).reduce((a, b) => a + b, 0) === 9);
 shot('m2-02-level4-win', s.debug.loomOrigin);
 // after the Duck comes the Table, Garden's last picture (it needs a friend from the shelf)

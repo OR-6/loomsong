@@ -583,7 +583,9 @@ export class GameSystem extends createSystem({
         this.view.card.sparkles = false;
         this.view.card.weft = level.weft ?? null;
         this.view.setWeftColor(level.weft ?? null);
-        this.view.card.setPicture(level.color ?? null, level.par);
+        // Garden is for learning the levers: no knots or live star meter on its card (trying things
+        // shouldn't feel like losing lives); the stars still come at the win
+        this.view.card.setPicture(level.color ?? null, level.chapter === 'garden' ? 0 : level.par);
         this.view.card.lastMiss = null;
         // a picture you haven't woven yet keeps its name until it comes alive: "?" on the plate, the name on the win
         this.nameHidden = !!level.chapter && level.id !== 'thanks' && !((this.progress.best[level.id] ?? 0) > 0);
@@ -606,7 +608,7 @@ export class GameSystem extends createSystem({
         const fresh = !this.progress.tutorialDone && !Object.values(this.progress.best).some((v) => v > 0);
         this.view.plushes.showShelf(!fresh);
         // the desk fills as you play: the chapter basket after two pictures (the present and the telephone come later)
-        const showBasket = this.picturesDone() >= 2;
+        const showBasket = this.picturesDone() >= 4; // after Garden: no other chapter can be picked before that anyway
         this.view.basket.root.visible = showBasket;
         if (!showBasket) this.controller.skeins = 0;
         this.view.setShed(0, true);
@@ -1674,7 +1676,7 @@ export class GameSystem extends createSystem({
   private syncDaily(): void {
     this.today = dayKey();
     this.dailyDone = (this.progress.days ?? []).includes(this.today);
-    const offered = this.progress.tutorialDone && this.picturesDone() >= 3 && !this.coopLink && !this.flow?.daily; // the present: after three pictures
+    const offered = this.progress.tutorialDone && this.picturesDone() >= 5 && !this.coopLink && !this.flow?.daily; // the present: once Garden is done and Home begun (Garden is just the loom)
     const lv = dailyLevel(this.today);
     const next = dayKey(new Date(Date.now() + 86400000));
     this.view.daily.set(offered ? (this.dailyDone ? 'done' : 'new') : 'hidden', lv.color ?? 0xe2563b, { key: next, rows: dailyLevel(next).target });

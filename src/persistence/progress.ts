@@ -32,8 +32,8 @@ export interface SavedLoom {
   source: 'palm' | 'plane' | 'default' | 'fixed';
 }
 
-/** Workshop unlocks when the Garden chapter (the first four pictures) is done. */
-export const WORKSHOP_UNLOCK = ['sprout', 'tulip', 'duck'];
+/** The Workshop look unlocks a little into Home (one new thing at a time, never during Garden). */
+export const WORKSHOP_UNLOCK = ['sprout', 'tulip', 'duck', 'table', 'heart', 'house'];
 
 export function workshopUnlocked(p: Pick<Progress, 'best'>): boolean {
   return WORKSHOP_UNLOCK.every((id) => (p.best[id] ?? 0) > 0);

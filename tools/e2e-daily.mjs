@@ -13,7 +13,11 @@ check('not yet after one picture (the desk fills as you play)', !w.visible, JSON
 run('tools/seed-garden-three.mjs');
 await wait(600);
 w = run('tools/daily-where.mjs');
-check('after three pictures the present offers today', w.visible && w.bow && !!w.ball, JSON.stringify({ visible: w.visible, bow: w.bow }));
+check('not during Garden (the first chapter is just the loom)', !w.visible, JSON.stringify({ visible: w.visible }));
+run('tools/seed-home-two.mjs');
+await wait(600);
+w = run('tools/daily-where.mjs');
+check('once Home has begun the present offers today', w.visible && w.bow && !!w.ball, JSON.stringify({ visible: w.visible, bow: w.bow }));
 const cal = await calibrate();
 await poke(cal, w.ball);
 await wait(400);
