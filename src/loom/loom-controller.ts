@@ -84,6 +84,11 @@ export interface ControllerHooks {
 const KEY_TARGET = { kind: 'windKey' } as const;
 const DAILY_TARGET = { kind: 'daily' } as const;
 const PHONE_TARGET = { kind: 'phone' } as const;
+/** A number per target (resting on the same one keeps counting). */
+function targetKey(t: Target): number {
+  const x = t as { kind: string; k?: number; i?: number; dir?: number };
+  return x.kind.length * 1000 + x.kind.charCodeAt(0) * 10 + (x.k ?? x.i ?? x.dir ?? 0);
+}
 const PLATE_TARGET = { kind: 'plate' } as const;
 /** The two nudge arrows (direction, z): allocated once, not per hand per frame. */
 const NUDGE_SPOTS = [[1, NUDGE.upZ], [-1, NUDGE.downZ]] as const;
@@ -185,6 +190,7 @@ export class LoomController {
 
   update(input: Record<Side, HandInput>, dt: number): void {
     for (const side of ['right', 'left'] as const) {
+      this.frameDt = dt;
       this.updateHand(side, input[side]);
       this.fingerStrum(side, input[side], dt);
     }
@@ -277,17 +283,31 @@ export class LoomController {
     }
   }
 
+  private frameDt = 0;
+  /** Press by resting: seconds a still fingertip has rested inside the same control (slow or unsteady hands). */
+  private restT: Record<Side, number> = { left: 0, right: 0 };
+  private restOn: Record<Side, number> = { left: -1, right: -1 };
   private updatePoke(side: Side, h: HandInput): void {
     const r = POKE.radiusM * this.radiusMul;
     const t = this.nearest(h.index, r);
     if (!t) {
       if (this.nearest(h.index, POKE.rearmM * this.radiusMul) === null) this.pokeArmed[side] = true;
+      this.restT[side] = 0;
       return;
     }
     // a press: down onto things on the desk, or forward into the upright picture card
-    const press = h.indexVel.y < -POKE.minDownSpeed || (t.kind === 'cardRow' && h.indexVel.z < -POKE.minDownSpeed);
-    if (!this.pokeArmed[side] || !press) return;
-    if (h.aperture !== undefined && h.aperture < POKE.minAperture) return; // reaching to pinch
+    const quick = h.indexVel.y < -POKE.minDownSpeed || (t.kind === 'cardRow' && h.indexVel.z < -POKE.minDownSpeed);
+    // or a fingertip resting still inside the control for a moment (no speed or pointing needed)
+    const code = targetKey(t);
+    const still = Math.hypot(h.indexVel.x, h.indexVel.y, h.indexVel.z) < POKE.restStillSpeed;
+    if (code !== this.restOn[side] || !still) {
+      this.restOn[side] = code;
+      this.restT[side] = 0;
+    } else this.restT[side] += this.frameDt;
+    const rested = this.restT[side] >= POKE.restSeconds;
+    if (!this.pokeArmed[side] || !(quick || rested)) return;
+    if (!rested && h.aperture !== undefined && h.aperture < POKE.minAperture) return; // reaching to pinch
+    this.restT[side] = 0;
     this.pokeArmed[side] = false;
     if (t.kind === 'lever') {
       const l = this.levers[t.k];

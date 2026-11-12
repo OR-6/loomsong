@@ -21,7 +21,7 @@ check('a plush stands on the desk', !!v.placed.sprout, JSON.stringify(v.placed))
 check("today's pick is the visitor who likes it (the Ladybug)", v.pick?.id === 'day-ladybug', JSON.stringify(v.pick));
 const sp = v.placed.sprout;
 check('the present stands right beside the Sprout', v.giftShown && sp && Math.hypot(v.gift[0] - sp[0], v.gift[1] - sp[1]) < 0.1, JSON.stringify({ gift: v.gift, sprout: sp }));
-check('a notice says someone came to see it', v.notices.some((n) => /came to see your Sprout/.test(n)), JSON.stringify(v.notices));
+check('a notice says someone came to see it', v.notices.some((n) => /A visitor for your Sprout/.test(n)), JSON.stringify(v.notices));
 go('');
 await wait(4000);
 done('visit');

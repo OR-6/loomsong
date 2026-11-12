@@ -99,7 +99,7 @@ export class RoomMood {
     const on = this.enabled ? 1 : 0;
     this.dusk += (this.wantDusk * on - this.dusk) * k;
     this.sea += (this.wantSea * on - this.sea) * k;
-    (this.veil.material as MeshBasicMaterial).opacity = 0.42 * this.dusk;
+    (this.veil.material as MeshBasicMaterial).opacity = 0.42 * this.dusk * (motion.calm ? 0.45 : 1); // calm: a lighter dusk
     this.veil.visible = this.dusk > 0.01;
     const rm = this.ripples.material as MeshBasicMaterial;
     rm.opacity = 0.32 * this.sea;

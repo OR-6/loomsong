@@ -337,19 +337,23 @@ export class TargetCard {
           const got = woven !== undefined && isLifted(woven, i);
           if (need === got) continue;
           const cx = px(gridX + i * cell + cell / 2);
-          g.strokeStyle = highContrast ? '#ff2a00' : '#d23a22';
-          if (need) {
-            g.beginPath();
-            g.arc(cx, cy, px(cell * 0.46), 0, Math.PI * 2);
-            g.stroke();
-          } else {
-            const d = px(cell * 0.28);
-            g.beginPath();
-            g.moveTo(cx - d, cy - d);
-            g.lineTo(cx + d, cy + d);
-            g.moveTo(cx + d, cy - d);
-            g.lineTo(cx - d, cy + d);
-            g.stroke();
+          // a dark underlay, then red: it reads on a red picture square too
+          for (const [colour, w] of [['#2b2118', px(0.0022)], [highContrast ? '#ff2a00' : '#e04a2c', px(0.0011)]] as const) {
+            g.strokeStyle = colour;
+            g.lineWidth = w;
+            if (need) {
+              g.beginPath();
+              g.arc(cx, cy, px(cell * 0.46), 0, Math.PI * 2);
+              g.stroke();
+            } else {
+              const d = px(cell * 0.28);
+              g.beginPath();
+              g.moveTo(cx - d, cy - d);
+              g.lineTo(cx + d, cy + d);
+              g.moveTo(cx + d, cy - d);
+              g.lineTo(cx - d, cy + d);
+              g.stroke();
+            }
           }
         }
         g.restore();

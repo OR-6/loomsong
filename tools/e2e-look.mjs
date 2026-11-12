@@ -10,9 +10,17 @@ xr('set-transform', { device: 'hand-right', position: { x: 0.5, y: 0.3, z: 0.5 }
 xr('set-transform', { device: 'hand-left', position: { x: -0.5, y: 0.3, z: 0.5 } });
 let s = run('tools/state.mjs');
 const lever = s.targets.lever0;
+// the game's look points ~12° below head-forward (eyes drop first): aim the head that much above the target
 const lookAt = (p) => {
-  xr('set-transform', { device: 'headset', position: { x: p[0] + 0.03, y: p[1] + 0.32, z: p[2] + 0.42 } });
-  xr('look-at', { device: 'headset', target: { x: p[0], y: p[1], z: p[2] } });
+  const h = [p[0] + 0.03, p[1] + 0.32, p[2] + 0.42];
+  let d = [p[0] - h[0], p[1] - h[1], p[2] - h[2]];
+  const n = Math.hypot(...d);
+  d = d.map((v) => v / n);
+  const horiz = Math.hypot(d[0], d[2]);
+  const pitch = Math.atan2(d[1], horiz) + (12 * Math.PI) / 180;
+  const t = [h[0] + (d[0] / horiz) * Math.cos(pitch), h[1] + Math.sin(pitch), h[2] + (d[2] / horiz) * Math.cos(pitch)];
+  xr('set-transform', { device: 'headset', position: { x: h[0], y: h[1], z: h[2] } });
+  xr('look-at', { device: 'headset', target: { x: t[0], y: t[1], z: t[2] } });
 };
 lookAt(lever);
 await wait(2200);

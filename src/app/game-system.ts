@@ -106,7 +106,15 @@ const LOOK_LEVER = 0;
 const LOOK_PIP = 10;
 const LOOK_UNDO = 11;
 const LOOK_SWAP = 12;
+const LOOK_DAILY = 20;
+const LOOK_PHONE = 21;
+const LOOK_PLATE = 22;
+const LOOK_NUDGE_UP = 23;
+const LOOK_NUDGE_DOWN = 24;
+const LOOK_TOKEN = 25;
 const LOOK_PLUSH = 100;
+const LOOK_CARD = 200;
+const LOOK_SKEIN = 300;
 
 /** The first-time tour: what each part is (seconds before it starts, per tag). */
 const INTRO = [
@@ -122,7 +130,7 @@ const PRACTICE_AFTER = 20;
 const HINT_TEXT: Record<HintStep, string> = {
   lever: 'Slide it away',
   unlatch: 'Slide it back',
-  weft: 'Poke the blue yarn by Pip',
+  weft: "Poke the spool by Pip to swap yarn",
   shuttle: 'Slide Pip across, or poke it',
   undo: 'Poke the spool to undo',
   card: 'Match the next row',
@@ -613,7 +621,7 @@ export class GameSystem extends createSystem({
         }
         if (level.chapter === 'home' && !this.knotsTold && !this.flow.challenge && !this.progress.best[level.id]) {
           this.knotsTold = true;
-          this.laterNotice = 'New: each lever move unties a knot. Keep some for gold';
+          this.laterNotice = 'Each lever move unties a knot';
           this.laterNoticeIn = 2.5;
         }
         this.earRow = this.chooseEarRow(level);
@@ -721,8 +729,8 @@ export class GameSystem extends createSystem({
           this.laterNotice = friendName
             ? `${this.flow.level.name} stays with your ${friendName}`
             : hintFor
-              ? `Leave your ${hintFor} out: someone may visit it tomorrow`
-              : 'Leave a plush out: someone may visit tomorrow';
+              ? `Leave your ${hintFor} out tonight`
+              : 'Leave a plush out tonight';
           this.laterNoticeIn = 4.6;
           this.syncDaily();
         }
@@ -977,7 +985,7 @@ export class GameSystem extends createSystem({
     const side = { model: this.model, controller: this.controller, flow: this.flow };
     // a call from the toy telephone didn't get through: say so, and how to try again
     if (st.state === 'error' && this.view.phone.phoneState === 'calling' && !this.practice) {
-      if (!this.startPractice('Line busy: a practice call')) this.showNotice('The line is busy: poke the telephone to try again', 7, 'centre');
+      if (!this.startPractice('Line busy: a practice call')) this.showNotice('Line busy: poke the phone again', 7, 'centre');
     }
     // the toy telephone's tag: the code while it waits for the caller
     const hosting = st.role === 'host' && (st.state === 'hosting' || st.state === 'connected');
@@ -1181,7 +1189,7 @@ export class GameSystem extends createSystem({
   /** The tag's words: levers by number and colour ("Push lever 1 (red) away"); in the tutorial the card hint states the goal once. */
   private hintText(step: HintStep): string {
     if (step === 'card' && this.flow?.tutorial) return 'Weave each row like the card';
-    if (this.earActive() && step !== 'undo') return 'Poke the patch to hear it again';
+    if (this.earActive() && step !== 'undo') return this.settings.lookToPlay ? 'Look at the patch to hear it again' : 'Poke the patch to hear it again';
     if (step === 'undo' && this.autoUndoRow >= 0) return 'Not quite: Pip unpicks it'; // the loom undoes it by itself in a moment
     const look = !!this.settings.lookToPlay;
     if (step === 'lever' || step === 'unlatch') {
@@ -1191,7 +1199,7 @@ export class GameSystem extends createSystem({
     }
     if (look && step === 'shuttle') return 'Look at Pip';
     if (look && step === 'undo') return 'Look at the spool to undo';
-    if (look && step === 'weft') return 'Look at the blue yarn by Pip';
+    if (look && step === 'weft') return 'Look at the spool by Pip to swap yarn';
     if (step === 'friendOn') {
       // name a plush you have whose feet (its bottom row) are exactly what this picture needs
       const need = this.flow.level.friend ?? 0;
@@ -1203,7 +1211,7 @@ export class GameSystem extends createSystem({
       }
       // the first friend picture names one; after that, working out whose feet fit is the puzzle
       if (name && this.flow.level.id === 'table') return look ? `Look at ${name}: it sits on the mat` : `Poke ${name}: it sits on the mat`;
-      return look ? 'Whose feet would lift those threads?' : 'Whose feet would lift those threads? Poke a plush';
+      return look ? 'Whose feet fit? Look at a plush' : 'Whose feet fit? Poke a plush';
     }
     if (look && step === 'friendOff') return 'Look at the plush to send it home';
     return HINT_TEXT[step];
@@ -1634,11 +1642,12 @@ export class GameSystem extends createSystem({
     const f = this.quiltFly;
     if (f) {
       f.t = Math.min(1, f.t + dt / 1.6);
-      const e = f.t < 0.5 ? 4 * f.t * f.t * f.t : 1 - Math.pow(-2 * f.t + 2, 3) / 2;
+      // calm motion: no flight across the room, it simply appears on the wall
+      const e = motion.calm ? 1 : f.t < 0.5 ? 4 * f.t * f.t * f.t : 1 - Math.pow(-2 * f.t + 2, 3) / 2;
       f.g.position.lerpVectors(f.from, f.to, e);
-      f.g.position.y += 0.25 * Math.sin(Math.PI * f.t); // a gentle arc up and over
+      f.g.position.y += 0.25 * Math.sin(Math.PI * f.t) * motion.k; // a gentle arc up and over
       f.g.quaternion.slerpQuaternions(f.q0, f.q1, e);
-      f.g.rotation.z += 0.12 * Math.sin(f.t * Math.PI * 4) * (1 - f.t); // flutters like cloth
+      f.g.rotation.z += 0.12 * Math.sin(f.t * Math.PI * 4) * (1 - f.t) * motion.k; // flutters like cloth
       f.g.scale.setScalar(0.15 + (this.wall!.size - 0.15) * e);
       if (f.t >= 1) {
         this.quilts.set(f.id, f.g);
@@ -1755,7 +1764,7 @@ export class GameSystem extends createSystem({
       this.dailyVec.set(this.giftAt[0], DAILY_BALL.y, this.giftAt[1]);
       if (this.visitorToldDay !== this.today && this.placement.phase === 'placed' && this.flow?.phase === 'play') {
         this.visitorToldDay = this.today;
-        this.laterNotice = `Someone came to see your ${pictureById(likes!)?.name ?? 'plush'}`;
+        this.laterNotice = `A visitor for your ${pictureById(likes!)?.name ?? 'plush'}`;
         this.laterNoticeIn = 1.5;
         this.debug.visitor = lv.id;
       }
@@ -2083,7 +2092,8 @@ export class GameSystem extends createSystem({
     // the head's ray, in the loom's space
     this.player.head.getWorldQuaternion(this.gazeQ);
     this.lookO.copy(this.head).applyMatrix4(this.inv);
-    this.lookD.set(0, 0, -1).applyQuaternion(this.gazeQ).add(this.head).applyMatrix4(this.inv).sub(this.lookO).normalize();
+    // eyes drop before necks do: the look points ~12° below head-forward (less neck strain on the desk)
+    this.lookD.set(0, -0.208, -0.978).applyQuaternion(this.gazeQ).add(this.head).applyMatrix4(this.inv).sub(this.lookO).normalize();
     this.lookBest = -1;
     this.lookBestCos = 0.9972; // within about 4 degrees
     if (c.allow.levers) {
@@ -2101,13 +2111,32 @@ export class GameSystem extends createSystem({
       }
       if (c.swapSpot) this.lookConsider(LOOK_SWAP, c.swapSpot.x, c.swapSpot.y, c.swapSpot.z);
     }
-    if (this.flow.level.friend) {
-      for (let i = 0; i < SPOTS; i++) {
-        const p = c.plushSpots[i];
-        if (p) this.lookConsider(LOOK_PLUSH + i, p.x, p.y, p.z);
-      }
+    for (let i = 0; i < SPOTS; i++) {
+      const p = c.plushSpots[i];
+      if (p) this.lookConsider(LOOK_PLUSH + i, p.x, p.y, p.z); // sing it (or, on a friend picture, seat it)
     }
+    // everything a hand can poke, a look can press: the card's rows (and the patch), the present, the
+    // telephone, the plate (move the loom), the basket, the height arrows, the style disc
+    for (let r = 0; r < 8; r++) {
+      const p = c.cardRows[r];
+      if (p) this.lookConsider(LOOK_CARD + r, p.x, p.y, p.z);
+    }
+    if (c.dailySpot) this.lookConsider(LOOK_DAILY, c.dailySpot.x, c.dailySpot.y, c.dailySpot.z);
+    if (c.phoneSpot) this.lookConsider(LOOK_PHONE, c.phoneSpot.x, c.phoneSpot.y, c.phoneSpot.z);
+    if (c.plateSpot) this.lookConsider(LOOK_PLATE, c.plateSpot.x, c.plateSpot.y, c.plateSpot.z);
+    for (let i = 0; i < c.skeins; i++) {
+      skeinPos(i, c.bankSide, this.lookP);
+      this.lookConsider(LOOK_SKEIN + i, this.lookP.x, this.lookP.y, this.lookP.z);
+    }
+    if (c.nudgeEnabled) {
+      const nx = nudgeX(c.bankSide);
+      this.lookConsider(LOOK_NUDGE_UP, nx, NUDGE.y, NUDGE.upZ);
+      this.lookConsider(LOOK_NUDGE_DOWN, nx, NUDGE.y, NUDGE.downZ);
+    }
+    if (c.tokenEnabled) this.lookConsider(LOOK_TOKEN, tokenX(c.bankSide), TOKEN.y, TOKEN.z);
     const best = this.lookBest;
+    // a free preview while you look at a lever (its threads glow), as a hand hovering gets: no move spent to find out
+    if (best >= LOOK_LEVER && best < LOOK_PIP) this.view.setHoverLever(best - LOOK_LEVER);
     if (best !== this.lookKey) {
       this.lookKey = best;
       this.lookT = 0;
@@ -2129,7 +2158,13 @@ export class GameSystem extends createSystem({
     this.lookSpent = true; // once per look: glance away to press it again
     audio.tick();
     let name: string;
-    if (best >= LOOK_PLUSH) {
+    if (best >= LOOK_SKEIN) {
+      c.hooks.skein?.(best - LOOK_SKEIN);
+      name = `skein${best - LOOK_SKEIN}`;
+    } else if (best >= LOOK_CARD) {
+      c.hooks.cardRow?.(best - LOOK_CARD);
+      name = `row${best - LOOK_CARD}`;
+    } else if (best >= LOOK_PLUSH) {
       c.hooks.plush?.(best - LOOK_PLUSH);
       name = `plush${best - LOOK_PLUSH}`;
     } else if (best === LOOK_PIP) {
@@ -2141,6 +2176,21 @@ export class GameSystem extends createSystem({
     } else if (best === LOOK_SWAP) {
       c.hooks.swap?.();
       name = 'swap';
+    } else if (best === LOOK_DAILY) {
+      c.hooks.daily?.();
+      name = 'daily';
+    } else if (best === LOOK_PHONE) {
+      c.hooks.phone?.();
+      name = 'phone';
+    } else if (best === LOOK_PLATE) {
+      c.hooks.plate?.();
+      name = 'plate';
+    } else if (best === LOOK_NUDGE_UP || best === LOOK_NUDGE_DOWN) {
+      c.hooks.nudge?.(best === LOOK_NUDGE_UP ? 1 : -1);
+      name = 'nudge';
+    } else if (best === LOOK_TOKEN) {
+      c.hooks.token?.();
+      name = 'token';
     } else {
       c.toggleLever(best - LOOK_LEVER);
       name = `lever${best - LOOK_LEVER}`;
@@ -2174,7 +2224,7 @@ export class GameSystem extends createSystem({
     const ch = level.chapter;
     const daily = level.id.startsWith('day-');
     const firstOfHome = ch === 'home' && CHAPTERS.find((c) => c.id === 'home')?.levels[0] === level.id; // Home's first picture brings the knots: one new thing at a time
-    if (!(ch === 'home' || daily) || firstOfHome || level.friend || level.mystery || this.coopLink || this.practice || this.settings.highContrast || (this.flow?.challenge && !this.flow.daily)) return -1;
+    if (!(ch === 'home' || daily) || firstOfHome || level.friend || level.mystery || this.coopLink || this.practice || this.settings.hearRows === false || (this.flow?.challenge && !this.flow.daily)) return -1;
     const t = level.target;
     let best = -1;
     let bestScore = -1;
@@ -2300,7 +2350,7 @@ export class GameSystem extends createSystem({
     this.roomTipIn -= dt;
     if (this.roomTipIn > 0 || this.notice) return;
     this.roomTold = true;
-    this.showNotice('Tip: set up your room in the Quest settings so Pip finds your table and wall', 7, 'centre');
+    this.showNotice('Set up your room so Pip finds your table', 7, 'centre');
     this.debug.roomTip = true;
   }
 
@@ -2715,9 +2765,9 @@ export class GameSystem extends createSystem({
       return true;
     }
     this.armedPoke = key;
-    this.armedUntil = this.time + 4;
+    this.armedUntil = this.time + (this.settings.lookToPlay ? 6 : 4);
     audio.tick();
-    this.showNotice(ask, 4, 'centre');
+    this.showNotice(this.settings.lookToPlay ? ask.replace('Poke it again', 'Look at it again') : ask, 4, 'centre');
     return false;
   }
 
@@ -2741,6 +2791,7 @@ export class GameSystem extends createSystem({
   }
 
   private showNotice(text: string, seconds: number, at: 'token' | 'nudge' | 'centre' | 'unlock' | 'shelf' = 'token'): void {
+    if (text) seconds = Math.max(seconds, 2 + text.length * 0.09); // long enough to read, slowly
     this.notice = text;
     this.noticeAt = at;
     this.noticeTimer = seconds;
@@ -2908,7 +2959,7 @@ export class GameSystem extends createSystem({
     // controllers work too (the tip pokes, the trigger pinches): say so once, then leave them be
     if (held && !this.padsTold) {
       this.padsTold = true;
-      this.showNotice('Controllers work too: trigger to pinch, tip to poke', 6, 'centre');
+      this.showNotice('Controllers work: trigger pinches', 6, 'centre');
     }
     void dt;
   }

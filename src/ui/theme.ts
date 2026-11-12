@@ -22,6 +22,8 @@ export type ThemeId = 'toy' | 'workshop';
 
 export interface Theme {
   id: ThemeId;
+  /** High contrast: the cloth too goes black on white (not only the labels and card). */
+  hc?: boolean;
   name: string;
   palette: Palette;
   /** Beam profile: rounded capsules (toy) or squared timber (workshop). */
@@ -108,6 +110,7 @@ export function highContrast(t: Theme): Theme {
   if (!v) {
     v = {
       ...t,
+      hc: true,
       palette: { ...t.palette, warp: 0xffffff, weft: 0x111111 },
       labelBg: 'rgba(0,0,0,0.95)',
       labelText: '#ffffff',

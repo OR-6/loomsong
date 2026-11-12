@@ -14,6 +14,8 @@ export interface Settings {
   calibrateNext: boolean;
   /** Set the table afresh on the next XR entry (instead of the loom coming back where it was). */
   placeFresh: boolean;
+  /** Rows by ear (one row per picture hummed by Pip, hidden on the card); off: every row shows. */
+  hearRows?: boolean;
   /** Look to play: look at a control for a moment to press it (no hands needed). */
   lookToPlay?: boolean;
   /** Calm motion; undefined: follow the system's reduced-motion preference. */
@@ -34,6 +36,7 @@ export function loadSettings(): Settings {
     placeFresh: s.placeFresh === true,
     calmMotion: typeof s.calmMotion === 'boolean' ? s.calmMotion : undefined,
     lookToPlay: s.lookToPlay === true,
+    hearRows: s.hearRows !== false,
     calibration: validCal(s.calibration) ? s.calibration : undefined,
   };
 }

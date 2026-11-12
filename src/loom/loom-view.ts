@@ -1340,13 +1340,20 @@ export class LoomView {
     g.name = 'GazeRing';
     g.visible = false;
     g.renderOrder = 998;
-    const geo = new SphereGeometry(0.0054, 10, 8);
-    const mat = new MeshStandardMaterial({ color: 0xf2b632, roughness: 1, map: feltTexture(), emissive: 0x7a5410, depthTest: false });
+    // dark felt beads on cream backings: they read on any knob colour, wood or cloth (a yellow ring vanished on the yellow knob)
+    const geo = new SphereGeometry(0.0052, 10, 8);
+    const mat = new MeshStandardMaterial({ color: 0x2b2118, roughness: 1, map: feltTexture(), emissive: 0x2b2118, emissiveIntensity: 0.3, depthTest: false });
+    const backMat = new MeshBasicMaterial({ color: 0xfff4de, depthTest: false });
     for (let i = 0; i < GAZE_BEADS; i++) {
       const b = new Mesh(geo, mat);
       const a = Math.PI / 2 - (i / GAZE_BEADS) * Math.PI * 2; // from the top, clockwise
-      b.position.set(Math.cos(a) * 0.03, Math.sin(a) * 0.03, 0);
+      b.position.set(Math.cos(a) * 0.024, Math.sin(a) * 0.024, 0); // inside the gap to the next knob
       b.renderOrder = 998;
+      const back = new Mesh(geo, backMat);
+      back.scale.setScalar(1.45);
+      back.position.z = -0.002;
+      back.renderOrder = 997;
+      b.add(back);
       g.add(b);
     }
     return g;
@@ -1764,7 +1771,7 @@ export class LoomView {
 
   /** Sea: the level's second weft colour (null: a single cream weft). */
   setWeftColor(color: number | null): void {
-    this.weftColor = color;
+    this.weftColor = color !== null && this.theme?.hc ? 0x8a8a8a : color; // high contrast: the second yarn is mid grey
     this.weftNow = 0;
     this.weftSpools.visible = color !== null;
     this.dyeSwapSpools();
@@ -1869,11 +1876,12 @@ export class LoomView {
 
   private applyColors(): void {
     const p = this.palette;
-    this.liftColor = this.pictureColor ?? p.weft;
+    const hc = !!this.theme?.hc;
+    this.liftColor = hc ? 0x111111 : (this.pictureColor ?? p.weft); // high contrast: black picture on white cloth
     this.liftWoven = _c.setHex(this.liftColor).offsetHSL(0, 0.08, 0.05).getHex(); // woven yarn: a touch richer than the ghost
     // oatmeal yarn: the picture colour is the brightest thing on the cloth: it reads against it, not white tile.
     // At Night the ground is dusk-blue wool, so the pictures (a moon, an owl) glow on it like a night sky.
-    this.groundColor = this.nightCloth ? 0x34407a : 0xe2d2b2;
+    this.groundColor = hc ? 0xffffff : this.nightCloth ? 0x34407a : 0xe2d2b2;
     // warp colour comes per strand (instance colour × white), brighter when lifted
     (this.warps?.material as MeshStandardMaterial | undefined)?.color.setHex(0xffffff);
     const yarn = this.bobbin ? (materialOf(this.bobbin, 'Wound') as MeshStandardMaterial | null) : null;

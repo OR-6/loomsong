@@ -40,16 +40,18 @@ describe('calibration', () => {
     expect(r.pinchScale).toBeCloseTo(1.8, 6);
     expect(r.minCutoff).toBe(0.5);
   });
-  it('a broken hold restarts the 2 s timer', () => {
+  it('a broken hold restarts the 2 s timer, but a brief tremor does not', () => {
     const c = simulate(0.006, 0.001);
     expect(c.step).toBe('done');
     const d = new Calibrator();
     for (let p = 0; p < 3; p++) {
       d.update(0.01, { x: 0, y: 0, z: 0 }, DT);
-      d.update(0.06, { x: 0, y: 0, z: 0 }, DT);
+      d.update(0.07, { x: 0, y: 0, z: 0 }, DT);
     }
     for (let i = 0; i < 72; i++) d.update(0.01, { x: 0, y: 0, z: 0 }, DT);
-    d.update(0.06, { x: 0, y: 0, z: 0 }, DT);
+    d.update(0.07, { x: 0, y: 0, z: 0 }, DT); // a one-frame tremor: the hold goes on
+    expect(d.holdProgress).toBeGreaterThan(0);
+    for (let i = 0; i < 30; i++) d.update(0.07, { x: 0, y: 0, z: 0 }, DT); // really let go
     expect(d.holdProgress).toBe(0);
     expect(d.step).toBe('hold');
   });

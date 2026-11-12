@@ -131,6 +131,9 @@ export const POKE = {
   /** Only a pointing hand pokes: thumb–index gap above this (m). */
   minAperture: 0.045,
   rearmM: 0.03,
+  /** Press by resting: a still fingertip (below this speed, m/s) inside a control for this long. */
+  restStillSpeed: 0.04,
+  restSeconds: 0.9,
 } as const;
 
 /** Placement ("set the table"). */

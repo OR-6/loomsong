@@ -21,14 +21,17 @@ export interface CalResult {
   jitterMm: number;
 }
 
-const ENGAGE = 0.03; // generous: anyone's pinch counts during calibration
-const RELEASE = 0.045;
+const ENGAGE = 0.045; // generous: a pinch that can't close far still counts (it's what this is for)
+const RELEASE = 0.06;
+/** A hold survives a brief opening (a tremor) shorter than this. */
+const HOLD_GRACE_S = 0.3;
 const HOLD_S = 2;
 
 export class Calibrator {
   step: CalStep = 'pinches';
   pinches = 0;
   holdProgress = 0;
+  private openT = 0;
   result: CalResult | null = null;
   private inPinch = false;
   private minThis = Infinity;
@@ -57,11 +60,12 @@ export class Calibrator {
     }
     // hold: a pinch held still for HOLD_S seconds
     if (distance < ENGAGE) {
+      this.openT = 0;
       this.holdT += dt;
       this.pts.push([mid.x, mid.y, mid.z]);
       this.holdProgress = Math.min(1, this.holdT / HOLD_S);
       if (this.holdT >= HOLD_S) this.finish();
-    } else {
+    } else if ((this.openT += dt) > HOLD_GRACE_S) {
       this.holdT = 0;
       this.holdProgress = 0;
       this.pts.length = 0;

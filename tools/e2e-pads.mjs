@@ -26,7 +26,7 @@ s = run('tools/state.mjs');
 check('trigger held on the desk sets the loom down there', s.debug.phase === 'placed' && s.debug.deskSource !== 'default' && Math.abs(s.debug.deskY - 0.8) < 0.04, JSON.stringify({ phase: s.debug.phase, src: s.debug.deskSource, y: s.debug.deskY }));
 await wait(800);
 s = run('tools/state.mjs');
-check('a notice says controllers work, once', (s.debug.notices ?? []).filter((n) => n.startsWith('Controllers work too')).length === 1, JSON.stringify(s.debug.notices));
+check('a notice says controllers work, once', (s.debug.notices ?? []).filter((n) => n.startsWith('Controllers work')).length === 1, JSON.stringify(s.debug.notices));
 // pinch-slide lever 1 away with the trigger
 await wait(9000); // past the first-time tour
 s = run('tools/state.mjs');
