@@ -20,7 +20,7 @@ Hand tracking has no touch, so Loomsong puts every interaction on a real surface
 4. Follow the ghost hand: slide the glowing lever away from you, then pinch Pip and slide him across. Your first row plays within a minute.
 5. Pinch-and-slide, or just poke: poking works on every control.
 6. Nothing to log into. Progress stays in the browser.
-7. **Short on time?** Add `?film=table` to the link to start at the fourth picture, where your plushes become tools (poke a plush to seat it on the cushion). `?finale=1` shows the ending.
+7. **Short on time?** Add `?start=friends` to the link to start at the fourth picture, where your plushes become tools (poke a plush to seat it on the cushion). `?finale=1` shows the ending.
 8. **Phone caller:** on the 2D page open "Play together" and press Host (a toy telephone appears on your desk with the code), then enter the code on any phone at the same link.
 
 ## What's in it

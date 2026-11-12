@@ -94,7 +94,7 @@ await wait(1500);
 hands();
 await shoot('hero', [0.14, 0.3, 0.56], [0.03, 0.02, 0.06], 56, 1200);
 save('hero', 'hero-34.jpg', 1100, 618);
-await gallery('hero', '06-loom-on-your-desk.jpg', { p: [0.04, 0.27, 0.52], t: [0.0, 0.04, -0.02], fov: 68 }); // every prop whole
+await gallery('hero', '06-loom-on-your-desk.jpg', { p: [0.08, 0.27, 0.56], t: [0.05, 0.04, 0.0], fov: 72 }); // every prop whole, the telephone's tag too
 save('hero', 'og.jpg', 1200, 630, 1280, 672);
 save('hero', 'loom-clip-poster.jpg', 960, 540);
 
@@ -107,13 +107,13 @@ await gallery('shelf', '09-shelf-and-desk.jpg', { p: [-0.08, 0.25, 0.48], t: [-0
 // a clean desk for it (no second Duck): the Sprout and the Tulip on the shelf, the Duck on the loom, woven in par
 evalJs(`const g = window.__loom.game; g.controller.releaseAll(); g.progress.best = { sprout: 3, tulip: 3 }; g.progress.placed = {}; g.flow.start(2); await new Promise((r) => setTimeout(r, 700)); return 1;`);
 run('tools/solve-best.mjs');
-await wait(2600);
+await wait(1500); // mid-dance, with its name on the ribbon
 evalJs(`window.__loom.game.hideHints = true; return 1;`);
 await shoot('dance', [0, 0.26, 0.56], [0, 0.1, 0.1], 52, 200);
 evalJs(`window.__loom.game.hideHints = false; return 1;`);
 save('dance', 'plush-dance.jpg', 800, 600, 960, 720);
 // the dance is a moment: crop the gallery still from the same frame instead of re-shooting it
-execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-i', `${TMP}/dance.png`, '-vf', 'crop=1000:667:150:8,scale=1500:1000:flags=lanczos', '-q:v', '2', `${GALLERY}/01-picture-comes-alive.jpg`]); // tighter: no empty desk below
+execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-i', `${TMP}/dance.png`, '-vf', 'crop=1068:712:106:4,scale=1500:1000:flags=lanczos', '-q:v', '2', `${GALLERY}/01-picture-comes-alive.jpg`]); // tighter: no empty desk below
 await wait(9000);
 
 // 6. Sea: a boat on two colours of yarn
@@ -149,9 +149,10 @@ evalJs(`const g = window.__loom.game; g.view.phone.setState('idle'); return 1;`)
 // 11. the present of the day: wrapped, with its Today tag, wherever today's spot is
 run('tools/seed-garden-three.mjs');
 await wait(900);
-const gift = evalJs(`const g = window.__loom.game; g.syncDaily(); return g.giftAt;`);
+// the photo puts it on its open spot in front of the basket, as on one of its days
+const gift = evalJs(`const g = window.__loom.game; g.syncDaily(); const s = g.controller.bankSide; g.giftAt[0] = -s * 0.2; g.giftAt[1] = 0.25; g.view.setGiftSpot(g.giftAt[0], g.giftAt[1]); return g.giftAt;`);
 hands();
-await shoot('gift', [gift[0] * 0.7, 0.2, gift[1] + 0.26], [gift[0], 0.02, gift[1]], 46);
+await shoot('gift', [gift[0] * 0.4, 0.16, gift[1] + 0.2], [gift[0] * 0.8, 0.02, gift[1] - 0.04], 46);
 await gallery('gift', '13-present-of-the-day.jpg');
 
 // 10. Night: what a lever lifts stays hidden until you try it (one tried and dyed, the rest undyed wool)

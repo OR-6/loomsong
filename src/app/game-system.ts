@@ -76,7 +76,9 @@ const GIFT_SPOTS: readonly (readonly [number, number])[] = [
 /** ?finale=1: play the grand finale shortly after the loom is placed (for filming). */
 const FORCE_FINALE = params.get('finale') === '1';
 /** ?film=table (any picture id): start there with every earlier picture woven, for recording a moment. */
-const FILM = params.get('film');
+const START_ALIASES: Record<string, string> = { friends: 'table', night: 'moon', sea: 'fish', ending: 'boat' };
+/** ?start=friends (or night, sea, ending, or any picture id; ?film= is the same): jump there for a short visit or a recording. */
+const FILM = ((s: string | null) => (s ? (START_ALIASES[s] ?? s) : null))(params.get('start') ?? params.get('film'));
 
 const KNOB_NAMES: Record<number, string> = { 0xe8553e: 'red', 0x1fb3a0: 'teal', 0xf2b632: 'yellow', 0x7b5bb8: 'purple' };
 
@@ -564,7 +566,7 @@ export class GameSystem extends createSystem({
           this.debug.nameReveal = name;
           audio.reveal();
           // its name on a felt ribbon over the dancing plush (the plate is tucked away while it dances)
-          this.bannerAt(name, PLUSH.stageX, PLUSH.danceY + 0.115, PLUSH.stageZ, 2.8);
+          this.bannerAt(name, PLUSH.stageX, PLUSH.danceY + 0.14, PLUSH.stageZ - 0.03, 3.6); // above its head (never across its face), for most of the dance
         }
         this.view.setPipMood('cheer');
         // felt confetti from both sides of the plush, out and away (the card and its stars stay clear)
