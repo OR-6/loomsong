@@ -1,0 +1,29 @@
+#!/usr/bin/env node
+// E2E: a friend picture (Table). The cushion shows; the legs weave without a friend; then the game
+// asks for one; a plush seated on the cushion lifts the threads under its feet; lifting it off drops
+// them again; the picture finishes with the friend's help and the friend goes home after.
+import { execFileSync } from 'node:child_process';
+import { wait, freshSession, setTable, check, done } from './e2e-lib.mjs';
+const F = (action) => JSON.parse(execFileSync('npx', ['@iwsdk/cli', 'browser', 'run', 'tools/friend-state.mjs'], { encoding: 'utf8', env: { ...process.env, FRIEND_ACTION: action } })).data.result;
+await freshSession();
+await setTable();
+await wait(1000);
+let s = F('seed');
+check('the Table is up, with a cushion for a friend', s.level === 'table' && s.cushion === true && s.helper === 0, JSON.stringify(s));
+check('the Heart waits on the Home shelf', s.heartAt >= 0 && s.heartAt < 5, String(s.heartAt));
+F('row');
+s = F('row');
+check('the legs weave with the levers alone', s.rows === 2 && s.statuses.startsWith('ok'.repeat(1)) && !s.statuses.includes('x'), s.statuses);
+check('then the game asks for a friend', s.hint === 'friendOn', s.hint);
+s = F('seat');
+check('a plush on the cushion lifts the threads under its feet', s.friend === 'heart' && s.helper === 0b00011000 && (s.shed & 0b00011000) === 0b00011000, JSON.stringify(s));
+check('the friend hint goes once it sits there', s.hint !== 'friendOn', s.hint);
+s = F('unseat');
+check('lifting it off drops its threads', s.helper === 0 && s.friend === '' && s.heartAt >= 0 && s.heartAt < 5, JSON.stringify(s));
+s = F('seat');
+for (let r = 0; r < 3 && s.phase === 'play'; r++) s = F('row');
+check('with the friend, the tabletop, vase and flower weave right', !s.statuses.includes('x') && s.phase !== 'play', `${s.statuses} ${s.phase}`);
+for (let i = 0; i < 30 && F('state').level === 'table'; i++) await wait(1000);
+s = F('state');
+check('next picture: the cushion goes and the friend is back home', s.level !== 'table' && s.cushion === false && s.helper === 0, JSON.stringify(s));
+done('friend');

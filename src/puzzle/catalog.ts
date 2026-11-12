@@ -19,6 +19,7 @@ export const LEVELS: Level[] = PICTURES.map((p) => ({
   chapter: p.chapter,
   mystery: p.mystery,
   weft: p.weft,
+  friend: p.friend,
 }));
 
 /**

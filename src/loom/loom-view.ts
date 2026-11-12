@@ -331,6 +331,8 @@ export class LoomView {
     this.catcher.renderOrder = -1;
     this.root.add(this.catcher);
     // No mat: the player's real desk shows around the toy (it's mixed reality).
+    this.cushion.visible = false;
+    this.root.add(this.cushion);
     this.root.add(this.plushes.root, this.basket.root, this.daily.root, this.phone.root, this.roomMood.root, this.ghost.root, this.fx.root);
     // Sea's swap spools (hidden unless the level has a second weft)
     {
@@ -786,6 +788,7 @@ export class LoomView {
     // lying almost flat on the desk in front of the loom, clear of the cloth
     this.plaque.mesh.position.set(-side * 0.035, 0.0078, LOOM.frontBeamZ + 0.05); // the slat's low edge just on the desk
     this.plaque.mesh.rotation.set(-1.31, 0, 0); // ~15° up from flat
+    this.cushion.position.set(side * FRIEND_SEAT.x, 0, FRIEND_SEAT.z);
     this.layoutLevers();
     this.setBobbinT(0);
     this.placeCard();
@@ -1841,8 +1844,27 @@ export class LoomView {
         best = k;
       }
     }
-    if (best < 0) return this.liftColor;
+    if (best < 0) return (this.friendMask >> i) & 1 ? this.friendColor : this.liftColor; // lifted by the friend on the cushion: its colour
     return this.tieHidden[best] ? 0xd9cdb8 : this.palette.knobs[best];
+  }
+
+  /** The friend on the cushion: which threads it lifts and its colour (0: nobody seated). */
+  private friendMask = 0;
+  private friendColor = 0xffffff;
+  setFriend(mask: number, color: number): void {
+    this.friendMask = mask;
+    this.friendColor = color;
+    this.writeWarps();
+  }
+
+  /**
+   * The friend's cushion, in front of the loom on the lever side: a cream felt pillow
+   * with a tomato running stitch. Shown only on pictures that need a friend.
+   */
+  readonly cushion = buildCushion();
+  setCushion(on: boolean): void {
+    this.cushion.visible = on;
+    this.cushion.position.set(this.side * FRIEND_SEAT.x, 0, FRIEND_SEAT.z);
   }
 
   /** Instance `idx` as a unit-Z strand stretched from (x0,y0,z0) to (x1,y1,z1). */
@@ -2010,4 +2032,29 @@ function mapleTexture(): CanvasTexture {
   t.colorSpace = SRGBColorSpace;
   t.anisotropy = 8;
   return t;
+}
+
+/** Where a friend plush sits (loom space; x is multiplied by the lever side). */
+export const FRIEND_SEAT = { x: 0.115, z: LOOM.frontBeamZ + 0.065, r: 0.038 } as const;
+
+function buildCushion(): Group {
+  const g = new Group();
+  g.name = 'FriendCushion';
+  const felt = feltTexture();
+  const pillow = new Mesh(new SphereGeometry(1, 28, 10, 0, Math.PI * 2, 0, Math.PI / 2), new MeshStandardMaterial({ color: 0xf3e6cc, roughness: 1, map: felt, envMapIntensity: 0.3 }));
+  pillow.scale.set(FRIEND_SEAT.r, 0.009, FRIEND_SEAT.r * 0.85);
+  pillow.receiveShadow = true;
+  g.add(pillow);
+  const stitchMat = new MeshStandardMaterial({ color: 0xe2563b, roughness: 0.9 });
+  const dash = new BoxGeometry(0.0034, 0.0011, 0.0011);
+  for (let k = 0; k < 22; k++) {
+    const a = (k / 22) * Math.PI * 2;
+    const m = new Mesh(dash, stitchMat);
+    const rx = FRIEND_SEAT.r * 0.78;
+    const rz = FRIEND_SEAT.r * 0.85 * 0.78;
+    m.position.set(Math.cos(a) * rx, 0.0062, Math.sin(a) * rz);
+    m.rotation.y = -a + Math.PI / 2;
+    g.add(m);
+  }
+  return g;
 }

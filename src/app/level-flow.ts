@@ -19,7 +19,7 @@ export type FlowPhase = 'play' | 'won' | 'playback' | 'between';
  * 'knots': the tutorial explains the knot budget once, after the goal;
  * 'combo': the aha, once: two levers latched together make the next row.
  */
-export type HintStep = 'lever' | 'unlatch' | 'weft' | 'shuttle' | 'undo' | 'card' | 'knots' | 'combo' | 'more' | 'none';
+export type HintStep = 'lever' | 'unlatch' | 'weft' | 'shuttle' | 'undo' | 'card' | 'knots' | 'combo' | 'more' | 'friendOn' | 'friendOff' | 'friendSwap' | 'none';
 
 export interface FlowHooks {
   load(level: Level, index: number): void;
@@ -217,7 +217,7 @@ export class LevelFlow {
       return;
     }
     // any touch resets the idle clock and clears an idle hint
-    if (e.type === 'lever' || e.type === 'row' || e.type === 'undo' || e.type === 'weft') {
+    if (e.type === 'lever' || e.type === 'row' || e.type === 'undo' || e.type === 'weft' || e.type === 'friend') {
       this.idle = 0;
       if (this.idleShown) {
         this.idleShown = false;
@@ -233,9 +233,15 @@ export class LevelFlow {
     }
     // two-colour levels: say "swap Pip's yarn" the moment it's the next thing to do (it's never the puzzle)
     if (!this.tutorial && this.level.weft && this.phase === 'play' && !this.mirror) {
-      const n = nextStep(this.level, this.model.rows, this.model.latched, this.model.weft);
+      const n = nextStep(this.level, this.model.rows, this.model.latched, this.model.weft, this.model.helper);
       if (n.step === 'weft') this.setHint('weft');
       else if (this.hintStep === 'weft') this.setHint('none');
+    }
+    // friend pictures: "seat a plush" / "lift it off" whenever that's the next thing to do (the rest stays the puzzle)
+    if (!this.tutorial && this.level.friend && this.phase === 'play' && !this.mirror) {
+      const n = nextStep(this.level, this.model.rows, this.model.latched, this.model.weft, this.model.helper);
+      if (n.step === 'friendOn' || n.step === 'friendOff' || n.step === 'friendSwap') this.setHint(n.step);
+      else if (this.hintStep === 'friendOn' || this.hintStep === 'friendOff' || this.hintStep === 'friendSwap') this.setHint('none');
     }
     if (!this.tutorial || this.phase !== 'play') return;
     if (e.type === 'row' && !this.goalShown && this.model.rows.length === 1 && this.model.rows[0] === this.level.target[0]) {
@@ -248,7 +254,7 @@ export class LevelFlow {
     if ((this.hintStep === 'card' || this.hintStep === 'knots' || this.hintStep === 'combo') && this.hintTimer > 0) return;
     // the aha: a second lever joins the first and together they make the next row
     if (e.type === 'lever' && e.latched && !this.comboShown && this.model.latched.filter(Boolean).length >= 2) {
-      const n = nextStep(this.level, this.model.rows, this.model.latched, this.model.weft);
+      const n = nextStep(this.level, this.model.rows, this.model.latched, this.model.weft, this.model.helper);
       if (n.step === 'shuttle' || n.step === 'weft') {
         this.comboShown = true;
         this.setHint('combo');
@@ -256,7 +262,7 @@ export class LevelFlow {
         return;
       }
     }
-    if (e.type === 'lever' || e.type === 'row' || e.type === 'undo' || e.type === 'weft') this.guide();
+    if (e.type === 'lever' || e.type === 'row' || e.type === 'undo' || e.type === 'weft' || e.type === 'friend') this.guide();
   }
 
   private win(): void {
@@ -276,7 +282,8 @@ export class LevelFlow {
       if (!days.includes(this.daily)) days.push(this.daily);
     }
     this.progress.lastCloth = {
-      tieUp: [...this.level.tieUp],
+      // a friend picture shared: the friend's threads travel as one more lever (whoever opens it has no cushion)
+      tieUp: this.level.friend ? [...this.level.tieUp, this.level.friend] : [...this.level.tieUp],
       rows: [...this.model.rows],
       rootMidi: this.level.rootMidi,
     };
@@ -293,7 +300,7 @@ export class LevelFlow {
 
   /** Tutorial: show the very next action for the current row. */
   private guide(): void {
-    const n = nextStep(this.level, this.model.rows, this.model.latched, this.model.weft);
+    const n = nextStep(this.level, this.model.rows, this.model.latched, this.model.weft, this.model.helper);
     // the aha is the player's: when the next row needs a second lever beside one that's up,
     // say so without pointing, once; if they're still stuck after a while, the lever is shown
     if (this.tutorial && !this.moreShown && n.step === 'lever' && this.model.latched.some(Boolean)) {
@@ -307,9 +314,9 @@ export class LevelFlow {
 
   /** After the tutorial, idle hints point at the kind of action, not the answer (except in Garden). */
   private idleHint(): void {
-    const n = nextStep(this.level, this.model.rows, this.model.latched, this.model.weft);
+    const n = nextStep(this.level, this.model.rows, this.model.latched, this.model.weft, this.model.helper);
     const easy = this.level.chapter === 'garden' || !this.level.chapter;
-    if (n.step === 'undo' || n.step === 'shuttle' || n.step === 'weft' || easy) this.setHint(n.step, n.lever);
+    if (n.step === 'undo' || n.step === 'shuttle' || n.step === 'weft' || n.step === 'friendOn' || n.step === 'friendOff' || n.step === 'friendSwap' || easy) this.setHint(n.step, n.lever);
     else this.setHint('card'); // "match the next row": the puzzle stays the player's
   }
 
@@ -330,17 +337,26 @@ export function totalStars(p: Pick<Progress, 'best'>): number {
  * a lever the next row doesn't need, lift one it does (fewest moves from the
  * levers as they are), or throw Pip when the shed already matches.
  */
-export function nextStep(level: Level, rows: readonly Mask8[], latched: readonly boolean[], weft: 0 | 1 = 0): { step: HintStep; lever: number } {
+export function nextStep(level: Level, rows: readonly Mask8[], latched: readonly boolean[], weft: 0 | 1 = 0, helper: Mask8 = 0): { step: HintStep; lever: number } {
   const r = rows.length;
   if (r > 0 && rows[r - 1] !== level.target[r - 1]) return { step: 'undo', lever: -1 };
   if (r >= level.target.length) return { step: 'none', lever: -1 };
+  // a friend picture: the rows holding the friend's threads need it seated; the others need it off
+  let want = warpsOf(level.target[r]);
+  if (level.friend) {
+    const needs = (want & level.friend) === level.friend;
+    if (needs && helper && helper !== level.friend) return { step: 'friendSwap', lever: -1 }; // its feet lift the wrong threads
+    if (needs && helper !== level.friend) return { step: 'friendOn', lever: -1 };
+    if (!needs && helper) return { step: 'friendOff', lever: -1 };
+    if (needs) want &= ~level.friend;
+  } else if (helper && (warpsOf(level.target[r]) & helper) !== helper) return { step: 'friendOff', lever: -1 };
   const L = level.tieUp.length;
   let best = -1;
   let bestCost = Infinity;
   for (let s = 0; s < 1 << L; s++) {
     let m = 0;
     for (let k = 0; k < L; k++) if ((s >> k) & 1) m |= level.tieUp[k];
-    if (m !== warpsOf(level.target[r])) continue;
+    if (m !== want) continue;
     let flips = 0;
     let count = 0;
     for (let k = 0; k < L; k++) {

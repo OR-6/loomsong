@@ -13,8 +13,11 @@ describe('picture levels', () => {
       expect(p.tieUp.length, p.id).toBeLessThanOrEqual(4);
       expect(p.picture.every((r) => r.length === WARPS), p.id).toBe(true);
       expect(p.target, p.id).toEqual(p.picture.map(bits).reverse());
-      for (const row of p.target) expect(rowReachable(p.tieUp, row), `${p.id} row`).toBe(true);
-      expect(p.par, p.id).toBe(computePar(p.tieUp, p.target));
+      // a friend picture: rows holding the friend's threads are the friend plus levers (seating it is no lever move)
+      const f = p.friend ?? 0;
+      const leverRows = f ? p.target.map((r) => ((r & f) === f ? r & ~f : r)) : p.target;
+      for (const row of leverRows) expect(row === 0 || rowReachable(p.tieUp, row), `${p.id} row`).toBe(true);
+      expect(p.par, p.id).toBe(computePar(p.tieUp, leverRows));
       expect(p.name.split(' ').length).toBeLessThanOrEqual(3);
     }
   });

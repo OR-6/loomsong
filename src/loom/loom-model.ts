@@ -13,6 +13,8 @@ export class LoomModel {
   leverFlips = 0;
   /** Weft yarn in Pip's boat: 0 = cream, 1 = the level's second colour (Sea). */
   weft: 0 | 1 = 0;
+  /** Threads lifted by a plush seated on the cushion (its bottom row): part of the shed, not a lever. */
+  helper: Mask8 = 0;
   readonly listeners = new Set<(e: LoomEvent) => void>();
 
   constructor(public tieUp: Mask8[]) {}
@@ -25,10 +27,18 @@ export class LoomModel {
     this.shuttleSide = 0;
     this.leverFlips = 0;
     this.weft = 0;
+    this.helper = 0;
   }
 
   get shed(): Mask8 {
-    return shedMask(this.tieUp, this.latched);
+    return shedMask(this.tieUp, this.latched) | this.helper;
+  }
+
+  /** A plush sat down on the cushion (its feet's threads), or got up (0). Not a lever move: no knot. */
+  setHelper(mask: Mask8): void {
+    if (this.helper === mask) return;
+    this.helper = mask;
+    this.emit({ type: 'friend', mask, shed: this.shed });
   }
 
   setLatched(k: number, v: boolean): void {
@@ -88,4 +98,5 @@ export type LoomEvent =
   | { type: 'row'; row: Mask8; index: number }
   | { type: 'undo'; row: Mask8; index: number }
   | { type: 'weft'; weft: 0 | 1 }
+  | { type: 'friend'; mask: Mask8; shed: Mask8 }
   | { type: 'sync' };

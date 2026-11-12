@@ -23,4 +23,6 @@ export interface Level {
   mystery?: boolean;
   /** Second weft colour (Sea): rows with the weft bit are woven in it. */
   weft?: number;
+  /** A friend picture: the threads a plush on the cushion must lift (its bottom row); not a lever. */
+  friend?: number;
 }

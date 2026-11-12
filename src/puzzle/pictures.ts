@@ -15,6 +15,8 @@ export interface PictureLevel {
   color: number;
   /** Second weft colour for rows drawn with '~' (Sea water), if any. */
   weft?: number;
+  /** A friend picture: these threads come from a plush seated on the cushion (its bottom row). */
+  friend?: number;
   /** Rows top→bottom, '#' = pixel, '.' = cream ground, '~' = second-weft ground. */
   picture: string[];
   tieUp: Mask8[];

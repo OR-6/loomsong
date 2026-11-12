@@ -6,7 +6,7 @@ describe('share codes', () => {
   it('round-trips every authored and many generated levels', () => {
     for (let i = 0; i < 40; i++) {
       const l = levelAt(i);
-      const c = { tieUp: l.tieUp, rows: l.target, rootMidi: l.rootMidi };
+      const c = { tieUp: l.friend ? [...l.tieUp, l.friend] : l.tieUp, rows: l.target, rootMidi: l.rootMidi }; // as the win saves it
       const code = encodeCloth(c);
       expect(code).toMatch(/^[A-Za-z0-9_-]+$/);
       expect(code.length).toBeLessThanOrEqual(30);

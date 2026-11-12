@@ -3,6 +3,7 @@ import { LevelFlow, TIMING, firstLeverForRow0, nextStep, type FlowHooks } from '
 import { LoomModel } from '../src/loom/loom-model';
 import { LEVELS, levelAt } from '../src/puzzle/catalog';
 import type { Progress } from '../src/persistence/progress';
+import type { Level } from '../src/puzzle/levels';
 
 function setup(progress: Progress = { level: 0, best: {}, tutorialDone: false, theme: 'toy' }) {
   const log: string[] = [];
@@ -197,5 +198,22 @@ describe('level flow', () => {
     expect(log.at(-1)).toMatch(/^hint weft/);
     model.setWeft(1);
     expect(log.at(-1)).toMatch(/^hint none/);
+  });
+});
+
+describe('friend pictures', () => {
+  const table: Level = {
+    id: 'table', name: 'Table', rootMidi: 60, par: 6, friend: 0b00011000,
+    tieUp: [0b00100100, 0b00000011, 0b11000000],
+    target: [0b00100100, 0b00100100, 0b11111111, 0b00111100, 0b00011000],
+  };
+  it('the legs need the friend off, the tabletop needs it on, the wrong feet are named', () => {
+    expect(nextStep(table, [], [false, false, false], 0, 0)).toEqual({ step: 'lever', lever: 0 });
+    expect(nextStep(table, [], [false, false, false], 0, 0b00011000).step).toBe('friendOff');
+    const legs = [0b00100100, 0b00100100];
+    expect(nextStep(table, legs, [true, false, false], 0, 0).step).toBe('friendOn');
+    expect(nextStep(table, legs, [true, false, false], 0, 0b00111000).step).toBe('friendSwap');
+    expect(nextStep(table, legs, [true, false, false], 0, 0b00011000)).toEqual({ step: 'lever', lever: 1 });
+    expect(nextStep(table, legs, [true, true, true], 0, 0b00011000).step).toBe('shuttle');
   });
 });

@@ -26,7 +26,7 @@ import { applyCalibration, hands, calibration, type Side } from '../input/hands.
 import { Calibrator } from '../input/calibration.js';
 import { LoomController, type HandInput } from '../loom/loom-controller.js';
 import { LoomModel } from '../loom/loom-model.js';
-import { TOKEN_SIZE, LoomView } from '../loom/loom-view.js';
+import { FRIEND_SEAT, TOKEN_SIZE, LoomView } from '../loom/loom-view.js';
 import { Placement, loomPose } from './placement.js';
 import { Label } from '../ui/label.js';
 import { audio } from '../audio/synth.js';
@@ -82,6 +82,9 @@ const HINT_TEXT: Record<HintStep, string> = {
   knots: 'Each lever move unties a knot',
   combo: '', // the aha is a gold ribbon over the card, not a tag
   more: 'Add another lever',
+  friendOn: 'Seat a plush on the cushion',
+  friendOff: 'Lift the plush off',
+  friendSwap: 'Try a plush with other feet',
   none: '',
 };
 
@@ -126,6 +129,8 @@ export interface GameDebug {
   degrade: number;
   calibrating: string;
   coop: string;
+  /** The plush seated on the friend's cushion ('' when none). */
+  friend?: string;
   /** Motion controllers are held (the game wants bare hands). */
   controllers?: boolean;
   /** The last few notices shown (E2E: a notice can come and go between two checks). */
@@ -319,7 +324,11 @@ export class GameSystem extends createSystem({
       skein: (i) => this.pickChapter(i),
       nudge: (dir) => this.nudgeDesk(dir),
       plush: (i) => this.singPlush(i),
-      carry: (i, p) => this.view.plushes.carry(i, p),
+      carry: (i, p) => {
+        // lifting the friend off its cushion: its threads drop
+        if (this.seated >= 0 && i === this.seated) this.unseatFriend();
+        this.view.plushes.carry(i, p);
+      },
       drop: (i, p) => this.dropPlush(i, p),
       windKey: () => this.playShelf(),
       daily: () => this.startDaily(),
@@ -428,6 +437,7 @@ export class GameSystem extends createSystem({
         this.view.card.setUsed(this.model.leverFlips);
       }
       if (e.type === 'weft') this.view.setWeftNow(e.weft);
+      if (e.type === 'friend') this.view.setShed(e.shed); // a seated plush lifts the threads under its feet
       if (e.type === 'row' || e.type === 'undo' || e.type === 'sync') this.view.setRows(this.model.rows);
       // Pip reacts to each row: a happy hop and wink, or a droop.
       if (e.type === 'row' && this.flow?.level) {
@@ -468,6 +478,11 @@ export class GameSystem extends createSystem({
         this.view.card.setPicture(level.color ?? null, level.par);
         this.view.plaque.set(level.name);
         if (this.debug) this.debug.plaque = level.name;
+        // a new picture: any friend goes home (the shelf and desk are rebuilt below); the cushion shows if this one needs a friend
+        this.seated = -1;
+        this.view.setFriend(0, 0xffffff);
+        this.view.setCushion(!!level.friend);
+        if (this.debug) this.debug.friend = '';
         this.shelf = shelfItems(level, this.progress);
         this.view.plushes.setShelf(this.shelf, shelfChapter(level, this.progress)?.name ?? '');
         this.view.plushes.setDesk(deskItems(this.progress));
@@ -1419,6 +1434,40 @@ export class GameSystem extends createSystem({
     return null;
   }
 
+  /** The spot index of the plush sitting on the friend's cushion (-1: nobody). */
+  private seated = -1;
+
+  /**
+   * Seat plush i on the cushion: it hops there (not saved: it goes home when the picture
+   * changes) and lifts the threads of its picture's bottom row, in its own colour.
+   */
+  private seatFriend(i: number, id: string): void {
+    const pic = pictureById(id);
+    const d = deskIndex(id);
+    if (!pic || d < 0) {
+      this.view.plushes.putBack(i);
+      return;
+    }
+    const side = this.controller.bankSide;
+    const to = PLUSH.slots + d;
+    this.view.plushes.moveTo(i, to, side * FRIEND_SEAT.x, FRIEND_SEAT.z);
+    this.seated = to;
+    const feet = pic.target[0] & 255;
+    this.model.setHelper(feet);
+    this.view.setFriend(feet, pic.color ?? 0xe2563b);
+    for (let w = 0, k = 0; w < WARPS; w++) if ((feet >> w) & 1) audio.pluck(w, 0.4, 0.05 + k++ * 0.06, 0.24);
+    this.view.setPipMood('happy');
+    this.debug.lastDrop = `friend ${id}`;
+    if (this.debug) this.debug.friend = id;
+  }
+
+  private unseatFriend(): void {
+    this.seated = -1;
+    this.model.setHelper(0);
+    this.view.setFriend(0, 0xffffff);
+    if (this.debug) this.debug.friend = '';
+  }
+
   /** Is a plush at (x, z) on the toy telephone or the present (with `margin` more room)? */
   private onProp(x: number, z: number, margin: number): boolean {
     const side = this.controller.bankSide;
@@ -1441,8 +1490,13 @@ export class GameSystem extends createSystem({
       plushes.putBack(i);
       return;
     }
-    const slot = this.shelf.findIndex((it) => it.id === id);
     const side = this.controller.bankSide;
+    // a friend picture's cushion: a plush set down on it sits there and lifts the threads under its feet
+    if (this.flow.level.friend && this.flow.phase === 'play' && p.y < 0.15 && Math.hypot(p.x - side * FRIEND_SEAT.x, p.z - FRIEND_SEAT.z) < FRIEND_SEAT.r + 0.03) {
+      this.seatFriend(i, id);
+      return;
+    }
+    const slot = this.shelf.findIndex((it) => it.id === id);
     const home = slot >= 0 ? plushes.slotPos(slot, this.tmp2) : null;
     if (home && Math.hypot(p.x - home.x, p.z - home.z) < 0.07 && p.y < 0.12) {
       // back onto the shelf
@@ -2072,6 +2126,9 @@ export class GameSystem extends createSystem({
       // behind the bank, past the knob's travel: the ghost hand comes down over the knob from the front, so the words never cover it
       m.position.set(this.tagAt.x + side * 0.03, this.tagAt.y + 0.05, (up ? this.tagAt.z : this.tagAt.z - LEVER.travel) - 0.075);
       if (up === (step === 'unlatch')) this.view.setLeverHighlight(k, 0, up, pulse);
+    } else if (step === 'friendOn' || step === 'friendOff' || step === 'friendSwap') {
+      // over the friend's cushion
+      m.position.set(side * FRIEND_SEAT.x, 0.07, FRIEND_SEAT.z);
     } else if (step === 'weft') {
       // the swap spool on Pip's side breathes, with the tag above it
       this.view.swapSpoolPos(this.tagAt);
