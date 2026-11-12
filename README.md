@@ -14,7 +14,7 @@ Hand tracking has no touch, so Loomsong puts every interaction on a real surface
 
 ## Judge instructions
 
-1. Open https://or-6.github.io/loomsong/ in the headset's browser (Quest 3 or 3S). Turn hand tracking on and put the controllers down.
+1. Open https://or-6.github.io/loomsong/ in the headset's browser (Quest 3 or 3S). Turn hand tracking on and put the controllers down (if you're still holding them, the game asks you to).
 2. Sit at a table with decent light. Press **Enter mixed reality**.
 3. **Rest one hand flat on the table for a second.** The loom unfolds there. (No hand seen? It appears at a default height after a few seconds; poke the yellow arrows to raise or lower it.)
 4. Follow the ghost hand: slide the glowing lever away from you, then pinch Pip and slide him across. Your first row plays within a minute.

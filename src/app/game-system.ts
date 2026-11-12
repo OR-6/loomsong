@@ -126,6 +126,8 @@ export interface GameDebug {
   degrade: number;
   calibrating: string;
   coop: string;
+  /** Motion controllers are held (the game wants bare hands). */
+  controllers?: boolean;
   /** The last few notices shown (E2E: a notice can come and go between two checks). */
   notices?: string[];
   /** Grand finale: '' | 'weaving' | 'medley' | 'done'. */
@@ -1681,6 +1683,7 @@ export class GameSystem extends createSystem({
     if (immersive && this.placement.phase === 'placed') audio.music();
     else audio.restMusic();
     this.player.head.getWorldPosition(this.head);
+    if (immersive) this.watchControllers(dt);
 
     if (this.placement.phase !== 'placed') {
       if (!immersive) return;
@@ -1776,6 +1779,33 @@ export class GameSystem extends createSystem({
     out.head = this.head.toArray();
     return out;
   }
+
+  /**
+   * Loomsong is played with bare hands. Holding controllers, nothing responds, so say
+   * so: the table prompt asks for them to be put down, and once the loom is out a
+   * notice says it (again every 12 s while they're still held). On Quest, setting the
+   * controllers down switches to hand tracking by itself.
+   */
+  private watchControllers(dt: number): void {
+    const sess = this.renderer.xr.getSession?.();
+    let held = false;
+    if (sess) for (const src of sess.inputSources) if (!src.hand && (src.handedness === 'left' || src.handedness === 'right')) held = true;
+    this.debug.controllers = held;
+    if (this.placement.phase !== 'placed') {
+      this.hint.set(held ? 'Put the controllers down' : 'Rest your hand here');
+      return;
+    }
+    if (!held) {
+      this.padsNoticeIn = 0;
+      return;
+    }
+    this.padsNoticeIn -= dt;
+    if (this.padsNoticeIn <= 0) {
+      this.padsNoticeIn = 12;
+      this.showNotice('Put the controllers down: play with your hands', 6, 'centre');
+    }
+  }
+  private padsNoticeIn = 0;
 
   private updatePlacement(dt: number) {
     if (FIXED_DESK !== null && Number.isFinite(Number(FIXED_DESK))) {

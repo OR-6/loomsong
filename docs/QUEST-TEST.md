@@ -31,6 +31,11 @@ The `?debug=1` part shows a small tag behind the picture card with three numbers
 11. Optional: open the link with `?finale=1` and place the loom. After a few seconds the loom weaves a heart by itself and the shelves sing in turn.
    - Send: **(fps during the finale)**, and whether the credit ribbon was readable from the seat.
 
+12. Optional, if a Quest 2 is around: repeat steps 1–4 on it. The room shows in black and white there; the game stays in colour.
+   - Send: **(fps)** while weaving and during the plush celebration, and whether pinches felt reliable.
+13. Pick up a controller for a moment.
+   - Send: did a tag ask you to put the controllers down? When you did, did your hands work again?
+
 ## Also send
 
 - Headset model, and whether the room has a desk or table saved in Space Setup.
