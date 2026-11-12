@@ -22,7 +22,7 @@ const audioUrl = (f: string) => `${import.meta.env.BASE_URL}audio/${f}`;
 const PENTA = [0, 2, 4, 7, 9];
 
 /** Background music level (before ducking). */
-const MUSIC_GAIN = 0.55;
+const MUSIC_GAIN = 0.42; // under the weaving: a first headset tester found the sound "a bit much"
 /** Bass roots per bar, in semitones from the key: I – vi – IV – V. */
 const PROGRESSION = [0, -3, 5, 7];
 interface Mood {
@@ -138,7 +138,7 @@ class Synth {
     comp.threshold.value = -18;
     comp.ratio.value = 4;
     this.master = ctx.createGain();
-    this.master.gain.value = 0.8;
+    this.master.gain.value = 0.72;
     this.dry = ctx.createGain();
     this.wet = ctx.createGain();
     this.wet.gain.value = this.reverbOn ? 0.28 : 0;

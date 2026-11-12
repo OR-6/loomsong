@@ -31,6 +31,9 @@ export const BONES: Array<[string, string]> = (() => {
   return pairs;
 })();
 
+/** A real headset's browser (a dev build opened on a Quest must hide the hand model too). */
+const ON_HEADSET = typeof navigator !== 'undefined' && /OculusBrowser|Quest|Pico/i.test(navigator.userAgent);
+
 const JOINTS = 25;
 /** Metres the wrist may move between two frames before it counts as a tracking jump. */
 const JUMP = 0.12;
@@ -150,7 +153,7 @@ export class HandOccluderSystem extends createSystem({}) {
    * render layers instead (IWSDK never touches layers), checking each frame for new ones.
    */
   private hideIwsdkHands() {
-    if (import.meta.env.DEV) return; // the emulator has no real hands to see: keep its hand model
+    if (import.meta.env.DEV && !ON_HEADSET) return; // the desktop emulator has no real hands to see: keep its hand model
     const ad = this.input.xr.visualAdapters?.hand;
     if (!ad) return;
     for (const a of [ad.left, ad.right]) {

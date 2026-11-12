@@ -35,10 +35,12 @@ await setTable();
 // the shelf and desk are rebuilt with the first picture: wait for them rather than a fixed time
 w = run('tools/desk-where.mjs');
 for (let i = 0; i < 20 && !w.ids.some(Boolean); i++) {
+  // a slow reload can miss the first palm: rest it again if the loom isn't out yet
+  if (i % 5 === 4 && run('tools/state.mjs').debug.phase !== 'placed') await setTable();
   await wait(300);
   w = run('tools/desk-where.mjs');
 }
-check('after a reload it is still on the desk', w.ids.includes(id) && w.ids.indexOf(id) >= 5, JSON.stringify(w.ids));
+check('after a reload it is still on the desk', w.ids.includes(id) && w.ids.indexOf(id) >= 5, JSON.stringify({ ids: w.ids, phase: run('tools/state.mjs').debug.phase }));
 
 // the wind-up key plays it with the shelf
 const cal2 = await calibrate();

@@ -88,6 +88,13 @@ const BEAT_WINDOW = 0.12;
 /** A picture's plate before it comes alive: its name is the surprise. */
 const SURPRISE_PLATE = 'What is it?';
 
+/** Look to play's control keys (numbers, so nothing is built per frame). */
+const LOOK_LEVER = 0;
+const LOOK_PIP = 10;
+const LOOK_UNDO = 11;
+const LOOK_SWAP = 12;
+const LOOK_PLUSH = 100;
+
 /** The first-time tour: what each part is (seconds before it starts, per tag). */
 const INTRO = [
   { part: 'card', text: 'Weave this picture' },
@@ -104,8 +111,8 @@ const HINT_TEXT: Record<HintStep, string> = {
   lever: 'Slide it away',
   unlatch: 'Slide it back',
   weft: "Swap Pip's yarn",
-  shuttle: 'Slide Pip across',
-  undo: 'Pull to undo',
+  shuttle: 'Slide Pip across, or poke it',
+  undo: 'Poke the spool to undo',
   card: 'Match the next row',
   knots: 'Each lever move unties a knot',
   combo: '', // the aha is a gold ribbon over the card, not a tag
@@ -514,8 +521,9 @@ export class GameSystem extends createSystem({
         const good = e.row === this.flow.level.target[e.index];
         this.view.setPipMood(good ? 'happy' : 'sad');
         this.view.rowVerdict(good);
-        // a wrong row unweaves itself after Pip's droop (the tutorial teaches the spool instead)
-        this.autoUndoRow = !good && !this.flow.tutorial ? e.index : -1;
+        // a wrong row unweaves itself after Pip's droop, in the tutorial too (on a headset, a first
+        // player spent 20 s fighting the spool after one wrong row): the spool is there to go back further
+        this.autoUndoRow = !good ? e.index : -1;
         this.autoUndoAt = this.time + 1.4;
         audio.chirp(good ? 'happy' : 'sad');
         audio.verdict(good);
@@ -887,7 +895,7 @@ export class GameSystem extends createSystem({
     const side = { model: this.model, controller: this.controller, flow: this.flow };
     // a call from the toy telephone didn't get through: say so, and how to try again
     if (st.state === 'error' && this.view.phone.phoneState === 'calling' && !this.practice) {
-      this.startPractice('The line is busy, so a practice caller picks up');
+      if (!this.startPractice('The line is busy, so a practice caller picks up')) this.showNotice('The line is busy: poke the telephone to try again', 7, 'centre');
     }
     // the toy telephone's tag: the code while it waits for the caller
     const hosting = st.role === 'host' && (st.state === 'hosting' || st.state === 'connected');
@@ -1058,6 +1066,11 @@ export class GameSystem extends createSystem({
     this.view.nudges.visible = false;
     this.settings = { ...this.settings, placeFresh: true }; // the new spot wins over the saved one
     this.loomSaved = false;
+    // wait for a hand again: the placement timeouts count from now, not from entering the headset
+    this.sessionTime = RESUME_WINDOW_S;
+    this.firstHand = null;
+    this.introT = -1; // the tour was for the first unfolding only
+    this.debug.intro = 'done';
     this.debug.phase = 'waiting';
     this.debug.anchored = false;
     this.debug.moved = (this.debug.moved ?? 0) + 1;
@@ -1150,14 +1163,15 @@ export class GameSystem extends createSystem({
   private carryGesture: import('../loom/ghost-hand.js').GhostGesture = null;
   /** A picture that needs a friend: the ghost hand carries a shelf plush onto the cushion (what "a plush" and "the cushion" are). */
   private friendGest: { kind: 'carry'; ax: number; ay: number; az: number; bx: number; by: number; bz: number } | null = null;
-  private friendGestKey = '';
+  private friendGestI = -1;
+  private friendGestSide = 0;
   private friendDemo(side: 1 | -1): import('../loom/ghost-hand.js').GhostGesture {
     let i = -1;
     for (let k = 0; k < PLUSH.slots && i < 0; k++) if (this.view.plushes.idAt(k)) i = k;
     if (i < 0 || !this.view.plushes.plushCentre(i, this.tmp2)) return null;
-    const key = `${i}:${side}`;
-    if (key !== this.friendGestKey || !this.friendGest) {
-      this.friendGestKey = key;
+    if (i !== this.friendGestI || side !== this.friendGestSide || !this.friendGest) {
+      this.friendGestI = i;
+      this.friendGestSide = side;
       this.friendGest = { kind: 'carry', ax: this.tmp2.x, ay: this.tmp2.y, az: this.tmp2.z, bx: side * FRIEND_SEAT.x, by: FRIEND_SEAT.top + 0.02, bz: FRIEND_SEAT.z };
     }
     return this.friendGest;
@@ -1235,6 +1249,7 @@ export class GameSystem extends createSystem({
 
   /** The loom's thank-you: it weaves a rose heart by itself. */
   private startGrand(): void {
+    this.endPractice();
     this.grandIn = -1;
     this.grand = { t: 0, next: 1.6, throwAt: -1, won: -1, round: 0, roundAt: -1, singAt: -1 };
     if (!FORCE_FINALE) {
@@ -1281,7 +1296,7 @@ export class GameSystem extends createSystem({
     if (this.grandIn > 0 && !this.grand) {
       // wait for a quiet desk: a fresh picture up, nothing flying or singing
       // nobody mid-row, no picture of the day on the loom, no call open or ringing
-      const quiet = this.flow.phase === 'play' && !this.finale && !this.quiltFly && this.quiltFlyIn < 0 && !this.view.plushes.busy && this.time >= this.singUntil && !this.coopLink && coop.status.state !== 'hosting' && coop.status.state !== 'connected' && !this.flow.daily && !this.flow.challenge && this.model.rows.length === 0;
+      const quiet = this.flow.phase === 'play' && !this.finale && !this.quiltFly && this.quiltFlyIn < 0 && !this.view.plushes.busy && this.time >= this.singUntil && !this.coopLink && !this.practice && coop.status.state !== 'hosting' && coop.status.state !== 'connected' && !this.flow.daily && !this.flow.challenge && this.model.rows.length === 0;
       if (quiet) {
         this.grandIn -= dt;
         if (this.grandIn <= 0) this.startGrand();
@@ -1643,6 +1658,11 @@ export class GameSystem extends createSystem({
   /** Weave today's picture (once a day; the ball says when the next one comes). */
   private startDaily(): void {
     if (this.flow.phase !== 'play' || this.coopLink || this.flow.daily || this.grand) return;
+    if (this.practice) {
+      audio.tick();
+      this.showNotice('Hang up the telephone first', 3, 'centre');
+      return;
+    }
     this.syncDaily();
     if (this.dailyDone) {
       audio.tick();
@@ -1851,7 +1871,7 @@ export class GameSystem extends createSystem({
    * Look to play (accessibility): no hands needed. Look at a lever, Pip, the undo spool, the yarn swap
    * or (with the cushion out) a plush for a moment and it is pressed; a ring of felt beads fills around it as you look.
    */
-  private lookKey = '';
+  private lookKey = -1;
   private lookT = 0;
   /** Pressed and still being looked at: look away before it can be pressed again. */
   private lookSpent = false;
@@ -1860,58 +1880,69 @@ export class GameSystem extends createSystem({
   private lookD = new Vector3();
   private lookC = new Vector3();
   private lookP = { x: 0, y: 0, z: 0 };
+  /** This frame's best candidate (no per-frame closures or strings): key, how well aligned, where. */
+  private lookBest = -1;
+  private lookBestCos = 0;
+  private lookB = { x: 0, y: 0, z: 0 };
+  private lookConsider(key: number, x: number, y: number, z: number): void {
+    this.lookC.set(x, y, z).sub(this.lookO);
+    const d = this.lookC.length();
+    const cos = d > 0.05 ? this.lookC.dot(this.lookD) / d : 0;
+    if (cos <= this.lookBestCos) return;
+    this.lookBestCos = cos;
+    this.lookBest = key;
+    this.lookB.x = x;
+    this.lookB.y = y;
+    this.lookB.z = z;
+  }
+  private lookReset(): void {
+    this.lookT = 0;
+    this.lookKey = -1;
+    this.lookSpent = false;
+    if (this.view.gazeDot.visible) this.view.setGazeDot(0, 0, 0, 0);
+  }
   private lookToPlay(dt: number): void {
     const c = this.controller;
-    if (this.flow.phase !== 'play' || !c.enabled || c.shuttle.held || c.autoThrow) {
-      this.lookT = 0;
-      this.view.setGazeDot(0, 0, 0, 0);
+    // never where hands couldn't act either: the finale playing itself, a partner steering, a held Pip
+    if (this.flow.phase !== 'play' || !c.enabled || c.shuttle.held || c.autoThrow || c.mirror || this.grand || this.coopLink instanceof CoopGuest) {
+      this.lookReset();
       return;
     }
     // the head's ray, in the loom's space
     this.player.head.getWorldQuaternion(this.gazeQ);
     this.lookO.copy(this.head).applyMatrix4(this.inv);
     this.lookD.set(0, 0, -1).applyQuaternion(this.gazeQ).add(this.head).applyMatrix4(this.inv).sub(this.lookO).normalize();
-    let best = '';
-    let bestCos = 0.9972; // within about 4 degrees
-    let bx = 0;
-    let by = 0;
-    let bz = 0;
-    const consider = (key: string, x: number, y: number, z: number) => {
-      this.lookC.set(x, y, z).sub(this.lookO);
-      const d = this.lookC.length();
-      const cos = d > 0.05 ? this.lookC.dot(this.lookD) / d : 0;
-      if (cos > bestCos) {
-        bestCos = cos;
-        best = key;
-        bx = x;
-        by = y;
-        bz = z;
+    this.lookBest = -1;
+    this.lookBestCos = 0.9972; // within about 4 degrees
+    if (c.allow.levers) {
+      for (let k = 0; k < c.activeLevers; k++) {
+        c.leverPos(k, this.lookP);
+        this.lookConsider(LOOK_LEVER + k, this.lookP.x, this.lookP.y, this.lookP.z);
       }
-    };
-    for (let k = 0; k < c.activeLevers; k++) {
-      c.leverPos(k, this.lookP);
-      consider(`lever${k}`, this.lookP.x, this.lookP.y, this.lookP.z);
     }
-    const sx = c.shuttleX();
-    consider('pip', sx, shuttleY(sx), SHUTTLE.z);
-    if (this.model.rows.length) {
-      c.bobbinPos(this.lookP);
-      consider('undo', this.lookP.x, this.lookP.y, this.lookP.z);
+    if (c.allow.shuttle) {
+      const sx = c.shuttleX();
+      this.lookConsider(LOOK_PIP, sx, shuttleY(sx), SHUTTLE.z);
+      if (this.model.rows.length) {
+        c.bobbinPos(this.lookP);
+        this.lookConsider(LOOK_UNDO, this.lookP.x, this.lookP.y, this.lookP.z);
+      }
+      if (c.swapSpot) this.lookConsider(LOOK_SWAP, c.swapSpot.x, c.swapSpot.y, c.swapSpot.z);
     }
-    if (c.swapSpot) consider('swap', c.swapSpot.x, c.swapSpot.y, c.swapSpot.z);
     if (this.flow.level.friend) {
       for (let i = 0; i < SPOTS; i++) {
         const p = c.plushSpots[i];
-        if (p) consider(`plush${i}`, p.x, p.y, p.z);
+        if (p) this.lookConsider(LOOK_PLUSH + i, p.x, p.y, p.z);
       }
     }
+    const best = this.lookBest;
     if (best !== this.lookKey) {
       this.lookKey = best;
       this.lookT = 0;
       this.lookSpent = false;
     }
-    if (!best || this.lookSpent) {
-      this.view.setGazeDot(0, 0, 0, 0);
+    if (best < 0 || this.lookSpent) {
+      if (this.view.gazeDot.visible) this.view.setGazeDot(0, 0, 0, 0);
       return;
     }
     if (!this.lookTold) {
@@ -1920,16 +1951,29 @@ export class GameSystem extends createSystem({
     }
     this.lookT += dt;
     const DWELL = 1.1;
-    this.view.setGazeDot(bx, by, bz, Math.max(0, Math.min(1, this.lookT / DWELL)), this.gazeQ); // square to your view
+    const b = this.lookB;
+    this.view.setGazeDot(b.x, b.y, b.z, Math.max(0, Math.min(1, this.lookT / DWELL)), this.gazeQ); // square to your view
     if (this.lookT < DWELL) return;
     this.lookSpent = true; // once per look: glance away to press it again
     audio.tick();
-    if (best.startsWith('lever')) c.toggleLever(Number(best.slice(5)));
-    else if (best === 'pip') c.throwShuttle();
-    else if (best === 'undo') c.doUndo();
-    else if (best === 'swap') c.hooks.swap?.();
-    else if (best.startsWith('plush')) c.hooks.plush?.(Number(best.slice(5)));
-    this.debug.lookPressed = best;
+    let name: string;
+    if (best >= LOOK_PLUSH) {
+      c.hooks.plush?.(best - LOOK_PLUSH);
+      name = `plush${best - LOOK_PLUSH}`;
+    } else if (best === LOOK_PIP) {
+      c.throwShuttle();
+      name = 'pip';
+    } else if (best === LOOK_UNDO) {
+      c.doUndo();
+      name = 'undo';
+    } else if (best === LOOK_SWAP) {
+      c.hooks.swap?.();
+      name = 'swap';
+    } else {
+      c.toggleLever(best - LOOK_LEVER);
+      name = `lever${best - LOOK_LEVER}`;
+    }
+    this.debug.lookPressed = name;
   }
 
   /** The spot a plush is in now (-1: none). */
@@ -2126,9 +2170,11 @@ export class GameSystem extends createSystem({
   private practiceBit = 0;
   private practiceNext = 0;
   private practiceWon = false;
-  private startPractice(notice: string): void {
-    if (this.practice || this.coopLink || this.flow.phase !== 'play' || this.flow.daily || this.grand) return;
+  private practiceTutorial = false;
+  private startPractice(notice: string): boolean {
+    if (this.practice || this.coopLink || this.flow.phase !== 'play' || this.flow.daily || this.flow.challenge || this.grand) return false;
     this.practice = true;
+    this.practiceTutorial = this.flow.tutorial; // the caller gap pauses the tutorial: give it back after
     this.practiceIn = -1;
     this.practiceRow = -1;
     this.practiceWon = false;
@@ -2137,6 +2183,7 @@ export class GameSystem extends createSystem({
     audio.chirp('happy');
     this.showNotice(`${notice}: they pin the threads of each row`, 8, 'centre');
     this.debug.practice = true;
+    return true;
   }
   private endPractice(): void {
     this.practiceIn = -1;
@@ -2144,6 +2191,10 @@ export class GameSystem extends createSystem({
     this.practice = false;
     this.view.clearPins();
     this.setCallerGap(false);
+    if (this.practiceTutorial && !this.progress.tutorialDone) {
+      this.flow.tutorial = true;
+      this.flow.refresh();
+    }
     this.debug.practice = false;
   }
   private tickPractice(dt: number): void {
@@ -2155,7 +2206,14 @@ export class GameSystem extends createSystem({
         return;
       }
       this.practiceIn -= dt;
-      if (this.practiceIn <= 0) this.startPractice('No one yet, so a practice caller picks up');
+      if (this.practiceIn <= 0) {
+        this.practiceIn = -1;
+        this.startPractice('No one yet, so a practice caller picks up');
+      }
+      return;
+    }
+    if (this.flow.challenge || this.flow.daily) {
+      if (this.view.pinned) this.view.clearPins();
       return;
     }
     if (this.flow.phase !== 'play') {
@@ -2264,7 +2322,7 @@ export class GameSystem extends createSystem({
           at.x = bobbinX(side);
           at.y = BOBBIN.y;
           at.z = BOBBIN.z;
-          text = 'Pull to undo';
+          text = 'Poke to undo';
           lift = 0.06;
         }
         break;
@@ -2408,6 +2466,7 @@ export class GameSystem extends createSystem({
     if (this.calibrator) {
       this.updateCalibration(dt);
       this.syncView(dt);
+      if (this.view.gazeDot.visible) this.view.setGazeDot(0, 0, 0, 0);
       return;
     }
     for (const side of ['left', 'right'] as const) this.fillInput(side);
@@ -2747,7 +2806,7 @@ export class GameSystem extends createSystem({
   private tickIntro(dt: number): void {
     if (this.introT < 0) return;
     const c = this.controller;
-    const busy = c.holding.left !== null || c.holding.right !== null || this.model.rows.length > 0 || this.flow.phase !== 'play';
+    const busy = c.holding.left !== null || c.holding.right !== null || c.hover.left !== null || c.hover.right !== null || this.model.rows.length > 0 || this.flow.phase !== 'play';
     this.introT += dt;
     const k = Math.floor((this.introT - INTRO_WAIT) / INTRO_STEP);
     if (busy || k >= INTRO.length) {
