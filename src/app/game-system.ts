@@ -97,6 +97,9 @@ function surprisePlate(chapter: string | undefined, id: string): string {
 }
 
 /** Look to play's control keys (numbers, so nothing is built per frame). */
+/** Seconds after a row before Pip weaves an identical next row by himself. */
+const REPEAT_AFTER = 0.75;
+
 const LOOK_LEVER = 0;
 const LOOK_PIP = 10;
 const LOOK_UNDO = 11;
@@ -183,6 +186,8 @@ export interface GameDebug {
   friend?: string;
   /** The last chapter quilt that sang because it was looked at (debug/E2E). */
   quiltSong?: string;
+  /** Rows Pip wove by himself because they repeated the last one (debug/E2E). */
+  repeats?: number;
   /** The first-time tour's current part ('done' once over) (debug/E2E). */
   intro?: string;
   /** Times the loom was moved from the name plate (debug/E2E). */
@@ -367,6 +372,7 @@ export class GameSystem extends createSystem({
       },
       leverClick: (k, latched) => {
         this.view.card.clearMiss(); // you're fixing it: the last wrong row's marks go
+        this.repeatAt = -1; // you've changed the levers: Pip waits for you
         if (this.quietLevers) return;
         audio.click(latched);
         this.view.latchPop(k, latched);
@@ -543,6 +549,9 @@ export class GameSystem extends createSystem({
         this.autoUndoRow = !good ? e.index : -1;
         this.view.card.lastMiss = good ? null : { r: e.index, woven: e.row };
         this.autoUndoAt = this.time + 2.2; // long enough to see which squares were wrong
+        // the same row again with the levers as they are: Pip remembers it and flies back by himself
+        const tg = this.flow.level.target;
+        this.repeatAt = good && e.index + 1 < tg.length && tg[e.index + 1] === tg[e.index] ? this.time + REPEAT_AFTER : -1;
         audio.chirp(good ? 'happy' : 'sad');
         audio.verdict(good);
         // in rhythm: a right row thrown on the music's beat lands with a golden sparkle and a chord
@@ -2017,6 +2026,35 @@ export class GameSystem extends createSystem({
     return surprisePlate(this.flow.level.chapter, this.flow.level.id);
   }
 
+  /**
+   * Same row again: the levers already make it, so sliding Pip again would be a chore. Pip flies
+   * back by himself (a little "again!" trill), unless a hand is on him or the levers changed.
+   */
+  private repeatAt = -1;
+  private repeatTold = false;
+  private repeatRow(): void {
+    if (this.repeatAt < 0 || this.time < this.repeatAt) return;
+    const c = this.controller;
+    const lv = this.flow.level;
+    const r = this.model.rows.length;
+    const stillSame = this.flow.phase === 'play' && r > 0 && r < lv.target.length && lv.target[r] === lv.target[r - 1];
+    // the shed (plus a seated friend) and Pip's yarn must already make it
+    const ready = stillSame && (this.model.shed & 255) === (lv.target[r] & 255) && ((lv.target[r] & 256) !== 0 ? 1 : 0) === this.model.weft;
+    if (!ready || c.mirror || this.coopLink instanceof CoopGuest || !c.allow.shuttle) {
+      this.repeatAt = -1;
+      return;
+    }
+    if (c.shuttle.held || c.autoThrow) return; // Pip's still in a hand (or in flight): wait for him
+    this.repeatAt = -1;
+    audio.chirp('happy');
+    c.throwShuttle();
+    this.debug.repeats = (this.debug.repeats ?? 0) + 1;
+    if (!this.repeatTold) {
+      this.repeatTold = true;
+      this.showNotice('Same row again: Pip remembers it', 3, 'centre');
+    }
+  }
+
   /** The spot a plush is in now (-1: none). */
   private spotOf(id: string): number {
     for (let i = 0; i < SPOTS; i++) if (this.view.plushes.idAt(i) === id) return i;
@@ -3042,6 +3080,7 @@ export class GameSystem extends createSystem({
     this.updateGrand(dt);
     this.previewFriend();
     this.autoUndo();
+    this.repeatRow();
     // while the plush dances on its stage, the plate and token step aside
     const staged = this.view.plushes.staged;
     this.view.plaque.mesh.visible = !staged;
