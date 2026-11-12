@@ -47,3 +47,7 @@ artifacts/
 tools/.goto-share.mjs
 __pycache__/
 assets-src/
+
+# capture leftovers (tools/site-photos.mjs)
+public/site/.pip-*.jpg
+public/site/.raw/
