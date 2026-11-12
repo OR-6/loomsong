@@ -21,10 +21,10 @@ export const CHAPTERS: Chapter[] = [
     "name": "Home",
     "idea": "two levers at once",
     "levels": [
-      "cup",
       "heart",
       "house",
-      "star"
+      "star",
+      "cup"
     ]
   },
   {
@@ -166,37 +166,6 @@ export const PICTURES: PictureLevel[] = [
     "rootMidi": 67
   },
   {
-    "id": "cup",
-    "name": "Cup",
-    "chapter": "home",
-    "mystery": false,
-    "color": 0x3d8fd1,
-    "picture": [
-      "##.##.##",
-      "########",
-      "#######.",
-      "#######.",
-      ".#####..",
-      "..###..."
-    ],
-    "tieUp": [
-      28,
-      127,
-      219,
-      62
-    ],
-    "target": [
-      28,
-      62,
-      127,
-      127,
-      255,
-      219
-    ],
-    "par": 7,
-    "rootMidi": 64
-  },
-  {
     "id": "heart",
     "name": "Heart",
     "chapter": "home",
@@ -225,7 +194,7 @@ export const PICTURES: PictureLevel[] = [
       102
     ],
     "par": 6,
-    "rootMidi": 69
+    "rootMidi": 64
   },
   {
     "id": "house",
@@ -256,7 +225,7 @@ export const PICTURES: PictureLevel[] = [
       24
     ],
     "par": 7,
-    "rootMidi": 62
+    "rootMidi": 69
   },
   {
     "id": "star",
@@ -287,6 +256,37 @@ export const PICTURES: PictureLevel[] = [
       24
     ],
     "par": 9,
+    "rootMidi": 62
+  },
+  {
+    "id": "cup",
+    "name": "Cup",
+    "chapter": "home",
+    "mystery": false,
+    "color": 0x3d8fd1,
+    "picture": [
+      "##.##.##",
+      "########",
+      "#######.",
+      "#######.",
+      ".#####..",
+      "..###..."
+    ],
+    "tieUp": [
+      28,
+      127,
+      219,
+      62
+    ],
+    "target": [
+      28,
+      62,
+      127,
+      127,
+      255,
+      219
+    ],
+    "par": 7,
     "rootMidi": 60
   },
   {

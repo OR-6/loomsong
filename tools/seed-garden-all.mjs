@@ -5,7 +5,7 @@ export default async function run({ page, frame }) {
     g.controller.releaseAll();
     Object.assign(g.progress.best, { sprout: 3, tulip: 3, duck: 3, table: 3 });
     g.progress.tutorialDone = true;
-    g.flow.start(4); // Home's cup
+    g.flow.start(4); // Home's first picture (the Heart)
     await new Promise((r) => setTimeout(r, 400));
     return { level: g.flow.level.id };
   });

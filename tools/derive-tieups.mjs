@@ -19,10 +19,10 @@ const CHAPTERS = [
     { id: 'table', name: 'Table', color: 0xb5683a, rows: ['...##...', '..####..', '########', '..#..#..', '..#..#..'], tie: [0b00100100, 0b00000011, 0b11000000], friend: 0b00011000 },
   ] },
   { id: 'home', name: 'Home', idea: 'two levers at once', rule: 'parts', pics: [
-    { id: 'cup', name: 'Cup', color: 0x3d8fd1, rows: ['##.##.##', '########', '#######.', '#######.', '.#####..', '..###...'] },
     { id: 'heart', name: 'Heart', color: 0xe2563b, rows: ['.##..##.', '########', '########', '.######.', '..####..', '...##...'] },
     { id: 'house', name: 'House', color: 0xf08a4b, rows: ['...##...', '..####..', '.######.', '########', '##.##.##', '##.##.##'] },
     { id: 'star', name: 'Star', color: 0xf2b632, rows: ['...##...', '...##...', '########', '.######.', '..####..', '.##..##.'] },
+    { id: 'cup', name: 'Cup', color: 0x3d8fd1, rows: ['##.##.##', '########', '#######.', '#######.', '.#####..', '..###...'] },
   ] },
   { id: 'night', name: 'Night', idea: 'mystery levers', rule: 'parts', mystery: true, pics: [
     { id: 'moon', name: 'Moon', color: 0xeeae1c, rows: ['..###...', '.##.....', '##......', '##......', '.##.....', '..###...'] },
