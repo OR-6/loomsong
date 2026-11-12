@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { difficultyFor, generateLevel, rng } from '../src/puzzle/generator';
-import { LEVELS, levelAt } from '../src/puzzle/catalog';
+import { LEVELS, bonusLevel, levelAt } from '../src/puzzle/catalog';
 import { computePar, rowReachable } from '../src/puzzle/par';
 import { LEVERS, WARPS } from '../src/config';
 
@@ -32,10 +32,11 @@ describe('generator', () => {
     }
   });
 
-  it('bonus patterns follow the picture levels, with stable ids', () => {
-    expect(levelAt(LEVELS.length).id).toBe('bonus1');
-    expect(levelAt(20)).toBe(levelAt(20)); // cached
-    for (let i = LEVELS.length; i < 40; i++) expect(levelAt(i).target.length).toBe(difficultyFor(i).rows);
+  it('bonus patterns keep stable ids (tools), and after the pictures levelAt replays them', () => {
+    expect(bonusLevel(LEVELS.length).id).toBe('bonus1');
+    expect(bonusLevel(20)).toBe(bonusLevel(20)); // cached
+    for (let i = LEVELS.length; i < 40; i++) expect(bonusLevel(i).target.length).toBe(difficultyFor(i).rows);
+    expect(levelAt(LEVELS.length + 2).id).toBe(LEVELS[2].id);
   });
 
   it('levels 4–6 stay in the 30–90 s band (rows × par heuristic)', () => {

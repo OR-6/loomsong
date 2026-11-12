@@ -196,6 +196,8 @@ export interface GameDebug {
   repeats?: number;
   /** The first-time tour's current part ('done' once over) (debug/E2E). */
   intro?: string;
+  /** The 'set up your room' tip was shown (no planes) (debug/E2E). */
+  roomTip?: boolean;
   /** Today's visitor, when one came for a plush on the desk (debug/E2E). */
   visitor?: string;
   /** Times the loom was moved from the name plate (debug/E2E). */
@@ -2281,6 +2283,25 @@ export class GameSystem extends createSystem({
     }
   }
 
+  /**
+   * No room scan, no room features (the table under plushes, quilts on the wall, visitors' spots): say so
+   * once, a few seconds after the loom is out, instead of silently playing as plain VR.
+   */
+  private roomTipIn = 6;
+  private roomTold = false;
+  private roomTip(dt: number): void {
+    if (this.roomTold || this.placement.phase !== 'placed' || !this.world.session || this.flow.phase !== 'play') return;
+    if (this.queries.planes.entities.size > 0) {
+      this.roomTold = true;
+      return;
+    }
+    this.roomTipIn -= dt;
+    if (this.roomTipIn > 0 || this.notice) return;
+    this.roomTold = true;
+    this.showNotice('Tip: set up your room in the Quest settings so Pip finds your table and wall', 7, 'centre');
+    this.debug.roomTip = true;
+  }
+
   /** The spot a plush is in now (-1: none). */
   private spotOf(id: string): number {
     for (let i = 0; i < SPOTS; i++) if (this.view.plushes.idAt(i) === id) return i;
@@ -3322,6 +3343,7 @@ export class GameSystem extends createSystem({
     this.previewFriend();
     this.autoUndo();
     this.repeatRow();
+    this.roomTip(dt);
     this.tickEar();
     // while the plush dances on its stage, the plate and token step aside
     const staged = this.view.plushes.staged;

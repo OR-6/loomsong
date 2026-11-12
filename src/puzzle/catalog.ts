@@ -31,9 +31,17 @@ export const THANKS_LEVEL: Level = { ...heart, id: 'thanks', name: 'Thank you', 
 
 const cache = new Map<number, Level>();
 
-/** Level at 0-based index i: pictures first, then bonus patterns forever. */
+/**
+ * Level at 0-based index i: the pictures, then (after the finale) the pictures again from the start,
+ * to weave for gold with what you know now (never random, nameless patterns).
+ */
 export function levelAt(i: number): Level {
   if (i < LEVELS.length) return LEVELS[i];
+  return LEVELS[(i - LEVELS.length) % LEVELS.length];
+}
+
+/** A random pattern (the Workshop's own), kept for tools and tests. */
+export function bonusLevel(i: number): Level {
   let l = cache.get(i);
   if (!l) {
     l = { ...generateLevel(100003 * (i + 1), difficultyFor(i), `bonus${i - LEVELS.length + 1}`), name: 'Bonus pattern' };

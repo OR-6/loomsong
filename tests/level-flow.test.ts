@@ -70,10 +70,10 @@ describe('level flow', () => {
     expect(plucks.length).toBe(2);
   });
 
-  it('after the last picture the sequence continues into bonus patterns', () => {
+  it('after the last picture the pictures come round again (never random patterns)', () => {
     const { flow } = setup({ level: LEVELS.length, best: {}, tutorialDone: true, theme: 'toy' });
     flow.start();
-    expect(flow.level.id).toBe('bonus1');
+    expect(flow.level.id).toBe(LEVELS[0].id);
   });
 
   it('challenge: weaving a shared cloth does not advance progress, then resumes', () => {

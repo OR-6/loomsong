@@ -38,10 +38,10 @@ describe('picture levels', () => {
     expect(avg('garden')).toBeLessThan(avg('home'));
     expect(combos('sprout')).toBe(1); // the aha: the top row needs both levers
   });
-  it('level sequence: pictures first, then bonus patterns', () => {
+  it('level sequence: the pictures, then the pictures again (for gold)', () => {
     expect(levelAt(0).id).toBe('sprout');
     expect(levelAt(LEVELS.length - 1).id).toBe(PICTURES.at(-1)!.id);
-    expect(levelAt(LEVELS.length).id).toBe('bonus1');
+    expect(levelAt(LEVELS.length).id).toBe('sprout');
   });
   it('the picture of the day is stable for a day and the whole set comes round before a repeat', () => {
     expect(dailyLevel('2026-11-10')).toEqual(dailyLevel('2026-11-10'));
