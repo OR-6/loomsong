@@ -1307,6 +1307,11 @@ export class LoomView {
   private pipWakeT = -1;
   private zzzIn = 0.6;
 
+  /** Pip is free to react (on its perch, not flying, no other mood playing). */
+  get pipIdle(): boolean {
+    return this.mood === 'none' && Math.abs(this.shuttleVel) < 0.05 && this.pipGrabT < 0 && this.pipWakeT < 0;
+  }
+
   /** Pip wakes with a stretch. */
   wakePip(): void {
     if (!this.pipAsleep) return;

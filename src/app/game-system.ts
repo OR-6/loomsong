@@ -135,6 +135,8 @@ export interface GameDebug {
   friend?: string;
   /** The last chapter quilt that sang because it was looked at (debug/E2E). */
   quiltSong?: string;
+  /** Times Pip waved because the player looked at it (debug/E2E). */
+  pipNoticed?: number;
   /** Motion controllers are held (the game wants bare hands). */
   controllers?: boolean;
   /** The last few notices shown (E2E: a notice can come and go between two checks). */
@@ -1583,6 +1585,38 @@ export class GameSystem extends createSystem({
     if (this.seated < 0) this.view.previewFriend(key, color);
   }
 
+  /**
+   * Pip notices you: look straight at it for a moment while it sits on its perch and it
+   * turns, hops and waves (a sleeping Pip wakes instead). Not more than once every 25 s.
+   */
+  private pipGazeT = 0;
+  private pipWaveAt = -99;
+  private pipGazePos = new Vector3();
+  private gazePip(dt: number): void {
+    const held = this.controller.shuttle.held || this.controller.autoThrow;
+    if (held || this.time - this.pipWaveAt < 25 || this.grand) {
+      this.pipGazeT = 0;
+      return;
+    }
+    this.view.shuttle.getWorldPosition(this.pipGazePos).sub(this.head);
+    const d = this.pipGazePos.length();
+    this.player.head.getWorldQuaternion(this.gazeQ);
+    this.gazeFwd.set(0, 0, -1).applyQuaternion(this.gazeQ);
+    const looking = d > 0.1 && this.pipGazePos.dot(this.gazeFwd) / d > 0.9962; // within about 5 degrees
+    this.pipGazeT = looking ? this.pipGazeT + dt : 0;
+    if (this.pipGazeT < 0.9) return;
+    this.pipGazeT = 0;
+    this.pipWaveAt = this.time;
+    if (this.view.pipAsleep) {
+      this.view.wakePip();
+      return;
+    }
+    if (!this.view.pipIdle) return;
+    this.view.setPipMood('wave');
+    audio.pipGrab(); // a small hello
+    this.debug.pipNoticed = (this.debug.pipNoticed ?? 0) + 1;
+  }
+
   /** The spot a plush is in now (-1: none). */
   private spotOf(id: string): number {
     for (let i = 0; i < SPOTS; i++) if (this.view.plushes.idAt(i) === id) return i;
@@ -1943,6 +1977,7 @@ export class GameSystem extends createSystem({
     if (this.debug.anchored) this.saveLoomPose();
     this.updateQuilts(dt);
     this.gazeQuilts(dt);
+    this.gazePip(dt);
     // Pip wakes when a hand comes near the loom's controls (or after a while on its own)
     if (this.view.pipAsleep) {
       this.asleepFor += dt;
