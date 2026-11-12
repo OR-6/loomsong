@@ -110,12 +110,13 @@ export function mergeStatic(root: Object3D, keep: (o: Object3D) => boolean): num
         const size = a.itemSize;
         const dst = attrs[key];
         for (let i = 0; i < n; i++) {
-          if (key === 'position') {
-            v.fromBufferAttribute(a, i).applyMatrix4(mat);
-            dst.set([v.x, v.y, v.z], (vo + i) * 3);
-          } else if (key === 'normal') {
-            v.fromBufferAttribute(a, i).applyMatrix3(nrm).normalize();
-            dst.set([v.x, v.y, v.z], (vo + i) * 3);
+          if (key === 'position' || key === 'normal') {
+            if (key === 'position') v.fromBufferAttribute(a, i).applyMatrix4(mat);
+            else v.fromBufferAttribute(a, i).applyMatrix3(nrm).normalize();
+            const o = (vo + i) * 3; // written straight in: no array per vertex
+            dst[o] = v.x;
+            dst[o + 1] = v.y;
+            dst[o + 2] = v.z;
           } else {
             for (let c = 0; c < size; c++) dst[(vo + i) * size + c] = a.array[i * size + c] as number;
           }

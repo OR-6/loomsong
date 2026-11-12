@@ -20,6 +20,9 @@ const CHAPTERS = [
     { id: 'heart', name: 'Heart', color: 0xe2563b, rows: ['.##..##.', '########', '########', '.######.', '..####..', '...##...'] },
     { id: 'house', name: 'House', color: 0xf08a4b, rows: ['...##...', '..####..', '.######.', '########', '##.##.##', '##.##.##'] },
     { id: 'star', name: 'Star', color: 0xf2b632, rows: ['...##...', '...##...', '########', '.######.', '..####..', '.##..##.'] },
+    // a friend picture: a plush on the cushion lifts the threads under its feet (its bottom row);
+    // the legs need it off, the tabletop, vase and flower need it on (Sprout, the first plush, fits)
+    { id: 'table', name: 'Table', color: 0xb5683a, rows: ['...##...', '..####..', '########', '..#..#..', '..#..#..'], tie: [0b00100100, 0b00000011, 0b11000000], friend: 0b00011000 },
   ] },
   { id: 'night', name: 'Night', idea: 'mystery levers', rule: 'parts', mystery: true, pics: [
     { id: 'moon', name: 'Moon', color: 0xeeae1c, rows: ['..###...', '.##.....', '##......', '##......', '.##.....', '..###...'] },
@@ -180,11 +183,14 @@ for (const ch of CHAPTERS) {
     if (!tie) { console.error('NOT WEAVABLE:', p.id); process.exitCode = 1; continue; }
     // Order levers so the first row's lever comes first (tutorial clarity).
     // Garden: the first row's lever first (tutorial). Parts: biggest piece first.
-    tie.sort((a, b) => (warps[0] === b) - (warps[0] === a) || pc(b) - pc(a));
-    const pr = par(tie, warps);
+    if (!p.friend) tie.sort((a, b) => (warps[0] === b) - (warps[0] === a) || pc(b) - pc(a));
+    // with a friend, rows holding its threads need the levers for the rest (seating it is not a lever move)
+    const leverRows = p.friend ? warps.map((r) => ((r & p.friend) === p.friend ? r & ~p.friend : r)) : warps;
+    if (p.friend && !canMake([...new Set(leverRows)].filter((r) => r), tie)) { console.error('FRIEND LEVEL NOT WEAVABLE:', p.id); process.exitCode = 1; }
+    const pr = par(tie, leverRows);
     const combos = warps.filter((r) => !tie.includes(r)).length;
     console.log(`${ch.id.padEnd(7)} ${p.id.padEnd(10)} levers ${tie.length} rows ${target.length} combos ${combos} choices ${choicesOf(warps, tie)} par ${pr}  [${tie.map((m) => m.toString(2).padStart(8, '0').split('').reverse().join('').replace(/0/g, '.').replace(/1/g, '#')).join(' ')}]`);
-    out.push({ id: p.id, name: p.name, chapter: ch.id, mystery: !!ch.mystery, color: p.color, ...(p.weft ? { weft: p.weft } : {}), picture: p.rows, tieUp: tie, target, par: pr, rootMidi: ROOTS[i++ % ROOTS.length] });
+    out.push({ id: p.id, name: p.name, chapter: ch.id, mystery: !!ch.mystery, color: p.color, ...(p.weft ? { weft: p.weft } : {}), ...(p.friend ? { friend: p.friend } : {}), picture: p.rows, tieUp: tie, target, par: pr, rootMidi: ROOTS[i++ % ROOTS.length] });
   }
 }
 const daily = [];

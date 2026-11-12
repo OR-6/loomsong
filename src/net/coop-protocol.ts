@@ -144,11 +144,21 @@ export class CoopHost {
     };
   }
 
+  /** Last snapshot sent, as text: unchanged state isn't resent (a heartbeat goes every second). */
+  private lastSent = '';
+  private sinceSent = 0;
+
   tick(dt: number): void {
     this.acc += dt;
+    this.sinceSent += dt;
     if (this.acc < 1 / SNAP_HZ) return;
     this.acc = 0;
-    this.link.send(this.snapshot());
+    const snap = this.snapshot();
+    const text = JSON.stringify(snap);
+    if (text === this.lastSent && this.sinceSent < 1) return;
+    this.lastSent = text;
+    this.sinceSent = 0;
+    this.link.send(snap);
   }
 }
 

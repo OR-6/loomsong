@@ -81,6 +81,8 @@ export interface ControllerHooks {
 const KEY_TARGET = { kind: 'windKey' } as const;
 const DAILY_TARGET = { kind: 'daily' } as const;
 const PHONE_TARGET = { kind: 'phone' } as const;
+/** The two nudge arrows (direction, z): allocated once, not per hand per frame. */
+const NUDGE_SPOTS = [[1, NUDGE.upZ], [-1, NUDGE.downZ]] as const;
 const SWAP_TARGET = { kind: 'swap' } as const;
 
 /** Lever settle speed in t/s, shuttle return speed in m/s. */
@@ -591,7 +593,7 @@ export class LoomController {
     }
     if (this.nudgeEnabled) {
       const nx = nudgeX(this.bankSide);
-      for (const [dir, z] of [[1, NUDGE.upZ], [-1, NUDGE.downZ]] as const) {
+      for (const [dir, z] of NUDGE_SPOTS) {
         const dn = Math.hypot(p.x - nx, p.y - NUDGE.y, p.z - z);
         if (dn < bestD) {
           bestD = dn;

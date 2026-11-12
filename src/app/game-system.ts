@@ -768,7 +768,8 @@ export class GameSystem extends createSystem({
     // the toy telephone's tag: the code while it waits for the caller
     const hosting = st.role === 'host' && (st.state === 'hosting' || st.state === 'connected');
     if (!hosting) this.view.phone.setState('idle');
-    else if (this.view.phone.phoneState !== 'connected' || st.state === 'hosting') this.view.phone.setState('calling', st.code ?? '');
+    // the code shows once the line is open (before that a friend couldn't join with it yet)
+    else if (this.view.phone.phoneState !== 'connected' || st.state === 'hosting') this.view.phone.setState('calling', st.state === 'hosting' && st.message !== 'Waiting for a friend' ? '…' : (st.code ?? ''));
     // Any state change other than a fresh connection ends the current link.
     if (this.coopLink && (st.state !== 'connected' || coop.transport !== this.coopTransport)) {
       this.endCoop(st.state === 'closed' || st.state === 'error');
@@ -1023,13 +1024,17 @@ export class GameSystem extends createSystem({
       this.quiltFlyIn = Math.max(0, this.singUntil - this.time) + 0.4;
     }
     // that was the last chapter: once the quilt is up, the loom says thank you
-    if (LEVELS.every((l) => (this.progress.best[l.id] ?? 0) > 0)) this.grandIn = 2;
+    if (!this.progress.grandSeen && LEVELS.every((l) => (this.progress.best[l.id] ?? 0) > 0)) this.grandIn = 2;
   }
 
   /** The loom's thank-you: it weaves a rose heart by itself. */
   private startGrand(): void {
     this.grandIn = -1;
     this.grand = { t: 0, next: 1.6, throwAt: -1, won: -1, round: 0, roundAt: -1, singAt: -1 };
+    if (!FORCE_FINALE) {
+      this.progress.grandSeen = true; // once: replaying a chapter later doesn't bring it back
+      saveProgress(this.progress);
+    }
     this.controller.releaseAll();
     this.controller.allow = { levers: false, shuttle: false }; // hands rest: the loom plays itself
     this.flow.startChallenge(THANKS_LEVEL);
@@ -1069,7 +1074,8 @@ export class GameSystem extends createSystem({
   private updateGrand(dt: number): void {
     if (this.grandIn > 0 && !this.grand) {
       // wait for a quiet desk: a fresh picture up, nothing flying or singing
-      const quiet = this.flow.phase === 'play' && !this.finale && !this.quiltFly && this.quiltFlyIn < 0 && !this.view.plushes.busy && this.time >= this.singUntil && !this.coopLink;
+      // nobody mid-row, no picture of the day on the loom, no call open or ringing
+      const quiet = this.flow.phase === 'play' && !this.finale && !this.quiltFly && this.quiltFlyIn < 0 && !this.view.plushes.busy && this.time >= this.singUntil && !this.coopLink && coop.status.state !== 'hosting' && coop.status.state !== 'connected' && !this.flow.daily && !this.flow.challenge && this.model.rows.length === 0;
       if (quiet) {
         this.grandIn -= dt;
         if (this.grandIn <= 0) this.startGrand();
@@ -1080,6 +1086,12 @@ export class GameSystem extends createSystem({
     if (!g) return;
     g.t += dt;
     const c = this.controller;
+    // watchdog: if anything took the loom off the thank-you before it was woven (a call, a skein),
+    // end the finale and give the hands back rather than weave someone's own picture for them
+    if (g.won < 0 && (!this.flow.challenge || this.flow.level !== THANKS_LEVEL)) {
+      this.endGrand();
+      return;
+    }
     if (this.flow.phase === 'play' && g.won < 0) {
       if (g.throwAt >= 0 && g.t >= g.throwAt) {
         g.throwAt = -1;
@@ -1137,11 +1149,13 @@ export class GameSystem extends createSystem({
       if (!last) g.roundAt = g.t + Math.max(0, this.singUntil - this.time) + 0.5;
     }
     // done once the next picture is up
-    if (this.flow.phase === 'play' && !this.flow.challenge) {
-      this.grand = null;
-      c.allow = { levers: true, shuttle: true };
-      if (this.debug) this.debug.grand = 'done';
-    }
+    if (this.flow.phase === 'play' && !this.flow.challenge) this.endGrand();
+  }
+
+  private endGrand(): void {
+    this.grand = null;
+    this.controller.allow = { levers: true, shuttle: true };
+    if (this.debug) this.debug.grand = 'done';
   }
 
   /** The wind-up key: every finished plush on the shelf sings in turn, left to right (the shelf is a music box). */
@@ -1346,7 +1360,7 @@ export class GameSystem extends createSystem({
 
   /** Weave today's picture (once a day; the ball says when the next one comes). */
   private startDaily(): void {
-    if (this.flow.phase !== 'play' || this.coopLink || this.flow.daily) return;
+    if (this.flow.phase !== 'play' || this.coopLink || this.flow.daily || this.grand) return;
     this.syncDaily();
     if (this.dailyDone) {
       audio.tick();
@@ -1487,27 +1501,22 @@ export class GameSystem extends createSystem({
       const at = this.view.plushes.plushCentre(i, this.plushVecs[i]);
       c.plushSpots[i] = this.coopLink ? null : at;
     }
-    const pl = (t: unknown) => ((t as { kind?: string; i?: number } | null)?.kind === 'plush' ? (t as { i: number }).i : -1);
-    this.view.plushes.hover(Math.max(pl(c.hover.left), pl(c.hover.right)));
+    this.view.plushes.hover(Math.max(indexOfKind(c.hover.left, 'plush'), indexOfKind(c.hover.right, 'plush')));
     c.keySpot = this.coopLink || this.flow?.challenge || !this.view.plushes.shelfShown ? null : this.view.plushes.keyCentre(this.keyVec);
     c.swapSpot = this.flow?.level?.weft && !this.coopLink ? this.view.swapSpoolPos(this.swapVec) : null; // follows the lever side
-    const sw = (t: unknown) => (t as { kind?: string } | null)?.kind === 'swap';
-    this.view.setSwapHighlight(sw(c.hover.left) || sw(c.hover.right) ? 1 : 0, this.swapGlow);
-    const key = (t: unknown) => (t as { kind?: string } | null)?.kind === 'windKey';
-    this.view.plushes.hoverKey(key(c.hover.left) || key(c.hover.right));
-    c.dailySpot = this.view.daily.root.visible && this.flow?.phase === 'play' ? this.dailyVec : null;
+    this.view.setSwapHighlight(isKind(c.hover.left, 'swap') || isKind(c.hover.right, 'swap') ? 1 : 0, this.swapGlow);
+    this.view.plushes.hoverKey(isKind(c.hover.left, 'windKey') || isKind(c.hover.right, 'windKey'));
+    c.dailySpot = this.view.daily.root.visible && this.flow?.phase === 'play' && !this.grand ? this.dailyVec : null;
     // the card's rows can be poked to hear them (not while a caller holds the picture: that would give it away)
     const rowsOk = this.flow?.phase === 'play' && !this.view.card.secret && !this.coopLink;
     for (let r = 0; r < 8; r++) c.cardRows[r] = rowsOk ? this.view.cardRowPos(r, this.cardRowVecs[r]) : null;
-    const dy = (t: unknown) => (t as { kind?: string } | null)?.kind === 'daily';
-    this.view.daily.hover(dy(c.hover.left) || dy(c.hover.right));
+    this.view.daily.hover(isKind(c.hover.left, 'daily') || isKind(c.hover.right, 'daily'));
     // the toy telephone: once the first picture is done (never in the first minutes), not during the finale
     const ph = this.view.phone;
     ph.root.visible = this.progress.tutorialDone && !this.grand && !this.photoMode;
     this.phoneVec.set(this.controller.bankSide * TOY_PHONE.x, TOY_PHONE.y, TOY_PHONE.z);
     c.phoneSpot = ph.root.visible && this.flow?.phase === 'play' && !this.flow.challenge ? this.phoneVec : null;
-    const pt = (t: unknown) => (t as { kind?: string } | null)?.kind === 'phone';
-    ph.hover(pt(c.hover.left) || pt(c.hover.right));
+    ph.hover(isKind(c.hover.left, 'phone') || isKind(c.hover.right, 'phone'));
   }
 
   /** The toy telephone: call a friend (host a loom and show its code), or hang up. */
@@ -1638,7 +1647,7 @@ export class GameSystem extends createSystem({
   /** A chapter's yarn ball was pressed: jump to its first unfinished picture. */
   private pickChapter(i: number): void {
     const ch = CHAPTERS[i];
-    if (!ch || this.flow.phase !== 'play' || this.coopLink) return;
+    if (!ch || this.flow.phase !== 'play' || this.coopLink || this.grand) return;
     const states = chapterStates(this.progress, this.flow.level.chapter);
     if (states[i] === 'locked') {
       audio.tick();
@@ -1793,7 +1802,13 @@ export class GameSystem extends createSystem({
   private watchControllers(dt: number): void {
     const sess = this.renderer.xr.getSession?.();
     let held = false;
-    if (sess) for (const src of sess.inputSources) if (!src.hand && (src.handedness === 'left' || src.handedness === 'right')) held = true;
+    const srcs = sess?.inputSources;
+    if (srcs) {
+      for (let i = 0; i < srcs.length; i++) {
+        const src = srcs[i];
+        if (!src.hand && (src.handedness === 'left' || src.handedness === 'right')) held = true;
+      }
+    }
     this.debug.controllers = held;
     if (this.placement.phase !== 'placed') {
       this.hint.set(held ? 'Put the controllers down' : 'Rest your hand here');
@@ -2123,8 +2138,7 @@ export class GameSystem extends createSystem({
       if (hov || held) hoverK = k;
     }
     this.view.setHoverLever(hoverK);
-    const sk = (t: unknown) => ((t as { kind?: string; i?: number } | null)?.kind === 'skein' ? (t as { i: number }).i : -1);
-    this.view.basket.hover(Math.max(sk(c.hover.left), sk(c.hover.right)));
+    this.view.basket.hover(Math.max(indexOfKind(c.hover.left, 'skein'), indexOfKind(c.hover.right, 'skein')));
     this.syncPlushSpots();
     this.syncTip(dt);
     if (this.bannerLeft > 0) {
@@ -2158,21 +2172,18 @@ export class GameSystem extends createSystem({
     this.lastHover[0] = hl;
     this.lastHover[1] = hr;
     this.view.setShuttleT(c.shuttle.t, dt);
-    const sh = (t: unknown) => (t as { kind?: string } | null)?.kind === 'shuttle';
     this.view.setShuttleHighlight(
-      sh(c.holding.left) || sh(c.holding.right) ? 2 : sh(c.hover.left) || sh(c.hover.right) ? 1 : 0,
+      isKind(c.holding.left, 'shuttle') || isKind(c.holding.right, 'shuttle') ? 2 : isKind(c.hover.left, 'shuttle') || isKind(c.hover.right, 'shuttle') ? 1 : 0,
     );
-    const bob = (t: unknown) => (t as { kind?: string } | null)?.kind === 'bobbin';
     this.view.setBobbinT(c.bobbin.t);
     // the undo spool ratchets as you pull it (a rising tick per fifth of the pull)
     const notch = Math.floor(c.bobbin.t * 5 + 1e-6);
     if (notch > this.undoNotch && notch < 5) audio.ratchet(notch);
     this.undoNotch = notch;
     this.view.setBobbinHighlight(
-      bob(c.holding.left) || bob(c.holding.right) ? 2 : bob(c.hover.left) || bob(c.hover.right) ? 1 : 0,
+      isKind(c.holding.left, 'bobbin') || isKind(c.holding.right, 'bobbin') ? 2 : isKind(c.hover.left, 'bobbin') || isKind(c.hover.right, 'bobbin') ? 1 : 0,
     );
-    const tok = (t: unknown) => (t as { kind?: string } | null)?.kind === 'token';
-    this.view.setTokenHighlight(tok(c.hover.left) || tok(c.hover.right) ? 1 : 0);
+    this.view.setTokenHighlight(isKind(c.hover.left, 'token') || isKind(c.hover.right, 'token') ? 1 : 0);
     if (this.tokenPop < 1) {
       // springy pop-in (overshoot), then settle
       this.tokenPop = Math.min(1, this.tokenPop + dt * 2.5);
@@ -2318,4 +2329,15 @@ function isTarget(t: unknown, k: number): boolean {
 /** Stereo position for something at loom-space x (the loom is straight ahead of the seat). */
 function panOf(x: number): number {
   return Math.max(-0.85, Math.min(0.85, x / 0.45));
+}
+
+/** Is this controller target of the given kind? (module-level: no closure per frame) */
+function isKind(t: unknown, kind: string): boolean {
+  return (t as { kind?: string } | null)?.kind === kind;
+}
+
+/** The index of a target of the given kind, or -1. */
+function indexOfKind(t: unknown, kind: string): number {
+  const k = t as { kind?: string; i?: number } | null;
+  return k?.kind === kind ? (k.i ?? -1) : -1;
 }

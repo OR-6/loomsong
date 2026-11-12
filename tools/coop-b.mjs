@@ -23,6 +23,6 @@ export default async function run({ context }) {
     if (action === 'throw') { L.game.controller.throwShuttle(); await sleep(1300); }
     if (action === 'undo') { L.game.controller.doUndo(); await sleep(600); }
     if (action === 'leave') { L.coop.leave(); await sleep(800); }
-    return { status: L.coop.status, coop: L.debug.coop, phase: L.debug.phase, level: L.debug.level, latched: L.debug.latched, rows: [...L.debug.rows], notice: L.debug.notice, applied: L.game.coopLink?.applied ?? null };
+    return { status: L.coop.status, coop: L.debug.coop, phase: L.debug.phase, level: L.debug.level, latched: L.debug.latched, rows: [...L.debug.rows], notice: L.debug.notice, notices: L.debug.notices ?? [], applied: L.game.coopLink?.applied ?? null };
   }, { action, code });
 }

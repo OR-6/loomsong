@@ -162,6 +162,7 @@ export function buildPlush(rows: readonly Mask8[], color: number, gold = false):
   g.rotation.order = 'YXZ'; // turn first, then lean: a desk plush can face you and lean back
   // matte felt (no sheen/gloss: it read as glassy), the loom's knitted stitch
   const mat = new MeshStandardMaterial({ color: new Color(color), roughness: 0.95, metalness: 0, map: feltTexture() });
+  mat.userData.ownMaterialOnly = true; // this plush's own colour (its felt texture is shared: kept)
   // the body is one soft sewn shape: the picture's outline, rounded and pillowed, with a running stitch
   const parts = pieces(rows);
   const H = rows.length;
@@ -355,6 +356,8 @@ export function disposePlush(g: Object3D): void {
     if (m.isInstancedMesh) {
       (m.material as MeshStandardMaterial).dispose();
       m.dispose();
+    } else if ((m as unknown as Mesh).isMesh && (m.material as MeshStandardMaterial).userData?.ownMaterialOnly) {
+      (m.material as MeshStandardMaterial).dispose();
     } else if ((m as unknown as Mesh).isMesh && (m.material as MeshStandardMaterial).userData?.own) {
       const mat = m.material as MeshStandardMaterial;
       mat.map?.dispose();

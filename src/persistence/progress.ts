@@ -17,6 +17,8 @@ export interface Progress {
   days?: string[];
   /** When the player was last at the loom (ms since 1970): a long while away and Pip is asleep. */
   lastSeen?: number;
+  /** The grand finale has played (it plays once; replaying a chapter doesn't bring it back). */
+  grandSeen?: boolean;
 }
 
 export interface SavedLoom {
@@ -51,6 +53,7 @@ export function loadProgress(): Progress {
     placed: validPlaced(p.placed),
     loom: validLoom(p.loom),
     lastSeen: typeof p.lastSeen === 'number' && Number.isFinite(p.lastSeen) ? p.lastSeen : undefined,
+    grandSeen: p.grandSeen === true ? true : undefined,
     days: Array.isArray(p.days) ? p.days.filter((d) => typeof d === 'string' && /^\d{4}-\d\d-\d\d$/.test(d)).slice(-400) : undefined,
   };
 }

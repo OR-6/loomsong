@@ -30,7 +30,7 @@ a = A('state');
 b = B('state');
 check('roles assigned', a.coop === 'host' && b.coop === 'guest', `${a.coop}/${b.coop}`);
 check('guest mirrors the host level', b.level === a.level, `${a.level} vs ${b.level}`);
-check('guest sees its role notice', b.notice === 'You throw the shuttle', b.notice);
+check('guest sees its role notice', b.notices.includes('You throw the shuttle'), JSON.stringify(b.notices)); // its tab may also be asked to put controllers down
 
 A('lever0');
 await wait(600);

@@ -35,7 +35,7 @@ export function normaliseCode(raw: string): string | null {
   return /^[CDFHJKMNPRTVWXY]{4}$/.test(c) ? c : null;
 }
 
-type PeerLike = { destroy(): void; on(ev: string, cb: (...a: unknown[]) => void): void; connect(id: string, o?: object): ConnLike };
+type PeerLike = { destroy(): void; on(ev: string, cb: (...a: unknown[]) => void): void; connect(id: string, o?: object): ConnLike; reconnect?(): void; destroyed?: boolean };
 type ConnLike = { send(d: unknown): void; on(ev: string, cb: (...a: unknown[]) => void): void; close(): void; open: boolean };
 
 class CoopSession {
@@ -96,6 +96,10 @@ class CoopSession {
       peer.on('open', () => {
         opened = true;
         if (gen === this.gen) this.set({ state: 'hosting', role: 'host', code, message: 'Waiting for a friend' });
+      });
+      // the signalling link dropped (headset asleep, a Wi-Fi blip): re-register the code, so the friend can still join
+      peer.on('disconnected', () => {
+        if (gen === this.gen && !peer.destroyed) peer.reconnect?.();
       });
       peer.on('connection', (c) => {
         const conn = c as ConnLike;

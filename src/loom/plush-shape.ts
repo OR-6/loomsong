@@ -202,30 +202,36 @@ export function addFeltBody(g: Group, on: (r: number, i: number) => boolean, H: 
 function smoothNormals(geo: ExtrudeGeometry): void {
   const pos = geo.getAttribute('position') as BufferAttribute;
   const n = pos.count;
-  const acc = new Map<string, [number, number, number]>();
-  const keys: string[] = new Array(n);
-  const q = (v: number) => Math.round(v * 1e5);
-  for (let k = 0; k < n; k++) keys[k] = `${q(pos.getX(k))},${q(pos.getY(k))},${q(pos.getZ(k))}`;
+  // shared positions by a numeric key (0.1 mm grid; a plush is well within ±0.5 m): no strings per vertex
+  const q = (v: number) => Math.round(v * 1e4) + 5000;
+  const slotOf = new Map<number, number>();
+  const slot = new Uint32Array(n);
+  for (let k = 0; k < n; k++) {
+    const key = q(pos.getX(k)) * 1e8 + q(pos.getY(k)) * 1e4 + q(pos.getZ(k));
+    let i = slotOf.get(key);
+    if (i === undefined) slotOf.set(key, (i = slotOf.size));
+    slot[k] = i;
+  }
+  const acc = new Float32Array(slotOf.size * 3);
   for (let k = 0; k + 2 < n; k += 3) {
     const ax = pos.getX(k), ay = pos.getY(k), az = pos.getZ(k);
     const ux = pos.getX(k + 1) - ax, uy = pos.getY(k + 1) - ay, uz = pos.getZ(k + 1) - az;
     const vx = pos.getX(k + 2) - ax, vy = pos.getY(k + 2) - ay, vz = pos.getZ(k + 2) - az;
     const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
     for (let j = 0; j < 3; j++) {
-      const a = acc.get(keys[k + j]) ?? [0, 0, 0];
-      a[0] += nx;
-      a[1] += ny;
-      a[2] += nz;
-      acc.set(keys[k + j], a);
+      const o = slot[k + j] * 3;
+      acc[o] += nx;
+      acc[o + 1] += ny;
+      acc[o + 2] += nz;
     }
   }
   const nor = new Float32Array(n * 3);
   for (let k = 0; k < n; k++) {
-    const a = acc.get(keys[k])!;
-    const l = Math.hypot(a[0], a[1], a[2]) || 1;
-    nor[k * 3] = a[0] / l;
-    nor[k * 3 + 1] = a[1] / l;
-    nor[k * 3 + 2] = a[2] / l;
+    const o = slot[k] * 3;
+    const l = Math.hypot(acc[o], acc[o + 1], acc[o + 2]) || 1;
+    nor[k * 3] = acc[o] / l;
+    nor[k * 3 + 1] = acc[o + 1] / l;
+    nor[k * 3 + 2] = acc[o + 2] / l;
   }
   geo.setAttribute('normal', new BufferAttribute(nor, 3));
 }
