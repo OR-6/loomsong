@@ -3,7 +3,7 @@ import { cli, run, xr, wait, freshSession, setTable } from './e2e-lib.mjs';
 const OUT = process.argv[2] ?? 'artifacts';
 await freshSession();
 await setTable();
-run('tools/seed-sprout-done.mjs');
+run('tools/seed-garden-three.mjs');
 await wait(1200);
 const o = run('tools/state.mjs').debug.loomOrigin;
 xr('set-transform', { device: 'hand-right', position: { x: o[0] + 0.45, y: o[1] + 0.1, z: o[2] + 0.45 }, orientation: { pitch: 0, yaw: 0, roll: 0 } });

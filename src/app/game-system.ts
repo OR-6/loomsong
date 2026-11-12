@@ -133,6 +133,8 @@ export interface GameDebug {
   coop: string;
   /** The plush seated on the friend's cushion ('' when none). */
   friend?: string;
+  /** The last chapter quilt that sang because it was looked at (debug/E2E). */
+  quiltSong?: string;
   /** Motion controllers are held (the game wants bare hands). */
   controllers?: boolean;
   /** The last few notices shown (E2E: a notice can come and go between two checks). */
@@ -505,8 +507,10 @@ export class GameSystem extends createSystem({
         // the very first picture keeps the desk quiet: no shelf, no basket until there's something to show
         const fresh = !this.progress.tutorialDone && !Object.values(this.progress.best).some((v) => v > 0);
         this.view.plushes.showShelf(!fresh);
-        this.view.basket.root.visible = !fresh;
-        if (fresh) this.controller.skeins = 0;
+        // the desk fills as you play: the chapter basket after two pictures (the present and the telephone come later)
+        const showBasket = this.picturesDone() >= 2;
+        this.view.basket.root.visible = showBasket;
+        if (!showBasket) this.controller.skeins = 0;
         this.view.setShed(0, true);
         this.view.setRows(this.model.rows);
         this.view.setGlowRow(-1);
@@ -1238,6 +1242,68 @@ export class GameSystem extends createSystem({
    * height. A chapter finished now flies over from the shelf. No wall in the
    * room data: no quilts this session (nothing floats in the air).
    */
+  /**
+   * The room sings back: look at a chapter's quilt on your wall for a moment and that
+   * chapter's pictures play, one after another, while the quilt breathes.
+   */
+  private gazeId = '';
+  private gazeT = 0;
+  private quiltSongUntil = new Map<string, number>();
+  private swayQuilt: Group | null = null;
+  private swayLeft = 0;
+  private gazeFwd = new Vector3();
+  private gazeQ = new Quaternion();
+  private gazeQuilts(dt: number): void {
+    // the singing quilt breathes
+    if (this.swayQuilt) {
+      this.swayLeft -= dt;
+      const base = (this.swayQuilt.userData.baseScale as number | undefined) ?? 1;
+      this.swayQuilt.scale.setScalar(this.swayLeft > 0 ? base * (1 + 0.025 * Math.sin(this.time * 7)) : base);
+      if (this.swayLeft <= 0) this.swayQuilt = null;
+    }
+    if (!this.quiltRoot.visible || this.quilts.size === 0 || this.time < this.singUntil || this.flow.phase !== 'play') {
+      this.gazeT = 0;
+      return;
+    }
+    this.player.head.getWorldQuaternion(this.gazeQ);
+    this.gazeFwd.set(0, 0, -1).applyQuaternion(this.gazeQ);
+    let best = '';
+    for (const [id, g] of this.quilts) {
+      g.getWorldPosition(this.tmp2);
+      this.tmp2.sub(this.head);
+      const d = this.tmp2.length();
+      if (d > 0.3 && this.tmp2.dot(this.gazeFwd) / d > 0.9945) best = id; // within about 6 degrees
+    }
+    if (!best || best !== this.gazeId) {
+      this.gazeId = best;
+      this.gazeT = 0;
+      return;
+    }
+    this.gazeT += dt;
+    if (this.gazeT < 1.2 || this.time < (this.quiltSongUntil.get(best) ?? 0)) return;
+    const ch = CHAPTERS.find((c) => c.id === best);
+    const g = this.quilts.get(best);
+    if (!ch || !g) return;
+    // its pictures, in order, from where the quilt hangs
+    g.getWorldPosition(this.tmp2).applyMatrix4(this.inv);
+    const pan = panOf(this.tmp2.x);
+    audio.resume();
+    let t = 0.3;
+    for (const id of ch.levels) {
+      const lv = LEVELS.find((l) => l.id === id);
+      if (!lv || !((this.progress.best[id] ?? 0) > 0)) continue;
+      t += this.schedulePictureSong(lv.target, t, pan) + 0.25;
+    }
+    this.singUntil = this.time + t;
+    audio.holdMusic(t + 0.3);
+    if (g.userData.baseScale === undefined) g.userData.baseScale = g.scale.x;
+    this.swayQuilt = g;
+    this.swayLeft = t;
+    this.quiltSongUntil.set(best, this.time + t + 15); // not again straight away
+    this.gazeT = 0;
+    this.debug.quiltSong = best;
+  }
+
   private updateQuilts(dt: number): void {
     if (this.coopLink || this.photoMode) {
       this.quiltRoot.visible = false;
@@ -1397,7 +1463,7 @@ export class GameSystem extends createSystem({
   private syncDaily(): void {
     this.today = dayKey();
     this.dailyDone = (this.progress.days ?? []).includes(this.today);
-    const offered = this.progress.tutorialDone && !this.coopLink && !this.flow?.daily;
+    const offered = this.progress.tutorialDone && this.picturesDone() >= 3 && !this.coopLink && !this.flow?.daily; // the present: after three pictures
     const lv = dailyLevel(this.today);
     const next = dayKey(new Date(Date.now() + 86400000));
     this.view.daily.set(offered ? (this.dailyDone ? 'done' : 'new') : 'hidden', lv.color ?? 0xe2563b, { key: next, rows: dailyLevel(next).target });
@@ -1639,7 +1705,7 @@ export class GameSystem extends createSystem({
     this.view.daily.hover(isKind(c.hover.left, 'daily') || isKind(c.hover.right, 'daily'));
     // the toy telephone: once the first picture is done (never in the first minutes), not during the finale
     const ph = this.view.phone;
-    ph.root.visible = this.progress.tutorialDone && !this.grand;
+    ph.root.visible = this.progress.tutorialDone && this.picturesDone() >= 4 && !this.grand; // the telephone: once Garden is woven
     this.phoneVec.set(this.controller.bankSide * TOY_PHONE.x, TOY_PHONE.y, TOY_PHONE.z);
     c.phoneSpot = ph.root.visible && this.flow?.phase === 'play' && !this.flow.challenge ? this.phoneVec : null;
     ph.hover(isKind(c.hover.left, 'phone') || isKind(c.hover.right, 'phone'));
@@ -1759,6 +1825,13 @@ export class GameSystem extends createSystem({
     this.tip.mesh.position.set(at.x, at.y + lift, at.z);
   }
 
+  /** Chapter pictures woven so far (props arrive as this grows). */
+  private picturesDone(): number {
+    let n = 0;
+    for (const l of LEVELS) if ((this.progress.best[l.id] ?? 0) > 0) n++;
+    return n;
+  }
+
   /** Basket balls: one per chapter, coloured when unlocked, lifted for the current one. */
   private syncBasket(level: Level): void {
     const states = chapterStates(this.progress, level.chapter);
@@ -1866,6 +1939,7 @@ export class GameSystem extends createSystem({
     this.debug.anchored = this.loomEntity.hasComponent(XRAnchor) && this.loomEntity.getValue(XRAnchor, 'attached') === true;
     if (this.debug.anchored) this.saveLoomPose();
     this.updateQuilts(dt);
+    this.gazeQuilts(dt);
     // Pip wakes when a hand comes near the loom's controls (or after a while on its own)
     if (this.view.pipAsleep) {
       this.asleepFor += dt;

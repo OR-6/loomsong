@@ -164,7 +164,8 @@ export class TargetCard {
         const x0 = c.width / 2 - ((inRow - 1) * px(gap)) / 2;
         const y = px(pad + titleH / 2 + (lines === 2 ? (line - 0.5) * 0.0134 : 0));
         const spent = i >= total - this.used;
-        drawKnot(g, x0 + j * px(gap), y, px(r), i < this.par ? lift : grace, spent, highContrast);
+        const last = !spent && i === total - this.used - 1 && total - this.used <= 1; // the very last knot left
+        drawKnot(g, x0 + j * px(gap), y, px(r), i < this.par ? lift : grace, spent, highContrast, last);
       }
       // a live star meter beside the knots: the stars you'd get right now (knots buy stars)
       const live = this.used <= this.par ? 3 : this.used <= this.par + 2 ? 2 : 1;
@@ -438,7 +439,7 @@ export function drawArrow(g: CanvasRenderingContext2D, x: number, y: number, s: 
   g.restore();
 }
 
-function drawKnot(g: CanvasRenderingContext2D, x: number, y: number, r: number, color: string, spent: boolean, hc: boolean) {
+function drawKnot(g: CanvasRenderingContext2D, x: number, y: number, r: number, color: string, spent: boolean, hc: boolean, last = false) {
   g.save();
   g.lineCap = 'round';
   g.lineJoin = 'round';
@@ -466,13 +467,20 @@ function drawKnot(g: CanvasRenderingContext2D, x: number, y: number, r: number, 
     g.arc(x, y - r * 0.05, r * 0.24, 0, Math.PI * 2);
     g.fill();
     g.stroke();
+    if (last) {
+      // the last knot left: a red ring round it (the next move costs a star)
+      g.lineWidth = r * 0.16;
+      g.strokeStyle = '#d9533c';
+      g.beginPath();
+      g.arc(x, y + r * 0.1, r * 1.25, 0, Math.PI * 2);
+      g.stroke();
+    }
   } else {
-    // untied: a loose strand lying where the bow was
-    g.lineWidth = r * 0.26;
-    g.strokeStyle = 'rgba(59,42,32,0.3)';
+    // untied: just a faint ring where the bow was
+    g.lineWidth = r * 0.14;
+    g.strokeStyle = 'rgba(59,42,32,0.28)';
     g.beginPath();
-    g.moveTo(x - r * 0.95, y + r * 0.2);
-    g.bezierCurveTo(x - r * 0.4, y - r * 0.5, x + r * 0.1, y + r * 0.6, x + r * 0.95, y - r * 0.1);
+    g.arc(x, y, r * 0.42, 0, Math.PI * 2);
     g.stroke();
   }
   g.restore();
