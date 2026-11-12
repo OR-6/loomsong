@@ -293,6 +293,8 @@ export class GameSystem extends createSystem({
   /** `?debug=1`: a tag behind the card with frame rate, draw calls and the quality level (for headset testing). */
   private hud: Label | null = null;
   private hudT = 0;
+  /** Errors seen (?debug=1 only). */
+  private hudErrors = 0;
   private hudFrames = 0;
   private hudCalls = 0;
   private banner!: Label;
@@ -437,6 +439,13 @@ export class GameSystem extends createSystem({
       this.hud = new Label(0.2, 0.03);
       this.hud.mesh.position.set(0, CARD.baseY + 0.16, CARD.z - 0.01);
       this.view.root.add(this.hud.mesh);
+      // count errors (an error thrown mid-frame skips everything drawn after it: on a headset that looks like flicker)
+      const count = (e: unknown) => {
+        this.hudErrors++;
+        if (this.hudErrors <= 3) console.warn('[debug] frame error', e);
+      };
+      window.addEventListener('error', (e) => count(e.error ?? e.message));
+      window.addEventListener('unhandledrejection', (e) => count(e.reason));
     }
     this.tip = new Label(0.16, 0.028);
     this.tip.mesh.rotation.x = -0.35;
@@ -831,7 +840,7 @@ export class GameSystem extends createSystem({
       if (this.hudT >= 0.5) {
         const fps = Math.round(this.hudFrames / this.hudT);
         const calls = Math.round(this.hudCalls / this.hudFrames);
-        this.hud.set(`${fps} fps · ${calls} draws · q${this.debug.degrade}`);
+        this.hud.set(`${fps} fps · ${calls} draws · q${this.debug.degrade}${this.hudErrors ? ` · ${this.hudErrors} err` : ''}`);
         this.hudT = 0;
         this.hudFrames = 0;
         this.hudCalls = 0;
@@ -2922,7 +2931,7 @@ export class GameSystem extends createSystem({
     } else if (step === 'shuttle') {
       // Tag hangs just outside the frame beside Pip's perch, never over the threads.
       const end = this.controller.shuttle.t < 0.5 ? -1 : 1;
-      m.position.set(end * (SHUTTLE.maxX + 0.02), 0.15, SHUTTLE.z + 0.01); // just above Pip, clear of the hand's fingertips
+      m.position.set(end * (SHUTTLE.maxX - 0.03), 0.15, SHUTTLE.z + 0.01); // above Pip, pulled in toward the loom so the tag stays in view
       if (this.controller.hover.left === null && this.controller.hover.right === null) {
         this.view.setShuttleHighlight(0, pulse);
       }

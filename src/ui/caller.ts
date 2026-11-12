@@ -76,7 +76,7 @@ export function mountCaller(link: Transport, code: string, onLeave: () => void):
       #caller .album .strip{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:min(92vw,380px)}
       #caller .album canvas{width:54px;height:36px;border-radius:3px;box-shadow:0 2px 0 #0003;cursor:pointer}
       #caller .leave{appearance:none;border:0;background:none;color:#4a3426;text-decoration:underline;font:600 14px system-ui,sans-serif}
-      #caller .post{position:fixed;inset:0;background:#2b1a10b3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:16px}
+      #caller .post{position:fixed;inset:0;background:#2b1a10f2;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:16px}
       #caller .post[hidden]{display:none}
       #caller .post canvas{width:min(92vw,520px);height:auto;border-radius:6px;box-shadow:0 14px 40px #0008;transform:rotate(-2deg);
         animation:pc-in .5s cubic-bezier(.2,1.4,.4,1) both}

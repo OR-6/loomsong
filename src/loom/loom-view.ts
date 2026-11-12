@@ -439,6 +439,12 @@ export class LoomView {
         },
         new MeshStandardMaterial({ color: 0x6b3e26, roughness: 0.9, envMapIntensity: 0.3, name: 'FramePegWalnut' }),
       );
+      // the card's clothes pegs sat on the bottom picture row (the row you weave first): the card rests on the easel's lip without them
+      const pegs: import('@iwsdk/core').Object3D[] = [];
+      this.frameNode.traverse((o) => {
+        if (/^Peg(LB|LF|RB|RF|SpringL|SpringR)$/.test(o.name)) pegs.push(o);
+      });
+      for (const o of pegs) o.removeFromParent();
       // draw-call diet: fold the frame's static parts into one mesh per material
       // (parts the game mirrors, recolours or hides by name stay separate)
       mergeStatic(this.frameNode, (o) => o !== this.frameNode && /^(Lever|SlotFloor|SlotDot|SlotArrow|FrontBeamCrank|FrontBeamHandle|BobbinRod|Bed$|ContactShadow)/.test(o.name));
@@ -827,12 +833,12 @@ export class LoomView {
       if (plug) {
         plug.visible = !on;
         if (!plug.userData.styled) {
-          // a darker walnut filler standing proud with a rounded top: a closed slot, not a missing lever
+          // a walnut filler flush with the box, a shade darker: a closed slot (standing proud it read as a broken rail)
           plug.userData.styled = true;
-          plug.position.y = 0.0035;
+          plug.position.y = 0.0004;
           const pm = plug as Mesh;
           if (pm.material) pm.material = (pm.material as MeshStandardMaterial).clone();
-          (pm.material as MeshStandardMaterial).color?.setHex(0x6b3e26);
+          (pm.material as MeshStandardMaterial).color?.setHex(0x7d4a2c);
         }
       }
       const dot = this.frameNode?.getObjectByName(`SlotDot${k}`);
@@ -864,7 +870,10 @@ export class LoomView {
       const sided =
         n.startsWith('Lever') || n.startsWith('SlotFloor') || n.startsWith('FrontBeamCrank') || n.startsWith('FrontBeamHandle') || n.startsWith('BobbinRod');
       if (!sided) continue;
-      if (child.userData.authoredX === undefined) child.userData.authoredX = child.position.x;
+      if (child.userData.authoredX === undefined) {
+        // the spool's cradle is baked at the model's spool spot; the spool now sits a little further out
+        child.userData.authoredX = child.position.x - (n.startsWith('BobbinRod') ? BOBBIN.x - MODEL_BOBBIN_X : 0);
+      }
       child.position.x = (child.userData.authoredX as number) * this.side;
       child.scale.x = Math.abs(child.scale.x) * this.side;
     }
@@ -1521,7 +1530,7 @@ export class LoomView {
     const next = done < this.target.length && done < LOOM.maxRows;
     this.rowArrow.visible = next; // the arrow still says which row is next
     if (next) {
-      this.rowArrow.position.set(warpX(0) - WARP_PITCH * 1.05, 0.008, this.rowZ(done, done));
+      this.rowArrow.position.set(warpX(0) - WARP_PITCH * 0.6, 0.008, this.rowZ(done, done)); // on the cloth, clear of the side beam (it read as a stray shard under it)
       this.rowArrowMat.color.setHex(this.liftColor);
     }
     this.ghostCloth.instanceMatrix.needsUpdate = true;
@@ -2143,6 +2152,9 @@ function mapleTexture(): CanvasTexture {
 }
 
 /** Where a friend plush sits (loom space; x is multiplied by the lever side). */
+/** Where the model's spool cradle is baked (|x|); BOBBIN.x may sit further out. */
+const MODEL_BOBBIN_X = 0.165;
+
 export const FRIEND_SEAT = { x: 0.115, z: LOOM.frontBeamZ + 0.065, r: 0.038, top: 0.014 } as const;
 
 function buildCushion(): Group {

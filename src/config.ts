@@ -66,7 +66,7 @@ export const LEVER = {
 
 /** Undo bobbin at the front corner opposite the lever bank. */
 export const BOBBIN = {
-  x: 0.165,
+  x: 0.178, // clear of the corner post (its flange used to sink into it)
   y: 0.019,
   z: 0.072,
   pull: 0.03,

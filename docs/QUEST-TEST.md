@@ -34,7 +34,7 @@ The `?debug=1` part shows a small tag behind the picture card with three numbers
 12. Optional, if a Quest 2 is around: repeat steps 1–4 on it. The room shows in black and white there; the game stays in colour.
    - Send: **(fps)** while weaving and during the plush celebration, and whether pinches felt reliable.
 13. Look at your hands near the loom, in a dim room if you can.
-   - Send: do you see any white hand outlines (there should be none, only your real hands)? Does anything on the loom, the card or the shelf flicker or vanish for a moment?
+   - Send: do you see any white hand outlines (there should be none, only your real hands)? Does anything on the loom, the card or the shelf flicker or vanish for a moment? With `?debug=1`, does the tag behind the card ever end in "err"? (It counts errors; one thrown mid-frame makes everything drawn after it vanish for that frame.)
 14. Poke the wooden name plate in front of the loom, then poke it again. Turn a little or move along the desk and rest your hand flat.
    - Send: did the loom fold away and come back in front of you, with the same picture?
 15. Pick up a controller for a moment.
