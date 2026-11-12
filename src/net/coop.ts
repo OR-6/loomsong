@@ -19,6 +19,10 @@ export interface CoopStatus {
 /** No vowels (no accidental words), no look-alikes (0/O, 1/I). */
 export const CODE_ALPHABET = 'CDFHJKMNPRTVWXY';
 const PREFIX = 'loomsong-v1-';
+/** How long to wait for the connection service before saying it can't be reached. */
+const OPEN_TIMEOUT_MS = 12000;
+/** PeerJS errors worth one quiet retry. */
+const NETWORK_ERRORS = new Set(['network', 'server-error', 'socket-error', 'socket-closed']);
 
 export function randomCode(): string {
   const b = new Uint8Array(4);
@@ -84,7 +88,13 @@ class CoopSession {
       const peer = await this.newPeer(PREFIX + code);
       if (gen !== this.gen) return peer.destroy(); // left while loading
       this.peer = peer;
+      // the public connection service can be slow or down: never sit on "Connecting…" for ever
+      let opened = false;
+      window.setTimeout(() => {
+        if (!opened && gen === this.gen) this.fail('Could not reach the co-op server');
+      }, OPEN_TIMEOUT_MS);
       peer.on('open', () => {
+        opened = true;
         if (gen === this.gen) this.set({ state: 'hosting', role: 'host', code, message: 'Waiting for a friend' });
       });
       peer.on('connection', (c) => {
@@ -96,7 +106,9 @@ class CoopSession {
         if (gen !== this.gen) return;
         const type = (e as { type?: string }).type;
         if (type === 'unavailable-id' && tries > 0) void this.host(tries - 1);
-        else this.set({ state: 'error', message: 'Could not reach the co-op server' });
+        // a network hiccup: one more go after a moment, then say so
+        else if (NETWORK_ERRORS.has(type ?? '') && tries > 1) window.setTimeout(() => gen === this.gen && void this.host(1), 1500);
+        else this.fail('Could not reach the co-op server');
       });
     } catch {
       this.set({ state: 'error', message: 'Co-op is unavailable here' });
@@ -117,9 +129,14 @@ class CoopSession {
       const peer = await this.newPeer();
       if (gen !== this.gen) return peer.destroy();
       this.peer = peer;
+      let joined = false;
+      window.setTimeout(() => {
+        if (!joined && gen === this.gen) this.fail('Could not reach the loom: check the code, or try again');
+      }, OPEN_TIMEOUT_MS);
       peer.on('open', () => {
         if (gen !== this.gen) return;
         const conn = peer.connect(PREFIX + code, { reliable: true, serialization: 'json' });
+        conn.on('open', () => (joined = true));
         conn.on('open', () => {
           this.attach(conn, as, code, gen);
           if (as === 'caller') this.transport?.send({ k: 'hi', who: 'caller' }); // tell the loom a phone joined
@@ -128,11 +145,22 @@ class CoopSession {
       peer.on('error', (e) => {
         if (gen !== this.gen) return;
         const type = (e as { type?: string }).type;
-        this.set({ state: 'error', message: type === 'peer-unavailable' ? 'No loom with that code' : 'Could not reach the co-op server' });
+        this.fail(type === 'peer-unavailable' ? 'No loom with that code' : 'Could not reach the co-op server');
       });
     } catch {
       this.set({ state: 'error', message: 'Co-op is unavailable here' });
     }
+  }
+
+  /** Give up on this attempt: tear the peer down so nothing half-open lingers, and say why. */
+  private fail(message: string): void {
+    this.gen++;
+    this.conn?.close();
+    this.conn = null;
+    this.transport = null;
+    this.peer?.destroy();
+    this.peer = null;
+    this.set({ state: 'error', message });
   }
 
   private closed(message: string): void {

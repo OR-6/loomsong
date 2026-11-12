@@ -761,6 +761,10 @@ export class GameSystem extends createSystem({
   /** Co-op connected / left: switch roles and the authority model. */
   private onCoop(st: CoopStatus): void {
     const side = { model: this.model, controller: this.controller, flow: this.flow };
+    // a call from the toy telephone didn't get through: say so, and how to try again
+    if (st.state === 'error' && this.view.phone.phoneState === 'calling') {
+      this.showNotice('The line is busy: poke the telephone to try again', 7, 'centre');
+    }
     // the toy telephone's tag: the code while it waits for the caller
     const hosting = st.role === 'host' && (st.state === 'hosting' || st.state === 'connected');
     if (!hosting) this.view.phone.setState('idle');
