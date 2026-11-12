@@ -90,6 +90,18 @@ hands();
 await shoot('sea', [0.02, 0.32, 0.34], [0, 0.04, -0.04], 52);
 save('sea', 'sea-boat.jpg', 800, 500, 1152, 720);
 
+// 7. your plushes help: the Heart on the felt cushion lifts the middle threads for the Table
+const F = (action) => JSON.parse(execFileSync('npx', ['@iwsdk/cli', 'browser', 'run', 'tools/friend-state.mjs'], { encoding: 'utf8', env: { ...process.env, FRIEND_ACTION: action, FRIEND_LEVEL: 'table', FRIEND_ID: 'heart' } })).data.result;
+F('seed');
+F('row');
+F('row');
+F('seat');
+F('row'); // the tabletop, woven with the friend's help
+hands();
+await wait(600);
+await shoot('friend', [0.1, 0.26, 0.5], [0.06, 0.03, 0.06], 50);
+save('friend', 'plush-friend.jpg', 800, 500, 1152, 720);
+
 xr('set-device-state', { state: { fov: 90 } });
 process.env.PHOTO = '0';
 run('tools/photo-on.mjs'); // photo set off again
