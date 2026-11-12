@@ -85,6 +85,9 @@ const KNOB_NAMES: Record<number, string> = { 0xe8553e: 'red', 0x1fb3a0: 'teal', 
 /** Seconds either side of a music beat that count as "on the beat". */
 const BEAT_WINDOW = 0.12;
 
+/** Seconds the toy telephone waits for a friend before a practice caller picks up. */
+const PRACTICE_AFTER = 20;
+
 const HINT_TEXT: Record<HintStep, string> = {
   lever: 'Slide it away',
   unlatch: 'Slide it back',
@@ -154,6 +157,8 @@ export interface GameDebug {
   friend?: string;
   /** The last chapter quilt that sang because it was looked at (debug/E2E). */
   quiltSong?: string;
+  /** A practice caller is on the line (debug/E2E). */
+  practice?: boolean;
   /** The last control pressed by looking at it (debug/E2E). */
   lookPressed?: string;
   /** Times Pip was stroked (debug/E2E). */
@@ -860,12 +865,16 @@ export class GameSystem extends createSystem({
   private onCoop(st: CoopStatus): void {
     const side = { model: this.model, controller: this.controller, flow: this.flow };
     // a call from the toy telephone didn't get through: say so, and how to try again
-    if (st.state === 'error' && this.view.phone.phoneState === 'calling') {
-      this.showNotice('The line is busy: poke the telephone to try again', 7, 'centre');
+    if (st.state === 'error' && this.view.phone.phoneState === 'calling' && !this.practice) {
+      this.startPractice('The line is busy, so a practice caller picks up');
     }
     // the toy telephone's tag: the code while it waits for the caller
     const hosting = st.role === 'host' && (st.state === 'hosting' || st.state === 'connected');
-    if (!hosting) this.view.phone.setState('idle');
+    // however the call was opened (the telephone or the 2D page), a practice caller picks up if no one does
+    if (st.role === 'host' && st.state === 'hosting' && this.practiceIn < 0 && !this.practice) this.practiceIn = PRACTICE_AFTER;
+    if (!hosting) {
+      if (!this.practice) this.view.phone.setState('idle');
+    }
     // the code shows once the line is open (before that a friend couldn't join with it yet)
     else if (this.view.phone.phoneState !== 'connected' || st.state === 'hosting') this.view.phone.setState('calling', st.state === 'hosting' && st.message !== 'Waiting for a friend' ? '…' : (st.code ?? ''));
     // Any state change other than a fresh connection ends the current link.
@@ -875,11 +884,13 @@ export class GameSystem extends createSystem({
     // a phone caller runs its own 2D view (ui/caller.ts), not a mirrored loom
     if (st.role === 'caller') return;
     if (st.state === 'connected' && coop.transport && !this.coopLink) {
+      this.endPractice(); // a real friend got through: the practice caller hangs up
       this.coopTransport = coop.transport;
       this.coopLink = st.role === 'host' ? new CoopHost(side, coop.transport) : new CoopGuest(side, coop.transport);
       this.debug.coop = st.role ?? 'solo';
       if (this.coopLink instanceof CoopHost) {
         this.coopLink.onCaller = () => {
+          this.endPractice();
           this.debug.coop = 'host+caller';
           this.view.phone.setState('connected');
           this.setCallerGap(true);
@@ -2011,7 +2022,7 @@ export class GameSystem extends createSystem({
     // the toy telephone: once the first picture is done (never in the first minutes), not during the finale
     const ph = this.view.phone;
     // the telephone: once Garden is woven, or straight away when a call is hosted (e.g. from the 2D page)
-    const calling = coop.status.state === 'hosting' || (coop.status.state === 'connected' && coop.status.role === 'host');
+    const calling = this.practice || coop.status.state === 'hosting' || (coop.status.state === 'connected' && coop.status.role === 'host');
     ph.root.visible = ((this.progress.tutorialDone && this.picturesDone() >= 4) || calling) && !this.grand;
     this.phoneVec.set(this.controller.bankSide * TOY_PHONE.x, TOY_PHONE.y, TOY_PHONE.z);
     c.phoneSpot = ph.root.visible && this.flow?.phase === 'play' && !this.flow.challenge ? this.phoneVec : null;
@@ -2022,6 +2033,13 @@ export class GameSystem extends createSystem({
   private pokePhone(): void {
     audio.resume();
     const st = coop.status.state;
+    if (this.practice) {
+      this.endPractice();
+      if (st === 'hosting' || st === 'joining') coop.leave();
+      this.view.phone.setState('idle');
+      audio.click(false);
+      return;
+    }
     if (st === 'hosting' || st === 'connected' || st === 'joining') {
       coop.leave();
       this.view.phone.setState('idle');
@@ -2033,7 +2051,84 @@ export class GameSystem extends createSystem({
     // where the friend goes: this page's address, short (no https://, no trailing slash)
     const where = (location.host + location.pathname).replace(/\/(index\.html)?$/, '');
     this.showNotice(`Your friend opens ${where} on a phone and types the code`, 9, 'centre');
+    this.practiceIn = PRACTICE_AFTER;
     void coop.host();
+  }
+
+  /**
+   * Practice call: if no friend picks up (or the line is busy), a pretend caller does. The picture
+   * leaves the loom as in a real call, and felt pins drop one by one on the threads of the next row,
+   * so one player can try the phone co-op alone. Poke the telephone to hang up; a real friend joining
+   * takes over.
+   */
+  private practice = false;
+  private practiceIn = -1;
+  private practiceRow = -1;
+  private practiceBit = 0;
+  private practiceNext = 0;
+  private practiceWon = false;
+  private startPractice(notice: string): void {
+    if (this.practice || this.coopLink || this.flow.phase !== 'play' || this.flow.daily || this.grand) return;
+    this.practice = true;
+    this.practiceIn = -1;
+    this.practiceRow = -1;
+    this.practiceWon = false;
+    this.view.phone.setState('connected');
+    this.setCallerGap(true);
+    audio.chirp('happy');
+    this.showNotice(`${notice}: they pin the threads of each row`, 8, 'centre');
+    this.debug.practice = true;
+  }
+  private endPractice(): void {
+    this.practiceIn = -1;
+    if (!this.practice) return;
+    this.practice = false;
+    this.view.clearPins();
+    this.setCallerGap(false);
+    this.debug.practice = false;
+  }
+  private tickPractice(dt: number): void {
+    if (!this.practice) {
+      if (this.practiceIn < 0) return;
+      // still waiting on the line (a friend joining cancels it)
+      if (coop.status.state !== 'hosting' || this.coopLink) {
+        this.practiceIn = -1;
+        return;
+      }
+      this.practiceIn -= dt;
+      if (this.practiceIn <= 0) this.startPractice('No one yet, so a practice caller picks up');
+      return;
+    }
+    if (this.flow.phase !== 'play') {
+      if (this.flow.phase === 'won' && !this.practiceWon) {
+        this.practiceWon = true;
+        this.view.setPipMood('wave'); // the caller cheers
+        audio.chirp('happy');
+      }
+      if (this.view.pinned) this.view.clearPins();
+      this.practiceRow = -1;
+      return;
+    }
+    this.practiceWon = false;
+    const lv = this.flow.level;
+    const r = this.model.rows.length;
+    if (r >= lv.target.length) return;
+    if (r !== this.practiceRow) {
+      // a new row (or one unpicked): the caller reads it out again, one pin at a time
+      this.practiceRow = r;
+      this.view.clearPins();
+      this.practiceBit = 0;
+      this.practiceNext = 1.4;
+    }
+    this.practiceNext -= dt;
+    if (this.practiceNext > 0) return;
+    const row = lv.target[r] & 255;
+    while (this.practiceBit < WARPS && !((row >> this.practiceBit) & 1)) this.practiceBit++;
+    if (this.practiceBit >= WARPS) return;
+    const i = this.practiceBit++;
+    this.view.pinThread(i, true);
+    audio.pluck(i, 0.5, 0, 0.26, panOf(warpX(i)));
+    this.practiceNext = 0.75;
   }
 
   /** Hover tooltips for the secondary controls (levers and Pip have their own hints). */
@@ -2233,6 +2328,7 @@ export class GameSystem extends createSystem({
     this.controller.update(this.handInputs, dt);
     this.flow.update(dt);
     this.coopLink?.tick(dt);
+    this.tickPractice(dt);
     // a caller's pins mark one row's threads: they come out once that row is woven, or the picture changes
     const pinKey = this.flow.index * 1000 + this.model.rows.length;
     if (pinKey !== this.pinKey) {
