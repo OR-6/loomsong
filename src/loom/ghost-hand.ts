@@ -9,7 +9,12 @@ import { Group, MeshStandardMaterial, Object3D, Quaternion, Skeleton, Vector3, t
 import { LEVER, SHUTTLE, leverX, shuttleY } from '../config.js';
 import { PINCH_POSE } from './pinch-pose.js';
 
-export type GhostGesture = { kind: 'lever'; k: number; back?: boolean } | { kind: 'shuttle'; fromEnd: 0 | 1 } | null;
+export type GhostGesture =
+  | { kind: 'lever'; k: number; back?: boolean }
+  | { kind: 'shuttle'; fromEnd: 0 | 1 }
+  /** Carry a plush from (ax, ay, az) to (bx, by, bz) in loom space, in a little arc (shown once). */
+  | { kind: 'carry'; ax: number; ay: number; az: number; bx: number; by: number; bz: number }
+  | null;
 
 const LOOP = 2.9;
 const _q = new Quaternion();
@@ -153,7 +158,8 @@ export class GhostHand {
     const same =
       g?.kind === this.gesture?.kind &&
       (g?.kind !== 'lever' || (this.gesture?.kind === 'lever' && g.k === this.gesture.k && !!g.back === !!this.gesture.back)) &&
-      (g?.kind !== 'shuttle' || (this.gesture?.kind === 'shuttle' && g.fromEnd === this.gesture.fromEnd));
+      (g?.kind !== 'shuttle' || (this.gesture?.kind === 'shuttle' && g.fromEnd === this.gesture.fromEnd)) &&
+      (g?.kind !== 'carry' || (this.gesture?.kind === 'carry' && g.ax === this.gesture.ax && g.bx === this.gesture.bx && g.bz === this.gesture.bz));
     if (same && side === this.side) return;
     this.gesture = g;
     this.side = side;
@@ -197,6 +203,9 @@ export class GhostHand {
       const b = g.back ? LEVER.restZ : LEVER.restZ - LEVER.travel;
       this.from.set(x, LEVER.knobY, a);
       this.to.set(x, LEVER.knobY, b);
+    } else if (g.kind === 'carry') {
+      this.from.set(g.ax, g.ay, g.az);
+      this.to.set(g.bx, g.by, g.bz);
     } else {
       // pinch the boat's back edge (outside end), so Pip stays visible
       const back = g.fromEnd === 0 ? -0.04 : 0.04; // well behind the tail, so Pip stays in view
@@ -220,6 +229,7 @@ export class GhostHand {
       const k = ease((t - 0.75) / 1.1);
       p.lerpVectors(this.from, this.to, k);
       if (g.kind === 'shuttle') p.y = shuttleY(p.x) + 0.002;
+      if (g.kind === 'carry') p.y += 0.07 * Math.sin(Math.PI * k); // lifted, carried over, set down
     } else if (t < 2.3) {
       const k = (t - 1.85) / 0.45;
       p.copy(this.to).add(_v.set(0, 0.05 * k, 0.02 * k));

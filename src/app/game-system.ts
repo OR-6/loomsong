@@ -142,6 +142,8 @@ export interface GameDebug {
   degrade: number;
   calibrating: string;
   coop: string;
+  /** The ghost hand showed carrying a plush to the desk (debug/E2E). */
+  carryDemo?: boolean;
   /** Plushes that said hello to a neighbour set down beside them (debug/E2E). */
   hello?: number;
   /** Wrong rows the loom unpicked by itself (debug/E2E). */
@@ -530,6 +532,8 @@ export class GameSystem extends createSystem({
         this.shelf = shelfItems(level, this.progress);
         this.view.plushes.setShelf(this.shelf, shelfChapter(level, this.progress)?.name ?? '');
         this.view.plushes.setDesk(deskItems(this.progress));
+        // the second picture: show, once, that a plush can be carried off the shelf onto the desk
+        this.carryIn = !this.carryShown && this.picturesDone() === 1 && !this.flow?.challenge ? 2.5 : -1;
         this.syncDaily();
         this.syncBasket(level);
         // the very first picture keeps the desk quiet: no shelf, no basket until there's something to show
@@ -1046,8 +1050,20 @@ export class GameSystem extends createSystem({
     }
     const c = this.controller;
     const side = c.bankSide;
+    // once, early on: the ghost hand lifts the first plush off the shelf and sets it on the desk (no words)
+    if (this.carryIn > 0 && this.placement.phase === 'placed' && this.flow.phase === 'play') {
+      this.carryIn -= dt;
+      if (this.carryIn <= 0) this.startCarryDemo();
+    }
+    if (this.carryDemo > 0) {
+      this.carryDemo -= dt;
+      const busyNow = c.holding.left !== null || c.holding.right !== null;
+      if (busyNow || this.flow.phase !== 'play' || Object.keys(this.progress.placed ?? {}).length > 0) this.carryDemo = 0;
+    }
     ghost.show(
-      this.notice
+      this.carryDemo > 0 && this.carryGesture
+        ? this.carryGesture
+        : this.notice
         ? null
         : step === 'lever' || step === 'unlatch'
           ? { kind: 'lever', k: this.hintLever, back: step === 'unlatch' }
@@ -1058,6 +1074,25 @@ export class GameSystem extends createSystem({
     );
     const busy = c.hover.left !== null || c.hover.right !== null || c.holding.left !== null || c.holding.right !== null;
     ghost.update(dt, busy);
+  }
+
+  /** The carry demo: seconds left, and its path (from the first shelf plush to a free desk spot). */
+  private carryDemo = 0;
+  private carryShown = false;
+  private carryIn = -1;
+  private carryGesture: import('../loom/ghost-hand.js').GhostGesture = null;
+  private startCarryDemo(): void {
+    if (this.carryShown || Object.keys(this.progress.placed ?? {}).length > 0 || this.coopLink) return;
+    let i = -1;
+    for (let k = 0; k < PLUSH.slots; k++) if (this.view.plushes.idAt(k)) i = i < 0 ? k : i;
+    // a short carry: off the shelf to the open desk just in front of it (the basket and present aren't out yet)
+    const side = this.controller.bankSide;
+    const to: [number, number] = [-side * (PLUSH.shelfX - 0.05), PLUSH.shelfZ + 0.15];
+    if (i < 0 || !this.view.plushes.plushCentre(i, this.tmp2)) return;
+    this.carryShown = true;
+    this.carryGesture = { kind: 'carry', ax: this.tmp2.x, ay: this.tmp2.y, az: this.tmp2.z, bx: to[0], by: 0.03, bz: to[1] };
+    this.carryDemo = 5.2; // two passes of the gesture
+    this.debug.carryDemo = true;
   }
 
   /** Schedule a picture's song `delay` s from now (a row per hop, rows alternating like the weaving); returns its length. */
