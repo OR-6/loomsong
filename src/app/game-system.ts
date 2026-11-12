@@ -32,7 +32,7 @@ import { Label } from '../ui/label.js';
 import { audio } from '../audio/synth.js';
 import { keyFor } from '../audio/soundtrack.js';
 import { LevelFlow, TIMING, type HintStep } from './level-flow.js';
-import { CHAPTERS, DAILY_LEVELS, LEVELS, THANKS_LEVEL, chapterStates, dailyLevel, dayKey, levelAt, pictureById, streakOf } from '../puzzle/catalog.js';
+import { CHAPTERS, DAILY_LEVELS, LEVELS, THANKS_LEVEL, VISITOR_LIKES, chapterStates, dailyLevel, dayKey, levelAt, pictureById, visitorFor } from '../puzzle/catalog.js';
 import type { Level } from '../puzzle/levels.js';
 import { PLUSH, ROW_BEAT, SPOTS, type DeskItem, type ShelfItem } from '../loom/plush.js';
 import { DAILY_BALL } from '../loom/daily-ball.js';
@@ -75,6 +75,8 @@ const GIFT_SPOTS: readonly (readonly [number, number])[] = [
 ];
 /** ?finale=1: play the grand finale shortly after the loom is placed (for filming). */
 const FORCE_FINALE = params.get('finale') === '1';
+/** `?visit=1`: a visitor arrives now (judges can't wait a day): a plush on the desk, a new day's pick. */
+const VISIT = params.get('visit') === '1';
 /** ?film=table (any picture id): start there with every earlier picture woven, for recording a moment. */
 const START_ALIASES: Record<string, string> = { friends: 'table', night: 'moon', sea: 'fish', ending: 'boat' };
 /** ?start=friends (or night, sea, ending, or any picture id; ?film= is the same): jump there for a short visit or a recording. */
@@ -194,6 +196,8 @@ export interface GameDebug {
   repeats?: number;
   /** The first-time tour's current part ('done' once over) (debug/E2E). */
   intro?: string;
+  /** Today's visitor, when one came for a plush on the desk (debug/E2E). */
+  visitor?: string;
   /** Times the loom was moved from the name plate (debug/E2E). */
   moved?: number;
   /** A practice caller is on the line (debug/E2E). */
@@ -685,9 +689,10 @@ export class GameSystem extends createSystem({
           }
         }
         if (this.flow.daily) {
-          // today's picture joins the streak; say so once the plush has hopped onto the desk
-          const n = streakOf(this.progress.days ?? [], this.flow.daily);
-          this.laterNotice = n >= 2 ? `${n} days in a row!` : 'A new picture tomorrow';
+          // the visitor stays by the plush it came to see; say so once it has hopped onto the desk
+          const likes = VISITOR_LIKES[this.flow.level.id];
+          const friendName = likes && this.progress.placed?.[likes] ? pictureById(likes)?.name : undefined;
+          this.laterNotice = friendName ? `${this.flow.level.name} stays with your ${friendName}` : 'Leave a plush out: someone may visit tomorrow';
           this.laterNoticeIn = 4.6;
           this.syncDaily();
         }
@@ -796,7 +801,15 @@ export class GameSystem extends createSystem({
     const shared = clothFromHash(location.hash);
     const film = FILM ? LEVELS.findIndex((l) => l.id === FILM) : -1;
     if (shared) this.flow.startChallenge(clothLevel(shared));
-    else if (film > 0) {
+    else if (VISIT) {
+      // ?visit=1: Garden and the Heart woven, today's pick forgotten; a plush goes on the desk once the loom is out
+      for (let i = 0; i < 5; i++) this.progress.best[LEVELS[i].id] ??= 2;
+      this.progress.tutorialDone = true;
+      this.progress.dailyPick = undefined;
+      this.progress.days = (this.progress.days ?? []).filter((d) => d !== dayKey());
+      saveProgress(this.progress);
+      this.flow.start(5);
+    } else if (film > 0) {
       // ?film=<picture>: every picture before it woven (their plushes on the shelves), that one on the loom
       for (let i = 0; i < film; i++) this.progress.best[LEVELS[i].id] ??= 2;
       this.progress.tutorialDone = true;
@@ -1689,12 +1702,28 @@ export class GameSystem extends createSystem({
   private syncDaily(): void {
     this.today = dayKey();
     this.dailyDone = (this.progress.days ?? []).includes(this.today);
-    const offered = this.progress.tutorialDone && this.picturesDone() >= 5 && !this.coopLink && !this.flow?.daily; // the present: once Garden is done and Home begun (Garden is just the loom)
-    const lv = dailyLevel(this.today);
+    const offered = (VISIT || (this.progress.tutorialDone && this.picturesDone() >= 5)) && !this.coopLink && !this.flow?.daily; // the present: once Garden is done and Home begun (Garden is just the loom)
+    const lv = offered ? this.todayLevel() : dailyLevel(this.today);
     const next = dayKey(new Date(Date.now() + 86400000));
     this.view.daily.set(offered ? (this.dailyDone ? 'done' : 'new') : 'hidden', lv.color ?? 0xe2563b, { key: next, rows: dailyLevel(next).target });
-    // the present waits somewhere new each day: one of a few spots in reach, if the real table is there
     const side = this.controller.bankSide;
+    // a visitor brings the present to the plush it came to see, on your desk
+    const likes = offered && !this.dailyDone ? VISITOR_LIKES[lv.id] : undefined;
+    const by = likes ? this.besideDeskPlush(likes) : null;
+    if (by) {
+      this.giftAt[0] = by[0];
+      this.giftAt[1] = by[1];
+      this.view.setGiftSpot(this.giftAt[0], this.giftAt[1]);
+      this.dailyVec.set(this.giftAt[0], DAILY_BALL.y, this.giftAt[1]);
+      if (this.visitorToldDay !== this.today && this.placement.phase === 'placed' && this.flow?.phase === 'play') {
+        this.visitorToldDay = this.today;
+        this.laterNotice = `Someone came to see your ${pictureById(likes!)?.name ?? 'plush'}`;
+        this.laterNoticeIn = 1.5;
+        this.debug.visitor = lv.id;
+      }
+      return;
+    }
+    // otherwise the present waits somewhere new each day: one of a few spots in reach, if the real table is there
     const spots = GIFT_SPOTS;
     let h = 0;
     for (let i = 0; i < this.today.length; i++) h = (h * 31 + this.today.charCodeAt(i)) >>> 0;
@@ -1708,6 +1737,39 @@ export class GameSystem extends createSystem({
     this.dailyVec.set(this.giftAt[0], DAILY_BALL.y, this.giftAt[1]);
   }
   private giftDirty = false;
+  private visitorToldDay = '';
+
+  /** Today's picture of the day, chosen once a day: a visitor for a plush you've left on your desk, else the day's own. */
+  private todayLevel(): Level {
+    const pick = this.progress.dailyPick;
+    if (pick && pick.day === this.today) {
+      const l = DAILY_LEVELS.find((d) => d.id === pick.id);
+      if (l) return l;
+    }
+    const onDesk = Object.keys(this.progress.placed ?? {});
+    const lv = visitorFor(this.today, onDesk, (id) => (this.progress.best[id] ?? 0) > 0) ?? dailyLevel(this.today);
+    this.progress.dailyPick = { day: this.today, id: lv.id };
+    saveProgress(this.progress);
+    return lv;
+  }
+
+  /** A free spot on the real desk right beside plush `id` (where its visitor sets the present down), or null. */
+  private besideDeskPlush(id: string): [number, number] | null {
+    const at = this.progress.placed?.[id];
+    if (!at) return null;
+    const taken = Object.values(this.progress.placed ?? {});
+    for (const [dx, dz] of [[0.075, 0], [-0.075, 0], [0, 0.07], [0, -0.07], [0.06, 0.06], [-0.06, 0.06]] as const) {
+      const x = at[0] + dx;
+      const z = at[1] + dz;
+      if (Math.abs(x) < 0.24 && z < 0.15) continue; // never over the loom or its plate
+      if (taken.some(([tx, tz]) => Math.hypot(tx - x, tz - z) < 0.055)) continue;
+      const side = this.controller.bankSide;
+      if (Math.hypot(x - side * TOY_PHONE.x, z - TOY_PHONE.z) < 0.09) continue;
+      if (!this.onTable({ x, y: 0.01, z })) continue;
+      return [x, z];
+    }
+    return null;
+  }
   /** Where today's present stands (loom space x, z). */
   private giftAt: [number, number] = [0, 0];
 
@@ -1726,7 +1788,7 @@ export class GameSystem extends createSystem({
       return;
     }
     if (!this.confirmPoke('daily', "Open today's picture? Poke it again")) return;
-    const lv = dailyLevel(this.today);
+    const lv = this.todayLevel();
     audio.restyle();
     // the present opens: the lid pops off with a little burst
     this.view.daily.open();
@@ -1743,7 +1805,8 @@ export class GameSystem extends createSystem({
       const d = deskIndex(lv.id);
       if (d < 0) return -1;
       if (!this.progress.placed?.[lv.id]) {
-        const at = this.freeDeskSpot();
+        const likes = VISITOR_LIKES[lv.id];
+        const at = (likes && this.progress.placed?.[likes] ? ([this.giftAt[0], this.giftAt[1]] as [number, number]) : null) ?? this.freeDeskSpot();
         if (!at) return -1;
         (this.progress.placed ??= {})[lv.id] = at;
         saveProgress(this.progress);
@@ -2480,8 +2543,7 @@ export class GameSystem extends createSystem({
       }
       case 'daily': {
         if (c.dailySpot) Object.assign(at, c.dailySpot);
-        const n = streakOf(this.progress.days ?? [], this.today);
-        text = this.dailyDone ? (n >= 2 ? `${n} days in a row` : 'A new one tomorrow') : "Poke to open today's present";
+        text = this.dailyDone ? 'Leave a plush out: someone may visit' : "Poke to open today's present";
         lift = 0.045;
         break;
       }
@@ -2979,6 +3041,18 @@ export class GameSystem extends createSystem({
     else if (this.settings.calibrateNext) this.startCalibration(hand);
     else if (fallback) this.showNotice('Poke the arrows to reach your desk', 7, 'nudge');
     else if (this.flow.challenge) this.showNotice('Weave this cloth', 6);
+    // ?visit=1: the Sprout stands on the desk, so a visitor comes for it
+    const liked = new Set(Object.values(VISITOR_LIKES));
+    if (VISIT && !Object.keys(this.progress.placed ?? {}).some((id) => liked.has(id))) {
+      const at = this.freeDeskSpot();
+      if (at) {
+        (this.progress.placed ??= {}).sprout = at;
+        this.progress.dailyPick = undefined; // pick today's visitor now that it has someone to see
+        saveProgress(this.progress);
+        this.view.plushes.setDesk(deskItems(this.progress));
+      }
+      this.giftDirty = true;
+    }
     // the very first time: name the parts before the first move (what the card, the levers and Pip are)
     if (!resume && !this.coopLink && !fallback && this.flow.tutorial && this.picturesDone() === 0 && !this.settings.calibrateNext) this.introT = 0;
     audio.bloom();

@@ -15,6 +15,8 @@ export interface Progress {
   loom?: SavedLoom;
   /** Days the picture of the day was woven (local-date keys, newest last). */
   days?: string[];
+  /** Today's picture of the day, chosen once a day (a visitor for a plush on your desk, or the day's own). */
+  dailyPick?: { day: string; id: string };
   /** When the player was last at the loom (ms since 1970): a long while away and Pip is asleep. */
   lastSeen?: number;
   /** The grand finale has played (it plays once; replaying a chapter doesn't bring it back). */
@@ -54,6 +56,7 @@ export function loadProgress(): Progress {
     loom: validLoom(p.loom),
     lastSeen: typeof p.lastSeen === 'number' && Number.isFinite(p.lastSeen) ? p.lastSeen : undefined,
     grandSeen: p.grandSeen === true ? true : undefined,
+    dailyPick: p.dailyPick && typeof p.dailyPick.day === 'string' && typeof p.dailyPick.id === 'string' && /^day-[a-z]+$/.test(p.dailyPick.id) ? { day: p.dailyPick.day, id: p.dailyPick.id } : undefined,
     days: Array.isArray(p.days) ? p.days.filter((d) => typeof d === 'string' && /^\d{4}-\d\d-\d\d$/.test(d)).slice(-400) : undefined,
   };
 }

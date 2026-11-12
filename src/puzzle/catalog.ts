@@ -78,6 +78,46 @@ export function dailyLevel(key = dayKey()): Level {
   return DAILY_LEVELS[((dayNumber(key) % n) + n) % n];
 }
 
+/**
+ * Visitors: each picture of the day likes a chapter plush. Leave that plush out on your desk and,
+ * on a new day, the visitor comes to see it, bringing the present (your desk decides who comes).
+ */
+export const VISITOR_LIKES: Readonly<Record<string, string>> = {
+  'day-ladybug': 'sprout',
+  'day-butterfly': 'tulip',
+  'day-frog': 'duck',
+  'day-mushroom': 'table',
+  'day-gift': 'heart',
+  'day-key': 'house',
+  'day-crown': 'star',
+  'day-icecream': 'cup',
+  'day-snowman': 'moon',
+  'day-bell': 'ghost',
+  'day-acorn': 'owl',
+  'day-rabbit': 'cat',
+  'day-candle': 'lantern',
+  'day-sun': 'crab',
+  'day-pine': 'fish',
+  'day-jelly': 'octopus',
+  'day-anchor': 'boat',
+  'day-pear': 'jellyfish',
+};
+
+/**
+ * Today's visitor: one who likes a plush standing on your desk (not yet woven first, then any),
+ * chosen by the day so it's stable; null when no plush you've left out has a visitor.
+ */
+export function visitorFor(key: string, onDesk: readonly string[], woven: (id: string) => boolean): Level | null {
+  const desk = new Set(onDesk);
+  const all = Object.keys(VISITOR_LIKES).filter((v) => desk.has(VISITOR_LIKES[v]));
+  if (!all.length) return null;
+  const fresh = all.filter((v) => !woven(v));
+  const pool = (fresh.length ? fresh : all).sort();
+  const n = dayNumber(key);
+  const id = pool[((n % pool.length) + pool.length) % pool.length];
+  return DAILY_LEVELS.find((l) => l.id === id) ?? null;
+}
+
 /** Days in a row with the daily picture woven, ending today (or yesterday, if today's is still to do). */
 export function streakOf(days: readonly string[], today = dayKey()): number {
   const have = new Set(days);
