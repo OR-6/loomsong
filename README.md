@@ -47,16 +47,16 @@ Hand tracking has no touch, so Loomsong puts every interaction on a real surface
 
 ## Accessibility
 
-- **Input:** pinch or poke on every control; one hand is enough; either hand works; the lever bank follows your hand or can be set left or right.
-- **Levers by count, not just colour:** the lever box marks each slot with 1–4 inlaid dots (and red, teal, mustard and plum also differ in lightness), so colour-blind players and Night's undyed mystery levers never depend on hue.
-- **Fit to my hands** (on the 2D page): three pinches and a 2 s hold tune pinch thresholds, smoothing and target size (1.0–1.8×).
-- **High contrast:** pure white/black yarn, a black-and-white card and opaque labels. Row status never relies on hue: ticks, crosses, arrows and hatching carry it.
-- **No timers, no fail states, undo always available** (a wrong row unweaves itself once Pip has drooped). Hints name levers by number and colour ("Push lever 1 (red) away"), matching the dots on the lever box.
+- **Input:** pinch or poke on every control, or rest a still fingertip on a control for a moment (no speed or pointing needed); one hand is enough; either hand works; controllers work too (trigger to pinch); the lever bank follows your hand or can be set left or right.
+- **Levers by count, not just colour:** the lever box marks each slot with 1–4 inlaid dots so colour-blind players and Night's undyed mystery levers never depend on hue.
+- **Fit to my hands** (on the 2D page): three pinches (anything under 4.5 cm counts) and a 2 s hold (a brief tremor doesn't restart it) tune pinch thresholds, smoothing and target size (1.0–1.8×).
+- **High contrast:** the cloth weaves black on white (the second yarn grey), a black-and-white card and opaque labels. Row status never relies on hue: ticks, crosses, rings and arrows carry it.
+- **No time limits on any puzzle, no fail states, undo always available** (a wrong row unweaves itself once Pip has drooped). Hints name levers by number and colour ("Push lever 1 (red) away"), matching the dots on the lever box.
 - In-world text has a cap height of at least 1.5 cm, with at most 5 words per label.
-- **Look to play** (on the 2D page): no hands needed at all. Look at a lever, Pip, the undo spool or the yarn swap for about a second and it is pressed; a ring of felt beads fills around it while you look, and each look presses once. The loom already places itself at a default height if no hand is seen.
-- **Calm motion** (on the 2D page; on by default when your system asks for reduced motion): far less confetti, small hops and bounces, and the Sea's light on the table barely drifts.
+- **Look to play** (on the 2D page): no hands needed. Look at any control for about a second and it is pressed: levers, Pip, the undo spool, the yarn, the card's rows, the present, the telephone, the basket, the plate (move the loom), the height arrows, plushes. A ring of dark felt beads fills while you look; a lever's threads light up while you look at it, so finding out costs nothing; the look aims a little below head-forward, so you lower your eyes rather than your neck. Carrying a plush to a new spot still needs a hand. The loom already places itself at a default height if no hand is seen.
+- **Calm motion** (on the 2D page; on by default when your system asks for reduced motion): far less confetti, small hops and bounces, a gentle dance, a lighter Night, the Sea's light barely drifts, and a finished quilt simply appears on the wall.
 - **Reach:** measured in the emulator from a seated player's shoulders, the levers are 41–49 cm away, Pip 49 cm, the undo spool 42 cm; the loom unfolds where your hand rests, so it starts within reach.
-- Every sound has a visual twin: a plucked thread twangs, a woven row gets a tick or a cross on the card, Pip cheers or droops.
+- **Rows by ear** (on by default; a switch on the 2D page): one row per picture in Home is hummed instead of shown. Miss it once and Pip hums it again with the threads quivering, so you can watch it; switch it off and every row shows. Every other sound has something to see: a plucked thread twangs, a woven row gets a tick or a cross on the card, Pip cheers or droops.
 
 **Honest caveat:** these features have **not** been validated with disabled players. Calibration's tremor handling is unit-tested with synthetic jitter only, because the emulator's hand is perfectly steady. Feedback is very welcome.
 
