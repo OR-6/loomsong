@@ -14,15 +14,15 @@ const CHAPTERS = [
     { id: 'sprout', name: 'Sprout', color: 0x4f9a3a, rows: ['.#.##.#.', '...##...', '...##...'], tie: [0b00011000, 0b01000010] },
     { id: 'tulip', name: 'Tulip', color: 0xe2563b, rows: ['.#.##.#.', '.######.', '..####..', '...##...', '...##...'] },
     { id: 'duck', name: 'Duck', color: 0xe9a21a, rule: 'parts', rows: ['.##.....', '####....', '.##.....', '.######.', '########', '.######.'] },
+    // a friend picture: a plush on the cushion lifts the threads under its feet (its bottom row);
+    // the legs need it off, the tabletop, vase and flower need it on (the Sprout and the Tulip on the Garden shelf fit)
+    { id: 'table', name: 'Table', color: 0xb5683a, rows: ['...##...', '..####..', '########', '..#..#..', '..#..#..'], tie: [0b00100100, 0b00000011, 0b11000000], friend: 0b00011000 },
   ] },
   { id: 'home', name: 'Home', idea: 'two levers at once', rule: 'parts', pics: [
     { id: 'cup', name: 'Cup', color: 0x3d8fd1, rows: ['##.##.##', '########', '#######.', '#######.', '.#####..', '..###...'] },
     { id: 'heart', name: 'Heart', color: 0xe2563b, rows: ['.##..##.', '########', '########', '.######.', '..####..', '...##...'] },
     { id: 'house', name: 'House', color: 0xf08a4b, rows: ['...##...', '..####..', '.######.', '########', '##.##.##', '##.##.##'] },
     { id: 'star', name: 'Star', color: 0xf2b632, rows: ['...##...', '...##...', '########', '.######.', '..####..', '.##..##.'] },
-    // a friend picture: a plush on the cushion lifts the threads under its feet (its bottom row);
-    // the legs need it off, the tabletop, vase and flower need it on (Sprout, the first plush, fits)
-    { id: 'table', name: 'Table', color: 0xb5683a, rows: ['...##...', '..####..', '########', '..#..#..', '..#..#..'], tie: [0b00100100, 0b00000011, 0b11000000], friend: 0b00011000 },
   ] },
   { id: 'night', name: 'Night', idea: 'mystery levers', rule: 'parts', mystery: true, pics: [
     { id: 'moon', name: 'Moon', color: 0xeeae1c, rows: ['..###...', '.##.....', '##......', '##......', '.##.....', '..###...'] },

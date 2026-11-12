@@ -410,6 +410,11 @@ export class LoomView {
       }
       // the toy loom's frame is painted mustard (art direction): a made toy, not bare plastic-looking pipe
       if (theme.id === 'toy' && name === 'Beech') sm.color.setHex(0xd29a52); // honey: warm wood under a thin wash of paint, not lemon
+      // the lever box, feet and easel: walnut with its grain showing (not chocolate clay)
+      if (theme.id === 'toy' && name === 'WalnutWood') {
+        sm.color.setHex(0x8a5634);
+        sm.map = grainTexture();
+      }
     };
     this.frameNode = null;
     if (models) {
@@ -1852,9 +1857,46 @@ export class LoomView {
   private friendMask = 0;
   private friendColor = 0xffffff;
   setFriend(mask: number, color: number): void {
+    squashCushion(this.cushion, mask !== 0);
     this.friendMask = mask;
     this.friendColor = color;
     this.writeWarps();
+    this.drawStrings(mask, color, 1);
+  }
+
+  /** A plush carried over the cushion: faint strings show which threads it would lift (0: none). */
+  previewFriend(mask: number, color: number): void {
+    if (this.friendMask) return; // someone's seated: their strings stay
+    this.drawStrings(mask, color, 0.4);
+  }
+
+  /**
+   * Felt strings from the cushion's plush up to each thread it lifts, like a puppet's:
+   * the link between the friend and its threads, whatever their colour.
+   */
+  private strings: Mesh[] = [];
+  private stringsMat = new MeshStandardMaterial({ roughness: 1, transparent: true, map: yarnTexture() });
+  private drawStrings(mask: number, color: number, opacity: number): void {
+    for (const m of this.strings) {
+      m.geometry.dispose();
+      m.removeFromParent();
+    }
+    this.strings.length = 0;
+    if (!mask) return;
+    this.stringsMat.color.setHex(color);
+    this.stringsMat.opacity = opacity;
+    const from = new Vector3(this.side * FRIEND_SEAT.x, 0.055, FRIEND_SEAT.z); // the plush's head on the cushion
+    for (let i = 0; i < WARPS; i++) {
+      if (!((mask >> i) & 1)) continue;
+      // to the thread, a third of the way from the heddle to the cloth (where a caller's pins go)
+      const to = new Vector3(warpX(i), LOOM.liftedY + 0.002, LOOM.heddleZ + (this.fellZ - LOOM.heddleZ) * 0.32);
+      const mid = new Vector3().lerpVectors(from, to, 0.5);
+      mid.y = Math.max(from.y, to.y) + 0.035; // arcs up over the front beam
+      const tube = new Mesh(new TubeGeometry(new CatmullRomCurve3([from, mid, to]), 20, 0.0008, 5, false), this.stringsMat);
+      tube.name = 'FriendString';
+      this.root.add(tube);
+      this.strings.push(tube);
+    }
   }
 
   /**
@@ -2035,27 +2077,38 @@ function mapleTexture(): CanvasTexture {
 }
 
 /** Where a friend plush sits (loom space; x is multiplied by the lever side). */
-export const FRIEND_SEAT = { x: 0.115, z: LOOM.frontBeamZ + 0.065, r: 0.038 } as const;
+export const FRIEND_SEAT = { x: 0.115, z: LOOM.frontBeamZ + 0.065, r: 0.038, top: 0.014 } as const;
 
 function buildCushion(): Group {
   const g = new Group();
   g.name = 'FriendCushion';
   const felt = feltTexture();
-  const pillow = new Mesh(new SphereGeometry(1, 28, 10, 0, Math.PI * 2, 0, Math.PI / 2), new MeshStandardMaterial({ color: 0xf3e6cc, roughness: 1, map: felt, envMapIntensity: 0.3 }));
-  pillow.scale.set(FRIEND_SEAT.r, 0.009, FRIEND_SEAT.r * 0.85);
-  pillow.receiveShadow = true;
+  const cream = new MeshStandardMaterial({ color: 0xf3e6cc, roughness: 1, map: felt, envMapIntensity: 0.3 });
+  const tomato = new MeshStandardMaterial({ color: 0xe2563b, roughness: 0.95, map: felt, envMapIntensity: 0.3 });
+  // a stuffed felt cushion: a pillowed dome on a short drum, piping round the seam, a button tuft on top
+  const pillow = new Group();
+  pillow.name = 'CushionPillow';
+  const dome = new Mesh(new SphereGeometry(1, 28, 10, 0, Math.PI * 2, 0, Math.PI / 2), cream);
+  dome.scale.set(FRIEND_SEAT.r, 0.008, FRIEND_SEAT.r * 0.88);
+  dome.position.y = 0.009;
+  const drum = new Mesh(new CylinderGeometry(FRIEND_SEAT.r, FRIEND_SEAT.r * 0.96, 0.009, 28), cream);
+  drum.scale.z = 0.88;
+  drum.position.y = 0.0045;
+  const piping = new Mesh(new TorusGeometry(FRIEND_SEAT.r, 0.0022, 6, 36), tomato);
+  piping.rotation.x = Math.PI / 2;
+  piping.scale.y = 0.88;
+  piping.position.y = 0.009;
+  const button = new Mesh(new CylinderGeometry(0.0042, 0.0042, 0.0018, 14), tomato);
+  button.position.y = 0.0168;
+  pillow.add(dome, drum, piping, button);
+  for (const m of [dome, drum, piping]) m.castShadow = m.receiveShadow = true;
   g.add(pillow);
-  const stitchMat = new MeshStandardMaterial({ color: 0xe2563b, roughness: 0.9 });
-  const dash = new BoxGeometry(0.0034, 0.0011, 0.0011);
-  for (let k = 0; k < 22; k++) {
-    const a = (k / 22) * Math.PI * 2;
-    const m = new Mesh(dash, stitchMat);
-    const rx = FRIEND_SEAT.r * 0.78;
-    const rz = FRIEND_SEAT.r * 0.85 * 0.78;
-    m.position.set(Math.cos(a) * rx, 0.0062, Math.sin(a) * rz);
-    m.rotation.y = -a + Math.PI / 2;
-    g.add(m);
-  }
-  mergeStatic(g, () => false); // 22 stitches + the pillow: two draws, not 23
+  mergeStatic(pillow, () => false);
   return g;
+}
+
+/** Squash the cushion a little while a friend sits on it. */
+export function squashCushion(c: Group, seated: boolean): void {
+  const p = c.getObjectByName('CushionPillow');
+  if (p) p.scale.set(seated ? 1.04 : 1, seated ? 0.82 : 1, seated ? 1.04 : 1);
 }

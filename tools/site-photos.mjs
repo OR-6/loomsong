@@ -90,8 +90,8 @@ hands();
 await shoot('sea', [0.02, 0.32, 0.34], [0, 0.04, -0.04], 52);
 save('sea', 'sea-boat.jpg', 800, 500, 1152, 720);
 
-// 7. your plushes help: the Heart on the felt cushion lifts the middle threads for the Table
-const F = (action) => JSON.parse(execFileSync('npx', ['@iwsdk/cli', 'browser', 'run', 'tools/friend-state.mjs'], { encoding: 'utf8', env: { ...process.env, FRIEND_ACTION: action, FRIEND_LEVEL: 'table', FRIEND_ID: 'heart' } })).data.result;
+// 7. your plushes help: the Sprout on the felt cushion lifts the middle threads for the Table
+const F = (action) => JSON.parse(execFileSync('npx', ['@iwsdk/cli', 'browser', 'run', 'tools/friend-state.mjs'], { encoding: 'utf8', env: { ...process.env, FRIEND_ACTION: action, FRIEND_LEVEL: 'table', FRIEND_ID: 'sprout' } })).data.result;
 F('seed');
 F('row');
 F('row');

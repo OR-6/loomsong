@@ -733,7 +733,7 @@ export class Plushes {
    * Set the carried plush down at spot `to` (a shelf slot, or a desk spot at x, z),
    * hopping from where it is. Returns false if there was nothing to move.
    */
-  moveTo(i: number, to: number, x = 0, z = 0): boolean {
+  moveTo(i: number, to: number, x = 0, z = 0, y = 0): boolean {
     const g = this.slotItems[i];
     if (!g) return false;
     if (to !== i) {
@@ -745,7 +745,7 @@ export class Plushes {
       this.slotIds[i] = null;
       this.singLeft[i] = 0;
     }
-    if (to >= PLUSH.slots) this.deskPos[to].set(x, 0, z);
+    if (to >= PLUSH.slots) this.deskPos[to].set(x, y, z); // y: up on the friend's cushion
     this.landFrom[to].copy(g.position);
     this.landScale[to] = g.scale.y;
     this.landT[to] = 0;

@@ -12,7 +12,8 @@ export const CHAPTERS: Chapter[] = [
     "levels": [
       "sprout",
       "tulip",
-      "duck"
+      "duck",
+      "table"
     ]
   },
   {
@@ -23,8 +24,7 @@ export const CHAPTERS: Chapter[] = [
       "cup",
       "heart",
       "house",
-      "star",
-      "table"
+      "star"
     ]
   },
   {
@@ -136,6 +136,35 @@ export const PICTURES: PictureLevel[] = [
     "rootMidi": 65
   },
   {
+    "id": "table",
+    "name": "Table",
+    "chapter": "garden",
+    "mystery": false,
+    "color": 0xb5683a,
+    "friend": 24,
+    "picture": [
+      "...##...",
+      "..####..",
+      "########",
+      "..#..#..",
+      "..#..#.."
+    ],
+    "tieUp": [
+      36,
+      3,
+      192
+    ],
+    "target": [
+      36,
+      36,
+      255,
+      60,
+      24
+    ],
+    "par": 6,
+    "rootMidi": 67
+  },
+  {
     "id": "cup",
     "name": "Cup",
     "chapter": "home",
@@ -164,7 +193,7 @@ export const PICTURES: PictureLevel[] = [
       219
     ],
     "par": 7,
-    "rootMidi": 67
+    "rootMidi": 64
   },
   {
     "id": "heart",
@@ -195,7 +224,7 @@ export const PICTURES: PictureLevel[] = [
       102
     ],
     "par": 6,
-    "rootMidi": 64
+    "rootMidi": 69
   },
   {
     "id": "house",
@@ -226,7 +255,7 @@ export const PICTURES: PictureLevel[] = [
       24
     ],
     "par": 7,
-    "rootMidi": 69
+    "rootMidi": 62
   },
   {
     "id": "star",
@@ -257,35 +286,6 @@ export const PICTURES: PictureLevel[] = [
       24
     ],
     "par": 9,
-    "rootMidi": 62
-  },
-  {
-    "id": "table",
-    "name": "Table",
-    "chapter": "home",
-    "mystery": false,
-    "color": 0xb5683a,
-    "friend": 24,
-    "picture": [
-      "...##...",
-      "..####..",
-      "########",
-      "..#..#..",
-      "..#..#.."
-    ],
-    "tieUp": [
-      36,
-      3,
-      192
-    ],
-    "target": [
-      36,
-      36,
-      255,
-      60,
-      24
-    ],
-    "par": 6,
     "rootMidi": 60
   },
   {

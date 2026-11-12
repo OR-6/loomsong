@@ -78,7 +78,7 @@ export function mountLanding(world: World): void {
           </svg>
           <figure class="photo small" data-hang><i class="peg"></i><span class="label">Your shelf, your desk</span><img loading="lazy" src="${sitePhoto('shelf.jpg')}" alt="Finished plushes on the shelf and on the desk, beside the wrapped present of the day" width="800" height="500" /></figure>
           <div class="note-card"><i class="tape"></i><b>Four chapters, and a new picture every day</b><p>Garden teaches your hands, Home combines levers, Night hides what they lift, and Sea weaves in two colours. Some pictures need a friend: sit a plush on the cushion and it lifts the threads under its feet. Carry your plushes anywhere on your desk and they stay there; finish a chapter and its quilt hangs on your wall.</p></div>
-          <figure class="photo small" data-hang><i class="peg"></i><span class="label">Your plushes help</span><img loading="lazy" src="${sitePhoto('plush-friend.jpg')}" alt="The Heart plush sits on a felt cushion in front of the loom and lifts the two middle threads" width="800" height="500" /></figure>
+          <figure class="photo small" data-hang><i class="peg"></i><span class="label">Your plushes help</span><img loading="lazy" src="${sitePhoto('plush-friend.jpg')}" alt="The Sprout plush sits on a felt cushion in front of the loom and lifts the two middle threads" width="800" height="500" /></figure>
         </section>
 
         <div class="drawer">

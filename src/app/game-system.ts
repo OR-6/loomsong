@@ -325,7 +325,19 @@ export class GameSystem extends createSystem({
       token: () => this.setTheme(otherTheme(this.progress.theme)),
       skein: (i) => this.pickChapter(i),
       nudge: (dir) => this.nudgeDesk(dir),
-      plush: (i) => this.singPlush(i),
+      plush: (i) => {
+        // with the cushion out a poke seats a plush (or sends the seated one home): no carrying needed
+        if (this.flow.level?.friend && this.flow.phase === 'play') {
+          const id = this.view.plushes.idAt(i);
+          if (i === this.seated) this.sendFriendHome();
+          else if (id) {
+            if (this.seated >= 0) this.sendFriendHome(); // one friend at a time
+            this.seatFriend(this.view.plushes.idAt(i) === id ? i : this.spotOf(id), id);
+          }
+          return;
+        }
+        this.singPlush(i);
+      },
       carry: (i, p) => {
         // lifting the friend off its cushion: its threads drop
         if (this.seated >= 0 && i === this.seated) this.unseatFriend();
@@ -537,6 +549,16 @@ export class GameSystem extends createSystem({
         if (stars >= 3 && Object.values(this.progress.best).filter((b) => b >= 3).length === 1) {
           this.laterNotice = 'Fewest moves: a gold bow!';
           this.laterNoticeIn = 4.6;
+        }
+        // a friend helped: it sings along with the new plush, and gets a thank-you
+        if (this.seated >= 0) {
+          const fid = this.view.plushes.idAt(this.seated);
+          const fpic = fid ? pictureById(fid) : null;
+          if (fpic) {
+            this.view.plushes.sing(this.seated, 2.4, 1.2);
+            this.laterNotice = `Thanks, ${fpic.name}!`;
+            this.laterNoticeIn = 4.6;
+          }
         }
         if (this.flow.daily) {
           // today's picture joins the streak; say so once the plush has hopped onto the desk
@@ -1460,7 +1482,7 @@ export class GameSystem extends createSystem({
     }
     const side = this.controller.bankSide;
     const to = PLUSH.slots + d;
-    this.view.plushes.moveTo(i, to, side * FRIEND_SEAT.x, FRIEND_SEAT.z);
+    this.view.plushes.moveTo(i, to, side * FRIEND_SEAT.x, FRIEND_SEAT.z, FRIEND_SEAT.top);
     this.seated = to;
     const feet = pic.target[0] & 255;
     this.model.setHelper(feet);
@@ -1469,6 +1491,46 @@ export class GameSystem extends createSystem({
     this.view.setPipMood('happy');
     this.debug.lastDrop = `friend ${id}`;
     if (this.debug) this.debug.friend = id;
+  }
+
+  /** The feet shown as faint strings while a plush is carried over the cushion (0: none). */
+  private previewKey = 0;
+  private previewFriend(): void {
+    let key = 0;
+    let color = 0;
+    if (this.flow.level?.friend && this.seated < 0 && this.flow.phase === 'play') {
+      const ci = this.view.plushes.carried;
+      const side = this.controller.bankSide;
+      if (ci >= 0 && this.view.plushes.plushCentre(ci, this.tmp2) && Math.hypot(this.tmp2.x - side * FRIEND_SEAT.x, this.tmp2.z - FRIEND_SEAT.z) < FRIEND_SEAT.r + 0.05) {
+        const pic = pictureById(this.view.plushes.idAt(ci) ?? '');
+        if (pic) {
+          key = pic.target[0] & 255;
+          color = pic.color ?? 0xe2563b;
+        }
+      }
+    }
+    if (key === this.previewKey) return;
+    this.previewKey = key;
+    if (this.seated < 0) this.view.previewFriend(key, color);
+  }
+
+  /** The spot a plush is in now (-1: none). */
+  private spotOf(id: string): number {
+    for (let i = 0; i < SPOTS; i++) if (this.view.plushes.idAt(i) === id) return i;
+    return -1;
+  }
+
+  /** The seated friend hops back where it lives: its shelf slot, or its saved place on the desk. */
+  private sendFriendHome(): void {
+    const i = this.seated;
+    const id = i >= 0 ? this.view.plushes.idAt(i) : null;
+    this.unseatFriend();
+    if (!id) return;
+    const at = this.progress.placed?.[id];
+    const slot = this.shelf.findIndex((it) => it.id === id);
+    if (at) this.view.plushes.moveTo(i, i, at[0], at[1]);
+    else if (slot >= 0) this.view.plushes.moveTo(i, slot);
+    audio.pluck(2, 0.35, 0, 0.08);
   }
 
   private unseatFriend(): void {
@@ -2138,7 +2200,7 @@ export class GameSystem extends createSystem({
       if (up === (step === 'unlatch')) this.view.setLeverHighlight(k, 0, up, pulse);
     } else if (step === 'friendOn' || step === 'friendOff' || step === 'friendSwap') {
       // over the friend's cushion
-      m.position.set(side * FRIEND_SEAT.x, 0.07, FRIEND_SEAT.z);
+      m.position.set(side * FRIEND_SEAT.x, 0.03, FRIEND_SEAT.z + 0.06); // low, in front of the cushion
     } else if (step === 'weft') {
       // the swap spool on Pip's side breathes, with the tag above it
       this.view.swapSpoolPos(this.tagAt);
@@ -2228,6 +2290,7 @@ export class GameSystem extends createSystem({
     // the finale starts once the last plush has hopped onto the shelf
     if (this.finale && this.flow.phase === 'between' && !this.view.plushes.busy) this.playFinale();
     this.updateGrand(dt);
+    this.previewFriend();
     // while the plush dances on its stage, the plate and token step aside
     const staged = this.view.plushes.staged;
     this.view.plaque.mesh.visible = !staged;

@@ -91,13 +91,13 @@ check('level 4 won at par (3 stars)', s.debug.stars === 3 && s.debug.flow !== 'p
 check('finishing the Garden unlocks the workshop style', state().debug.workshopUnlocked === true);
 check('9 stars in all', Object.values(run('tools/read-progress.mjs').best).reduce((a, b) => a + b, 0) === 9);
 shot('m2-02-level4-win', s.debug.loomOrigin);
-// the Duck finishes the Garden: its finale (the whole shelf sings) plays before the next chapter
+// after the Duck comes the Table, Garden's last picture (it needs a friend from the shelf)
 for (let i = 0; i < 60; i++) {
   await wait(500);
   s = state();
-  if (s.debug.level === 'cup' && s.debug.flow === 'play') break;
+  if (s.debug.level === 'table' && s.debug.flow === 'play') break;
 }
-check('advanced to level 4 (Cup)', s.debug.level === 'cup' && s.debug.flow === 'play', `${s.debug.level} ${s.debug.flow}`);
+check('advanced to level 4 (the Table)', s.debug.level === 'table' && s.debug.flow === 'play', `${s.debug.level} ${s.debug.flow}`);
 
 // ---------- C. high contrast ----------
 run('tools/set-hc.mjs');

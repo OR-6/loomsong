@@ -6,7 +6,7 @@ export default async function run({ page, frame }) {
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     g.controller.releaseAll();
     const s = g.controller.bankSide;
-    for (const id of ['sprout', 'tulip', 'duck', 'cup', 'heart', 'house', 'star', 'table', 'moon', 'ghost', 'owl', 'cat']) g.progress.best[id] = 3;
+    for (const id of ['sprout', 'tulip', 'duck', 'table', 'cup', 'heart', 'house', 'star', 'table', 'moon', 'ghost', 'owl', 'cat']) g.progress.best[id] = 3;
     g.progress.tutorialDone = true;
     const spots = [[0.2, 0.19], [0.29, 0.18], [-0.42, 0.12], [0.44, 0.09], [0.13, 0.2], [-0.46, 0.05], [0.5, 0.03], [-0.5, -0.03], [0.42, -0.08], [-0.25, 0.24]];
     const ids = ['sprout', 'tulip', 'duck', 'cup', 'heart', 'house', 'star', 'table', 'day-bell', 'day-pine'];
