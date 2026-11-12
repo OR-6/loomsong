@@ -13,6 +13,7 @@ import {
   PlaneGeometry,
   RepeatWrapping,
   SphereGeometry,
+  Vector3,
 } from '@iwsdk/core';
 import { motion } from '../ui/motion.js';
 
@@ -26,6 +27,15 @@ export class RoomMood {
   private wantSea = 0;
   private t = 0;
   enabled = true;
+  /** World positions of the palms (Night's lanterns) and how lit each is (0..1). */
+  readonly lamps = [new Vector3(), new Vector3()];
+  readonly lampOn = [0, 0];
+  /** Night: a tracked palm opens the dusk around it. */
+  setLamp(i: 0 | 1, pos: Vector3 | null, dt: number): void {
+    const want = pos && this.dusk > 0.05 ? 1 : 0;
+    if (pos) this.lamps[i].copy(pos);
+    this.lampOn[i] += (want - this.lampOn[i]) * Math.min(1, dt * 6);
+  }
 
   constructor() {
     this.root.name = 'RoomMood';
@@ -35,6 +45,33 @@ export class RoomMood {
     this.veil.position.set(0, 0.35, 0.4);
     this.veil.visible = false;
     this.veil.renderOrder = -5;
+    // Night: your palm is a lantern. Wherever your real hand is in view, the dusk opens in a soft warm pool
+    // (by angle from the eyes: the veil is far away, the hand near)
+    const vm = this.veil.material as MeshBasicMaterial;
+    vm.onBeforeCompile = (sh) => {
+      sh.uniforms.uLamp = { value: this.lamps };
+      sh.uniforms.uLampOn = { value: this.lampOn };
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vWorldPos;')
+        .replace('#include <fog_vertex>', '#include <fog_vertex>\nvWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;');
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vWorldPos;\nuniform vec3 uLamp[2];\nuniform float uLampOn[2];')
+        .replace(
+          '#include <dithering_fragment>',
+          `vec3 vd = normalize(vWorldPos - cameraPosition);
+          float open = 0.0;
+          for (int i = 0; i < 2; i++) {
+            vec3 ld = uLamp[i] - cameraPosition;
+            float dist = max(length(ld), 0.05);
+            float a = acos(clamp(dot(vd, ld / dist), -1.0, 1.0));
+            float r = atan(0.17 / dist); // a pool about 17 cm across around the palm
+            open = max(open, uLampOn[i] * (1.0 - smoothstep(r * 0.45, r, a)));
+          }
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.55, 0.36, 0.12), open * 0.6); // a warm rim
+          gl_FragColor.a *= 1.0 - open * 0.92;
+          #include <dithering_fragment>`,
+        );
+    };
     // ripples of light on the table: a caustic pattern drifting under a soft round fade
     const map = causticTexture();
     map.wrapS = map.wrapT = RepeatWrapping;

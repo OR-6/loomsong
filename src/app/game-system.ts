@@ -604,6 +604,11 @@ export class GameSystem extends createSystem({
         // shouldn't feel like losing lives); the stars still come at the win
         this.view.card.setPicture(level.color ?? null, level.chapter === 'garden' ? 0 : level.par);
         this.view.card.lastMiss = null;
+        if (level.chapter === 'night' && !this.lanternTold && !this.photoMode) {
+          this.lanternTold = true;
+          this.laterNotice = 'Night falls: your hand is a lantern';
+          this.laterNoticeIn = 3;
+        }
         if (level.chapter === 'home' && !this.knotsTold && !this.flow.challenge && !this.progress.best[level.id]) {
           this.knotsTold = true;
           this.laterNotice = 'New: each lever move unties a knot. Keep some for gold';
@@ -2156,6 +2161,7 @@ export class GameSystem extends createSystem({
   private earHumAt = -1;
   private earTold = false;
   private knotsTold = false;
+  private lanternTold = false;
   private earMisses = 0;
   /** The threads quiver as Pip hums only after a first miss (a hint; until then it's by ear). */
   private earShowQuiver = false;
@@ -2797,6 +2803,9 @@ export class GameSystem extends createSystem({
     this.gazeQuilts(dt);
     this.gazePip(dt);
     this.strokePip(dt);
+    // Night: each real palm (not a controller) is a lantern in the dusk
+    this.view.roomMood.setLamp(0, hands.left.tracked && !hands.left.controller ? hands.left.palm : null, dt);
+    this.view.roomMood.setLamp(1, hands.right.tracked && !hands.right.controller ? hands.right.palm : null, dt);
     if (this.settings.lookToPlay) this.lookToPlay(dt);
     else if (this.view.gazeDot.visible) this.view.gazeDot.visible = false;
     // Pip wakes when a hand comes near the loom's controls (or after a while on its own)
