@@ -2134,7 +2134,8 @@ export class GameSystem extends createSystem({
     const ph = this.view.phone;
     // the telephone: once Garden is woven, or straight away when a call is hosted (e.g. from the 2D page)
     const calling = this.practice || coop.status.state === 'hosting' || (coop.status.state === 'connected' && coop.status.role === 'host');
-    ph.root.visible = ((this.progress.tutorialDone && this.picturesDone() >= 4) || calling) && !this.grand;
+    // a ?start= shortcut (judges, filming) has the telephone out at once, so the caller can be tried
+    ph.root.visible = ((this.progress.tutorialDone && this.picturesDone() >= 4) || calling || !!FILM) && !this.grand;
     this.phoneVec.set(this.controller.bankSide * TOY_PHONE.x, TOY_PHONE.y, TOY_PHONE.z);
     c.phoneSpot = ph.root.visible && this.flow?.phase === 'play' && !this.flow.challenge ? this.phoneVec : null;
     c.plateSpot = this.flow?.phase === 'play' && !this.flow.challenge && !this.grand && !(this.coopLink instanceof CoopGuest) ? this.view.plaque.mesh.position : null;
@@ -2873,7 +2874,8 @@ export class GameSystem extends createSystem({
       this.laterNoticeIn -= dt;
       if (this.laterNoticeIn <= 0) this.showNotice(this.laterNotice, 4, 'centre');
     }
-    if (this.unlockNoticeIn > 0) {
+    if (this.unlockNoticeIn > 0 && !this.grand && !this.finale) {
+      // never over a finale: it waits until the loom is yours again
       this.unlockNoticeIn -= dt;
       if (this.unlockNoticeIn <= 0) this.showNotice('New look! Poke the disc', 6, 'unlock');
     }
