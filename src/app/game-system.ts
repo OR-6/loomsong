@@ -168,6 +168,9 @@ export class GameSystem extends createSystem({
   /** Finished chapters' quilts, hung on the real wall in front of the seat (world space). */
   private quiltRoot = new Group();
   private quilts = new Map<string, Group>();
+  /** Capture only (marketing stills): hide the tutorial tags and the ghost hand. */
+  hideHints = false;
+  private hintsHidden = false;
   /** The wall the quilts hang on this session: a point straight ahead at the hanging height, its normal and its along-wall direction. */
   private wall: { at: Vector3; n: Vector3; t: Vector3; size: number } | null = null;
   private wallSearchIn = 0;
@@ -2248,6 +2251,19 @@ export class GameSystem extends createSystem({
     }
     this.syncGhost(dt, step);
     const m = this.tutor.mesh;
+    if (this.hideHints) {
+      // capture only: no tags or ghost hand in a still that isn't about them
+      m.visible = false;
+      this.view.ghost.root.visible = false;
+      this.hintsHidden = true;
+      return;
+    }
+    if (this.hintsHidden) {
+      this.hintsHidden = false;
+      const words = this.notice || this.hintText(this.flow.hintStep);
+      this.tutor.set(''); // the label skips an unchanged text: clear it first so it redraws and shows
+      this.tutor.set(words); // shows again only if it has words
+    }
     if (this.notice) {
       this.noticeTimer -= dt;
       if (this.noticeAt === 'token') m.position.set(0, CARD.baseY + this.view.card.heightM + 0.03, CARD.z); // above the card

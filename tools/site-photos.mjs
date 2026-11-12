@@ -26,7 +26,9 @@ const hands = () => {
   xr('set-transform', { device: HAND, position: { x: O[0] + 0.9, y: O[1] + 0.6, z: O[2] + 0.9 }, orientation: { pitch: 0, yaw: 0, roll: -90 } });
 };
 /** Camera at loom-relative `p`, looking at `t`, `fov`; save a 1280x720 frame as `name`. */
+let lastShot = null;
 const shoot = async (name, p, t, fov, settle = 700) => {
+  lastShot = { p, t, fov };
   xr('set-device-state', { state: { fov } });
   xr('set-transform', { device: 'headset', position: { x: O[0] + p[0], y: O[1] + p[1], z: O[2] + p[2] } });
   xr('look-at', { device: 'headset', target: { x: O[0] + t[0], y: O[1] + t[1], z: O[2] + t[2] } });
@@ -35,9 +37,18 @@ const shoot = async (name, p, t, fov, settle = 700) => {
   console.log('shot', name);
 };
 /** A 3:2 gallery still (1500x1000) from a raw frame: the middle 1080x720. */
-const gallery = (name, out) => {
+const gallery = async (name, out, frame = null) => {
   mkdirSync(GALLERY, { recursive: true });
-  execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-i', `${TMP}/${name}.png`, '-vf', 'crop=1080:720:100:0,scale=1500:1000:flags=lanczos', '-q:v', '2', `${GALLERY}/${out}`]);
+  // re-shoot the last view a little wider (or as `frame` says), so the 3:2 crop keeps every tag whole
+  const f = frame ?? { ...lastShot, fov: lastShot.fov * 1.16 };
+  xr('set-device-state', { state: { fov: f.fov } });
+  xr('set-transform', { device: 'headset', position: { x: O[0] + f.p[0], y: O[1] + f.p[1], z: O[2] + f.p[2] } });
+  xr('look-at', { device: 'headset', target: { x: O[0] + f.t[0], y: O[1] + f.t[1], z: O[2] + f.t[2] } });
+  evalJs(`window.__loom.game.hideHints = true; return 1;`);
+  await wait(350);
+  cli('browser', 'screenshot', '--output-file', `${TMP}/g-${name}.png`);
+  evalJs(`window.__loom.game.hideHints = false; return 1;`);
+  execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-i', `${TMP}/g-${name}.png`, '-vf', 'crop=1080:720:100:0,scale=1500:1000:flags=lanczos', '-q:v', '2', `${GALLERY}/${out}`]);
 };
 /** Crop the middle `cw`x`ch` of a raw frame and scale to `w`x`h` as a JPEG. */
 const save = (name, out, w, h, cw = 1280, ch = 720, dy = 0) => {
@@ -57,7 +68,7 @@ evalJs(`const g = window.__loom.game; const c = g.controller; const sleep = (ms)
 await shoot('levers', [0.3, 0.33, 0.33], [0.11, 0.03, -0.01], 50, 300);
 evalJs(`const g = window.__loom.game; g.tutor.mesh.visible = true; return 1;`);
 save('levers', 'levers-close.jpg', 800, 600, 960, 720);
-gallery('levers', '03-levers.jpg');
+await gallery('levers', '04-levers.jpg');
 
 // 2. the ghost hand shows how to pinch Pip (the shuttle step)
 // Pip follows the ghost hand's demo slide for a moment (capture only), so the hand pinches Pip mid-slide;
@@ -67,6 +78,7 @@ evalJs(`const g = window.__loom.game; const c = g.controller; const lo = -0.168,
 await wait(900);
 for (const k of ['a', 'b', 'c', 'd']) await shoot(`pip-${k}`, [-0.02, 0.27, 0.34], [-0.03, 0.04, 0.0], 50, 420);
 save(`pip-${process.env.PIP ?? 'b'}`, 'pip-pinch.jpg', 800, 600, 960, 720);
+execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-i', `${TMP}/pip-${process.env.PIP ?? 'b'}.png`, '-vf', 'crop=1080:720:100:0,scale=1500:1000:flags=lanczos', '-q:v', '2', `${GALLERY}/03-a-hand-shows-how.jpg`]);
 for (const k of ['a', 'b', 'c', 'd']) save(`pip-${k}`, `.pip-${k}.jpg`, 400, 300, 960, 720);
 
 // 3. the hero: Home, with plushes on the shelf and the desk
@@ -75,22 +87,25 @@ await wait(1500);
 hands();
 await shoot('hero', [0.14, 0.3, 0.56], [0.03, 0.02, 0.06], 56, 1200);
 save('hero', 'hero-34.jpg', 1100, 618);
-gallery('hero', '01-loom-on-your-desk.jpg');
+await gallery('hero', '02-loom-on-your-desk.jpg', { p: [0.1, 0.22, 0.44], t: [0.0, 0.05, -0.04], fov: 58 });
 save('hero', 'og.jpg', 1200, 630, 1280, 672);
 save('hero', 'loom-clip-poster.jpg', 960, 540);
 
 // 4. the shelf and the desk: plushes where you put them, the present beside the basket
 await shoot('shelf', [-0.12, 0.22, 0.44], [-0.27, 0.03, 0.1], 52);
 save('shelf', 'shelf.jpg', 800, 500, 1152, 720);
-gallery('shelf', '05-shelf-and-desk.jpg');
+await gallery('shelf', '06-shelf-and-desk.jpg');
 
 // 5. the Duck comes alive and dances
 evalJs(`const g = window.__loom.game; g.controller.releaseAll(); g.flow.start(2); await new Promise((r) => setTimeout(r, 600)); return 1;`);
 run('tools/solve-nowait.mjs');
 await wait(2600);
+evalJs(`window.__loom.game.hideHints = true; return 1;`);
 await shoot('dance', [0, 0.26, 0.56], [0, 0.1, 0.1], 52, 200);
+evalJs(`window.__loom.game.hideHints = false; return 1;`);
 save('dance', 'plush-dance.jpg', 800, 600, 960, 720);
-gallery('dance', '02-picture-comes-alive.jpg');
+// the dance is a moment: crop the gallery still from the same frame instead of re-shooting it
+execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-i', `${TMP}/dance.png`, '-vf', 'crop=1080:720:100:0,scale=1500:1000:flags=lanczos', '-q:v', '2', `${GALLERY}/01-picture-comes-alive.jpg`]);
 await wait(9000);
 
 // 6. Sea: a boat on two colours of yarn
@@ -100,7 +115,7 @@ evalJs(`const g = window.__loom.game; const lv = g.flow.level; const c = g.contr
 hands();
 await shoot('sea', [0.02, 0.32, 0.34], [0, 0.04, -0.04], 52);
 save('sea', 'sea-boat.jpg', 800, 500, 1152, 720);
-gallery('sea', '07-sea-two-colours.jpg');
+await gallery('sea', '09-sea-two-colours.jpg');
 
 // 7. your plushes help: the Sprout on the felt cushion lifts the middle threads for the Table
 const F = (action) => JSON.parse(execFileSync('npx', ['@iwsdk/cli', 'browser', 'run', 'tools/friend-state.mjs'], { encoding: 'utf8', env: { ...process.env, FRIEND_ACTION: action, FRIEND_LEVEL: 'table', FRIEND_ID: 'sprout' } })).data.result;
@@ -113,15 +128,22 @@ hands();
 await wait(600);
 await shoot('friend', [0.1, 0.26, 0.5], [0.06, 0.03, 0.06], 50);
 save('friend', 'plush-friend.jpg', 800, 500, 1152, 720);
-gallery('friend', '04-plushes-help.jpg');
+await gallery('friend', '05-plushes-help.jpg');
 // 8. the picture card up close: hand-stamped squares, the move knots as yarn bows
 await shoot('card', [0.0, 0.2, 0.2], [0.0, 0.15, -0.23], 34);
-gallery('card', '06-picture-card.jpg');
+await gallery('card', '07-picture-card.jpg', { p: [0.0, 0.2, 0.2], t: [0.0, 0.15, -0.23], fov: 34 });
 // 9. call a friend: the toy telephone with its code (the line shown as open, for the photo)
 evalJs(`const g = window.__loom.game; g.view.phone.setState('calling', 'KDXW'); return 1;`);
 await shoot('phone', [0.2, 0.2, 0.42], [0.33, 0.02, 0.17], 40);
-gallery('phone', '08-call-a-friend.jpg');
+await gallery('phone', '10-call-a-friend.jpg');
 evalJs(`const g = window.__loom.game; g.view.phone.setState('idle'); return 1;`);
+
+// 10. Night: what a lever lifts stays hidden until you try it (one tried and dyed, the rest undyed wool)
+run('tools/seed-night.mjs');
+await wait(900);
+hands();
+await shoot('night', [0.24, 0.3, 0.36], [0.06, 0.03, -0.02], 52);
+await gallery('night', '08-night-deduce-the-levers.jpg');
 
 xr('set-device-state', { state: { fov: 90 } });
 process.env.PHOTO = '0';
