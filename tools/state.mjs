@@ -10,6 +10,7 @@ export default async function run({ page, frame }) {
       pinchPoint: L.hands[s].pinchPoint.toArray(),
       upDot: L.hands[s].upDot,
       indexTip: L.hands[s].indexTip.toArray(),
+      palm: L.hands[s].palm.toArray(),
     });
     return JSON.parse(JSON.stringify({ debug: L.debug, right: h('right'), left: h('left'), targets: L.targets() }));
   });

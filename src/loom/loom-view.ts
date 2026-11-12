@@ -1133,6 +1133,16 @@ export class LoomView {
         this.fx.zzz(_v.x + 0.012, _v.y + 0.035, _v.z);
       }
     }
+    // stroked: eyes closed in contentment, a soft fluff-up and two little bobs
+    if (this.petT >= 0) {
+      this.petT += dt;
+      const k = Math.sin(Math.min(1, this.petT / 1.4) * Math.PI);
+      for (const e of this.pipEyes) e.scale.y = Math.min(e.scale.y, 1 - 0.85 * k);
+      sx *= 1 + 0.05 * k;
+      squash *= 1 + 0.04 * k;
+      y += 0.004 * Math.abs(Math.sin(this.petT * 9)) * k;
+      if (this.petT > 1.4) this.petT = -1;
+    }
     // waking: a big stretch (wings out, up on its toes)
     if (this.pipWakeT >= 0) {
       this.pipWakeT += dt;
@@ -1310,6 +1320,12 @@ export class LoomView {
   /** Pip is free to react (on its perch, not flying, no other mood playing). */
   get pipIdle(): boolean {
     return this.mood === 'none' && Math.abs(this.shuttleVel) < 0.05 && this.pipGrabT < 0 && this.pipWakeT < 0;
+  }
+
+  /** Stroked: Pip closes its eyes for a moment, fluffs up and bobs happily. */
+  private petT = -1;
+  petPip(): void {
+    this.petT = 0;
   }
 
   /** Pip wakes with a stretch. */

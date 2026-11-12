@@ -154,6 +154,8 @@ export interface GameDebug {
   friend?: string;
   /** The last chapter quilt that sang because it was looked at (debug/E2E). */
   quiltSong?: string;
+  /** Times Pip was stroked (debug/E2E). */
+  pipPetted?: number;
   /** Times Pip waved because the player looked at it (debug/E2E). */
   pipNoticed?: number;
   /** Motion controllers are held (the game wants bare hands). */
@@ -1719,6 +1721,52 @@ export class GameSystem extends createSystem({
     this.debug.autoUndo = (this.debug.autoUndo ?? 0) + 1;
   }
 
+  /**
+   * Stroke Pip: a flat palm passing over it (not a poke, not a pinch), about 8 cm of stroke within
+   * 1.5 s, and it closes its eyes, trills, and a few felt hearts float up. Every few seconds at most.
+   */
+  private strokeLen = 0;
+  private strokeT = 0;
+  private strokeAt = -99;
+  private strokePrev = { left: new Vector3(), right: new Vector3() };
+  private strokeHad = { left: false, right: false };
+  private strokePos = new Vector3();
+  private strokePip(dt: number): void {
+    const c = this.controller;
+    if (c.shuttle.held || c.autoThrow || this.time - this.strokeAt < 4) {
+      this.strokeLen = 0;
+      return;
+    }
+    this.view.shuttle.getWorldPosition(this.strokePos);
+    let moved = 0;
+    for (const side of ['left', 'right'] as const) {
+      const h = hands[side];
+      const prev = this.strokePrev[side];
+      if (!h.tracked || h.pinch.pinching) {
+        this.strokeHad[side] = false;
+        continue;
+      }
+      // the palm just over Pip, the fingertip not on it (that would be a poke)
+      const near = h.palm.distanceTo(this.strokePos) < 0.065 && h.indexTip.distanceTo(this.strokePos) > 0.025 && h.palm.y > this.strokePos.y;
+      if (near && this.strokeHad[side]) moved += Math.hypot(h.palm.x - prev.x, h.palm.z - prev.z);
+      prev.copy(h.palm);
+      this.strokeHad[side] = near;
+    }
+    this.strokeT = moved > 0 ? this.strokeT + dt : Math.max(0, this.strokeT - dt);
+    this.strokeLen = this.strokeT > 1.5 ? 0 : this.strokeLen + moved;
+    if (this.strokeLen < 0.08) return;
+    this.strokeLen = 0;
+    this.strokeT = 0;
+    this.strokeAt = this.time;
+    if (this.view.pipAsleep) this.view.wakePip();
+    this.view.petPip();
+    audio.pipGrab();
+    audio.pipGrab();
+    this.strokePos.applyMatrix4(this.inv);
+    this.view.fx.confetti(this.strokePos.x, this.strokePos.y + 0.03, this.strokePos.z, 6, 0.25);
+    this.debug.pipPetted = (this.debug.pipPetted ?? 0) + 1;
+  }
+
   /** The spot a plush is in now (-1: none). */
   private spotOf(id: string): number {
     for (let i = 0; i < SPOTS; i++) if (this.view.plushes.idAt(i) === id) return i;
@@ -2108,6 +2156,7 @@ export class GameSystem extends createSystem({
     this.updateQuilts(dt);
     this.gazeQuilts(dt);
     this.gazePip(dt);
+    this.strokePip(dt);
     // Pip wakes when a hand comes near the loom's controls (or after a while on its own)
     if (this.view.pipAsleep) {
       this.asleepFor += dt;
