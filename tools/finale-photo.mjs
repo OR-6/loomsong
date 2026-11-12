@@ -13,7 +13,7 @@ xr('set-transform', { device: 'hand-left', position: { x: O[0] - 0.9, y: O[1] + 
 xr('set-device-state', { state: { fov: 50 } });
 xr('set-transform', { device: 'headset', position: { x: O[0] + 0.03, y: O[1] + 0.27, z: O[2] + 0.5 } });
 xr('look-at', { device: 'headset', target: { x: O[0] - 0.01, y: O[1] + 0.09, z: O[2] - 0.05 } });
-for (const [i, ms] of [[1, 5000], [2, 3000], [3, 3000], [4, 3000]]) {
+for (const [i, ms] of [[1, 5000], [2, 3000], [3, 3000], [4, 3000], [5, 4000], [6, 4000], [7, 4000], [8, 4000], [9, 4000], [10, 4000]]) {
   await wait(ms);
   cli('browser', 'screenshot', '--output-file', `${S}/finale${i}.png`);
   console.log(i, JSON.stringify(run('tools/state.mjs').debug.grand));

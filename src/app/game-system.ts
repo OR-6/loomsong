@@ -1740,6 +1740,8 @@ export class GameSystem extends createSystem({
     this.dailyDone = (this.progress.days ?? []).includes(this.today);
     const offered = (VISIT || (this.progress.tutorialDone && this.picturesDone() >= 5)) && !this.coopLink && !this.flow?.daily; // the present: once Garden is done and Home begun (Garden is just the loom)
     const lv = offered ? this.todayLevel() : dailyLevel(this.today);
+    const visiting = VISITOR_LIKES[lv.id] && this.progress.placed?.[VISITOR_LIKES[lv.id]];
+    this.view.daily.newLabel = visiting ? 'A visitor!' : 'Today'; // the present says who brought it
     const next = dayKey(new Date(Date.now() + 86400000));
     this.view.daily.set(offered ? (this.dailyDone ? 'done' : 'new') : 'hidden', lv.color ?? 0xe2563b, { key: next, rows: dailyLevel(next).target });
     const side = this.controller.bankSide;

@@ -56,7 +56,9 @@ away(O);
 await wait(2600);
 const v = run('tools/visit-state.mjs');
 const sp = v.placed.sprout ?? [0.2, 0.19];
-look(O, [sp[0] - 0.12, 0.2, sp[1] + 0.3], [sp[0] - 0.05, 0.03, sp[1] - 0.02], 50);
+const mx = (sp[0] + (v.gift?.[0] ?? sp[0])) / 2; // between the plush and its visitor's present
+const mz = (sp[1] + (v.gift?.[1] ?? sp[1])) / 2;
+look(O, [mx + 0.1, 0.15, mz + 0.22], [mx + 0.075, 0.035, mz - 0.01], 38);
 await wait(900);
 cli('browser', 'screenshot', '--output-file', `${TMP}/visit.png`);
 crop('visit', '19-visitor.jpg');
