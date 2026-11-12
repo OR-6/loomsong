@@ -86,8 +86,14 @@ export class TargetCard {
 
   /** The rows as woven (the card marks a wrong row's squares against them). */
   woven: readonly number[] = [];
+  /** A row Pip hums instead of showing (-1: none): covered by a felt patch with a note until woven. */
+  earRow = -1;
   /** A wrong row the loom just unpicked: its marks stay on that row until you touch a lever. */
   lastMiss: { r: number; woven: number } | null = null;
+  /** Draw again with the last picture and statuses (after a change to a mark or patch). */
+  refresh(): void {
+    if (this.last) this.draw(...this.last);
+  }
   /** Forget the last wrong row's marks (a lever moved). */
   clearMiss(): void {
     if (!this.lastMiss) return;
@@ -215,6 +221,7 @@ export class TargetCard {
       const st = status[r];
       // caller co-op: rows still to weave are hidden here (only the phone sees the picture)
       const hidden = this.secret && st === 'todo';
+      const ear = !hidden && r === this.earRow && st === 'todo';
       // the row to weave next sits on a soft yellow band (easier to find than the pin alone)
       if (r === nextRow && stars === 0 && !highContrast) {
         g.fillStyle = 'rgba(247,180,40,0.72)';
@@ -226,8 +233,10 @@ export class TargetCard {
       }
       for (let i = 0; i < WARPS; i++) {
         const x = gridX + i * cell;
-        const lifted = !hidden && isLifted(row, i);
-        if (hidden) {
+        const lifted = !hidden && !ear && isLifted(row, i);
+        if (ear) {
+          g.fillStyle = (i + r) % 2 === 0 ? '#e9d3b4' : '#e2c9a6'; // under the patch (drawn over the whole row below)
+        } else if (hidden) {
           g.fillStyle = (i + r) % 2 === 0 ? '#e6dcc6' : '#ddd1b8'; // a blank, checked swatch: ask your caller
         } else if (r >= target.length) {
           g.fillStyle = '#d8ccb8'; // extra row beyond target
@@ -269,6 +278,40 @@ export class TargetCard {
         }
       }
       const cy = px(y + cell / 2);
+      if (ear) {
+        // a stitched felt patch over the row, a note sewn on it: "listen to Pip"
+        g.save();
+        roundRect(g, px(gridX + 0.0012), px(y + 0.0012), px(WARPS * cell - 0.0024), px(cell - 0.0024), px(cell * 0.3));
+        g.fillStyle = '#7d5bb8';
+        g.fill();
+        g.setLineDash([px(0.0018), px(0.0012)]);
+        g.strokeStyle = 'rgba(255,240,220,0.9)';
+        g.lineWidth = px(0.0006);
+        roundRect(g, px(gridX + 0.0026), px(y + 0.0026), px(WARPS * cell - 0.0052), px(cell - 0.0052), px(cell * 0.24));
+        g.stroke();
+        g.setLineDash([]);
+        // two beamed quavers
+        const nx = px(gridX + WARPS * cell / 2);
+        const s1 = px(cell * 0.16);
+        g.fillStyle = '#fff4e0';
+        g.strokeStyle = '#fff4e0';
+        g.lineWidth = px(0.0009);
+        for (const dx of [-s1 * 1.6, s1 * 1.6]) {
+          g.beginPath();
+          g.ellipse(nx + dx - s1 * 0.7, cy + s1 * 0.9, s1 * 0.75, s1 * 0.55, -0.4, 0, Math.PI * 2);
+          g.fill();
+          g.beginPath();
+          g.moveTo(nx + dx, cy + s1 * 0.8);
+          g.lineTo(nx + dx, cy - s1 * 1.5);
+          g.stroke();
+        }
+        g.lineWidth = px(0.0016);
+        g.beginPath();
+        g.moveTo(nx - s1 * 1.6, cy - s1 * 1.5);
+        g.lineTo(nx + s1 * 1.6, cy - s1 * 1.5);
+        g.stroke();
+        g.restore();
+      }
       if (st === 'match') drawTick(g, px(gridX + WARPS * cell + markW / 2), cy, px(0.0075));
       const lastMiss = st === 'todo' && this.lastMiss && this.lastMiss.r === r ? this.lastMiss.woven : undefined;
       if (st === 'miss' || lastMiss !== undefined) {

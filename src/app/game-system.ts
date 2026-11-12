@@ -186,6 +186,10 @@ export interface GameDebug {
   friend?: string;
   /** The last chapter quilt that sang because it was looked at (debug/E2E). */
   quiltSong?: string;
+  /** Weave-by-ear: the row (when one is up), its hums, and how it went (debug/E2E). */
+  earRow?: number;
+  earHums?: number;
+  earResult?: string;
   /** Rows Pip wove by himself because they repeated the last one (debug/E2E). */
   repeats?: number;
   /** The first-time tour's current part ('done' once over) (debug/E2E). */
@@ -548,6 +552,7 @@ export class GameSystem extends createSystem({
         // player spent 20 s fighting the spool after one wrong row): the spool is there to go back further
         this.autoUndoRow = !good ? e.index : -1;
         this.view.card.lastMiss = good ? null : { r: e.index, woven: e.row };
+        if (e.index === this.earRow) this.earWoven(good);
         this.autoUndoAt = this.time + 2.2; // long enough to see which squares were wrong
         // the same row again with the levers as they are: Pip remembers it and flies back by himself
         const tg = this.flow.level.target;
@@ -587,6 +592,9 @@ export class GameSystem extends createSystem({
         // shouldn't feel like losing lives); the stars still come at the win
         this.view.card.setPicture(level.color ?? null, level.chapter === 'garden' ? 0 : level.par);
         this.view.card.lastMiss = null;
+        this.earRow = this.chooseEarRow(level);
+        this.earHumAt = -1;
+        this.view.card.earRow = this.earRow;
         // a picture you haven't woven yet keeps its name until it comes alive: "?" on the plate, the name on the win
         this.nameHidden = !!level.chapter && level.id !== 'thanks' && !((this.progress.best[level.id] ?? 0) > 0);
         const plate = this.nameHidden ? surprisePlate(level.chapter, level.id) : level.name;
@@ -1125,6 +1133,7 @@ export class GameSystem extends createSystem({
   /** The tag's words: levers by number and colour ("Push lever 1 (red) away"); in the tutorial the card hint states the goal once. */
   private hintText(step: HintStep): string {
     if (step === 'card' && this.flow?.tutorial) return 'Weave each row like the card';
+    if (this.earActive() && step !== 'undo') return 'Poke the patch to hear it again';
     if (step === 'undo' && this.autoUndoRow >= 0) return 'Not quite: Pip unpicks it'; // the loom undoes it by itself in a moment
     const look = !!this.settings.lookToPlay;
     if (step === 'lever' || step === 'unlatch') {
@@ -1650,6 +1659,10 @@ export class GameSystem extends createSystem({
 
   /** A poked card row plays its tune (left to right, like a pass), with notes rising off the card. */
   private playCardRow(r: number): void {
+    if (r === this.earRow && this.earActive()) {
+      this.humEarRow();
+      return;
+    }
     const lv = this.flow?.level;
     const row = lv?.target[r];
     if (!lv || row === undefined || this.time < this.cardRowUntil) return;
@@ -2026,6 +2039,100 @@ export class GameSystem extends createSystem({
   /** The current picture's not-yet-woven plate (captures). */
   surprisePlateNow(): string {
     return surprisePlate(this.flow.level.chapter, this.flow.level.id);
+  }
+
+  /**
+   * Weave by ear: one row per picture (Home, the Sea, the daily pictures) is a felt patch with a note
+   * on the card. When it comes up, Pip hums it: each thread plucks from its place on the loom and
+   * quivers as it sounds, left to right (watch it or hear it). Poke the patch to hear it again; push
+   * levers (each strums its own threads) until it sounds the same, then slide Pip. A right row flips
+   * the patch off ("By ear!"); a wrong one peels it off and the card marks the squares, so no one is
+   * ever stuck.
+   */
+  private earRow = -1;
+  private earHumAt = -1;
+  private earTold = false;
+  private earQuiver = new Float32Array(WARPS).fill(-1);
+  private chooseEarRow(level: Level): number {
+    const ch = level.chapter;
+    const daily = level.id.startsWith('day-');
+    if (!(ch === 'home' || ch === 'sea' || daily) || level.friend || level.mystery || this.coopLink || this.practice || this.settings.highContrast || this.flow?.challenge) return -1;
+    const t = level.target;
+    let best = -1;
+    let bestScore = -1;
+    for (let r = 1; r < t.length; r++) {
+      if (t[r] === t[r - 1] || (r + 1 < t.length && t[r] === t[r + 1])) continue; // never a repeat: that would be no puzzle
+      let n = 0;
+      for (let w = 0; w < WARPS; w++) if (isLifted(t[r], w)) n++;
+      if (n < 2 || n > 6) continue;
+      const score = 10 - Math.abs(r - t.length / 2) * 2 + (n >= 3 && n <= 5 ? 3 : 0); // the middle of the picture, a few threads
+      if (score > bestScore) {
+        bestScore = score;
+        best = r;
+      }
+    }
+    return best;
+  }
+  /** The ear row is the one to weave now (and still covered). */
+  private earActive(): boolean {
+    return this.earRow >= 0 && this.flow?.phase === 'play' && this.model.rows.length === this.earRow && this.view.card.earRow === this.earRow;
+  }
+  private humEarRow(): void {
+    const lv = this.flow.level;
+    const row = lv.target[this.earRow];
+    if (row === undefined || this.time < this.cardRowUntil) return;
+    audio.resume();
+    this.cardRowUntil = this.time + 0.8;
+    let k = 0;
+    for (let w = 0; w < WARPS; w++) {
+      if (!isLifted(row, w)) continue;
+      const delay = 0.12 + k++ * 0.16;
+      audio.pluck(w, 0.4, delay, 0.3, panOf(warpX(w)));
+      this.earQuiver[w] = this.time + delay; // the thread quivers as it sounds
+    }
+    this.view.setPipMood('happy');
+    this.debug.earHums = (this.debug.earHums ?? 0) + 1;
+  }
+  private tickEar(): void {
+    for (let w = 0; w < WARPS; w++) {
+      if (this.earQuiver[w] >= 0 && this.time >= this.earQuiver[w]) {
+        this.earQuiver[w] = -1;
+        this.view.pluckWarp(w);
+      }
+    }
+    if (!this.earActive()) {
+      this.earHumAt = -1;
+      return;
+    }
+    // hum when the row comes up, then again now and then until it's woven
+    if (this.earHumAt < 0) {
+      this.earHumAt = this.time + 0.9;
+      // say so (hint tags are quiet after the first pictures): the first time in full, then short
+      this.showNotice(this.earTold ? 'A row by ear: listen to Pip' : 'Hidden row: Pip hums it. Match it by ear', this.earTold ? 3 : 6, 'centre');
+    }
+    if (this.time < this.earHumAt || this.controller.shuttle.held) return;
+    this.earHumAt = this.time + 9;
+    this.humEarRow();
+    if (!this.earTold) this.debug.earRow = this.earRow;
+  }
+  private earWoven(good: boolean): void {
+    this.view.card.earRow = -1; // the patch comes off either way: the picture shows, the marks say what was wrong
+    this.view.card.refresh();
+    if (!this.notice) {
+      this.tutor.set(''); // the label skips an unchanged text
+      this.tutor.set(this.hintText(this.flow.hintStep));
+    }
+    this.earTold = true;
+    this.debug.earResult = good ? 'by ear' : 'peeled';
+    if (good) {
+      this.banner.set('By ear!');
+      this.debug.banner = 'By ear!';
+      this.banner.mesh.position.set(0, CARD.baseY + this.view.card.heightM + 0.075, CARD.z + 0.01);
+      this.banner.mesh.visible = true;
+      this.bannerLeft = this.bannerDur = 2.2;
+      this.bannerY = this.banner.mesh.position.y;
+      audio.arpeggio();
+    }
   }
 
   /**
@@ -2938,7 +3045,7 @@ export class GameSystem extends createSystem({
 
   /** Position the tutorial label over its target and pulse that target. */
   private syncHint(dt: number) {
-    const step = this.flow.hintStep;
+    const step = this.earActive() && this.flow.hintStep !== 'undo' && this.flow.hintStep !== 'shuttle' ? 'card' : this.flow.hintStep; // no lever demo on a row you find by ear: the tag points at the patch
     if (this.laterNoticeIn > 0) {
       this.laterNoticeIn -= dt;
       if (this.laterNoticeIn <= 0) this.showNotice(this.laterNotice, 4, 'centre');
@@ -3083,6 +3190,7 @@ export class GameSystem extends createSystem({
     this.previewFriend();
     this.autoUndo();
     this.repeatRow();
+    this.tickEar();
     // while the plush dances on its stage, the plate and token step aside
     const staged = this.view.plushes.staged;
     this.view.plaque.mesh.visible = !staged;
