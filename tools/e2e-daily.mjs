@@ -19,7 +19,7 @@ await poke(cal, w.ball);
 await wait(500);
 w = run('tools/daily-where.mjs');
 check("a poke starts today's picture", w.daily !== '' && w.level.startsWith('day-'), `${w.level} ${w.daily}`);
-check('it says which picture', w.notice.startsWith('Today: '), w.notice);
+check("it says it's today's picture (its name is the surprise)", w.notice === "Today's picture", w.notice);
 check('the ball steps aside while it is on the loom', !w.visible);
 const id = w.level;
 run('tools/solve-nowait.mjs');

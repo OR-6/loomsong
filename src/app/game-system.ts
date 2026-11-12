@@ -140,6 +140,12 @@ export interface GameDebug {
   degrade: number;
   calibrating: string;
   coop: string;
+  /** Plushes that said hello to a neighbour set down beside them (debug/E2E). */
+  hello?: number;
+  /** Wrong rows the loom unpicked by itself (debug/E2E). */
+  autoUndo?: number;
+  /** The level's name is still a surprise (shown as "?" until the win). */
+  nameReveal?: string;
   /** The plush seated on the friend's cushion ('' when none). */
   friend?: string;
   /** The last chapter quilt that sang because it was looked at (debug/E2E). */
@@ -474,6 +480,9 @@ export class GameSystem extends createSystem({
         const good = e.row === this.flow.level.target[e.index];
         this.view.setPipMood(good ? 'happy' : 'sad');
         this.view.rowVerdict(good);
+        // a wrong row unweaves itself after Pip's droop (the tutorial teaches the spool instead)
+        this.autoUndoRow = !good && !this.flow.tutorial ? e.index : -1;
+        this.autoUndoAt = this.time + 1.4;
         audio.chirp(good ? 'happy' : 'sad');
         audio.verdict(good);
         // in rhythm: a right row thrown on the music's beat lands with a golden sparkle and a chord
@@ -506,8 +515,11 @@ export class GameSystem extends createSystem({
         this.view.card.weft = level.weft ?? null;
         this.view.setWeftColor(level.weft ?? null);
         this.view.card.setPicture(level.color ?? null, level.par);
-        this.view.plaque.set(level.name);
-        if (this.debug) this.debug.plaque = level.name;
+        // a picture you haven't woven yet keeps its name until it comes alive: "?" on the plate, the name on the win
+        this.nameHidden = !!level.chapter && level.id !== 'thanks' && !((this.progress.best[level.id] ?? 0) > 0);
+        const plate = this.nameHidden ? '?' : level.name;
+        this.view.plaque.set(plate);
+        if (this.debug) this.debug.plaque = plate;
         // a new picture: any friend goes home (the shelf and desk are rebuilt below); the cushion shows if this one needs a friend
         this.seated = -1;
         this.view.setFriend(0, 0xffffff);
@@ -543,6 +555,17 @@ export class GameSystem extends createSystem({
       },
       win: (stars) => {
         this.controller.enabled = false;
+        // the punchline: the plate turns over to the picture's name as it comes alive
+        if (this.nameHidden) {
+          this.nameHidden = false;
+          const name = this.flow.level.name;
+          this.view.plaque.set(name);
+          this.debug.plaque = name;
+          this.debug.nameReveal = name;
+          audio.reveal();
+          // its name on a felt ribbon over the dancing plush (the plate is tucked away while it dances)
+          this.bannerAt(name, PLUSH.stageX, PLUSH.danceY + 0.115, PLUSH.stageZ, 2.8);
+        }
         this.view.setPipMood('cheer');
         // felt confetti from both sides of the plush, out and away (the card and its stars stay clear)
         this.view.fx.confetti(-0.09, 0.04, LOOM.clothFrontZ + 0.02, 22, 1.05);
@@ -1516,7 +1539,7 @@ export class GameSystem extends createSystem({
     this.view.fx.confetti(this.giftAt[0], 0.04, this.giftAt[1], 28, 0.45);
     audio.swapYarn();
     this.flow.startChallenge(lv, this.today);
-    this.showNotice(`Today: ${lv.name}`, 3, 'centre');
+    this.showNotice("Today's picture", 3, 'centre'); // its name is the surprise when it comes alive
   }
 
   /** Where a just-woven picture's plush goes: its shelf slot, or the desk (already placed there, or a picture of the day). */
@@ -1562,6 +1585,8 @@ export class GameSystem extends createSystem({
 
   /** The spot index of the plush sitting on the friend's cushion (-1: nobody). */
   private seated = -1;
+  /** The picture on the loom hasn't been woven before: its name waits for the win. */
+  private nameHidden = false;
 
   /**
    * Seat plush i on the cushion: it hops there (not saved: it goes home when the picture
@@ -1638,6 +1663,23 @@ export class GameSystem extends createSystem({
     this.view.setPipMood('wave');
     audio.pipGrab(); // a small hello
     this.debug.pipNoticed = (this.debug.pipNoticed ?? 0) + 1;
+  }
+
+  /** A wrong row waiting to unweave itself (-1: none), and when. */
+  private autoUndoRow = -1;
+  private autoUndoAt = 0;
+  private autoUndo(): void {
+    const r = this.autoUndoRow;
+    if (r < 0 || this.time < this.autoUndoAt) return;
+    this.autoUndoRow = -1;
+    const c = this.controller;
+    const rows = this.model.rows;
+    // only that same wrong row, still the last one, with nothing in hand and no partner steering
+    if (this.flow.phase !== 'play' || rows.length !== r + 1 || rows[r] === this.flow.level.target[r]) return;
+    if (c.shuttle.held || c.autoThrow || c.holding.left || c.holding.right || this.coopLink instanceof CoopGuest) return;
+    c.doUndo();
+    c.undoQuietUntil = performance.now() + 900;
+    this.debug.autoUndo = (this.debug.autoUndo ?? 0) + 1;
   }
 
   /** The spot a plush is in now (-1: none). */
@@ -1727,6 +1769,28 @@ export class GameSystem extends createSystem({
     this.view.fx.confetti(x, 0.01, z, 18, 0.25);
     this.view.setPipMood('happy');
     this.debug.lastDrop = `desk ${x},${z}`;
+    // set down beside a friend: they say hello (both bounce, each chimes its first note)
+    let k = 0;
+    for (const [other, at] of Object.entries(this.progress.placed)) {
+      if (other === id || Math.hypot(at[0] - x, at[1] - z) > 0.12) continue;
+      const j = this.spotOf(other);
+      const opic = pictureById(other);
+      if (j < 0 || !opic) continue;
+      this.view.plushes.sing(j, 0.9, 0.15 + k * 0.2);
+      const note = (rows: readonly number[]) => {
+        const r0 = rows[rows.length - 1] & 255; // the top row
+        for (let w = 0; w < WARPS; w++) if ((r0 >> w) & 1) return w;
+        return 3;
+      };
+      audio.pluck(note(opic.target), 0.4, 0.15 + k * 0.2, 0.2, panOf(at[0]));
+      k++;
+      this.debug.hello = (this.debug.hello ?? 0) + 1;
+    }
+    if (k) {
+      const me = pictureById(id);
+      this.view.plushes.sing(PLUSH.slots + d, 0.9, 0);
+      if (me) audio.pluck(3, 0.4, 0, 0.2, panOf(x));
+    }
     if (Object.keys(this.progress.placed).length === 1) this.showNotice('It lives on your desk now', 4, 'centre');
   }
 
@@ -2446,6 +2510,7 @@ export class GameSystem extends createSystem({
     if (this.finale && this.flow.phase === 'between' && !this.view.plushes.busy) this.playFinale();
     this.updateGrand(dt);
     this.previewFriend();
+    this.autoUndo();
     // while the plush dances on its stage, the plate and token step aside
     const staged = this.view.plushes.staged;
     this.view.plaque.mesh.visible = !staged;

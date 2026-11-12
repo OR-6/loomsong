@@ -44,7 +44,7 @@ xr('set-select-value', { device: HAND, value: 0 });
 s = await setTable();
 const L = run('tools/level-info.mjs');
 check('level 3 is the Duck', L.id === 'duck' && L.index === 2, `${L.id} levers=${L.tieUp.length} rows=${L.target.length} par=${L.par}`);
-check('the plate names the picture', s.debug.plaque === 'Duck', s.debug.plaque);
+check('the plate keeps the name a surprise until it is woven', s.debug.plaque === '?', s.debug.plaque);
 check('workshop style still locked (the Garden needs the Duck)', s.debug.workshopUnlocked !== true, String(s.debug.workshopUnlocked));
 const cal = await calibrate();
 

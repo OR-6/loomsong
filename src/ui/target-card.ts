@@ -164,7 +164,7 @@ export class TargetCard {
         const x0 = c.width / 2 - ((inRow - 1) * px(gap)) / 2;
         const y = px(pad + titleH / 2 + (lines === 2 ? (line - 0.5) * 0.0134 : 0));
         const spent = i >= total - this.used;
-        const last = !spent && i === total - this.used - 1 && total - this.used <= 1; // the very last knot left
+        const last = false; // (a red ring on the last knot read as failure: running out only costs stars)
         drawKnot(g, x0 + j * px(gap), y, px(r), i < this.par ? lift : grace, spent, highContrast, last);
       }
       // a live star meter beside the knots: the stars you'd get right now (knots buy stars)

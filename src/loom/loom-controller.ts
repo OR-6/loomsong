@@ -345,9 +345,13 @@ export class LoomController {
     this.setLatched(k, next);
   }
 
+  /** Until this time (performance.now ms) a manual undo is ignored. */
+  undoQuietUntil = 0;
+
   /** Unpick the last row (always available, never penalised). */
   doUndo(): void {
     if (!this.enabled) return;
+    if (performance.now() < this.undoQuietUntil) return; // the loom just unpicked a wrong row by itself: don't take a right one too
     if (this.mirror) {
       this.hooks.request?.('undo');
       return;

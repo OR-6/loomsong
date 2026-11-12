@@ -249,13 +249,9 @@ export class LevelFlow {
     // friend pictures: "seat a plush" / "lift it off" whenever that's the next thing to do (the rest stays the puzzle)
     this.friendHint();
     if (!this.tutorial || this.phase !== 'play') return;
-    if (e.type === 'row' && !this.goalShown && this.model.rows.length === 1 && this.model.rows[0] === this.level.target[0]) {
-      // the first right row: say the goal once, then keep guiding
-      this.goalShown = true;
-      this.setHint('card');
-      this.hintTimer = TIMING.cardHint;
-      return;
-    }
+    // (the first picture used to stop here to explain the card and the knots in words: the ghost hand and the
+    // card's yellow row already show the goal, and the knots are a reward to discover, not homework)
+    if (e.type === 'row' && !this.goalShown && this.model.rows.length === 1) this.goalShown = true;
     if ((this.hintStep === 'card' || this.hintStep === 'knots' || this.hintStep === 'combo') && this.hintTimer > 0) return;
     // the aha: a second lever joins the first and together they make the next row
     if (e.type === 'lever' && e.latched && !this.comboShown && this.model.latched.filter(Boolean).length >= 2) {

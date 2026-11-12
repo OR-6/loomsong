@@ -97,7 +97,7 @@ describe('level flow', () => {
     }
   });
 
-  it('level 1 tutorial guides every row: goal once, undo a wrong row, then the two-lever aha', () => {
+  it('level 1 tutorial guides every row: no homework tags, undo a wrong row, then the two-lever aha', () => {
     const { model, flow, log } = setup();
     flow.start();
     expect(flow.tutorial).toBe(true);
@@ -105,10 +105,8 @@ describe('level flow', () => {
     model.setLatched(0, true);
     expect(log.at(-1)).toBe('hint shuttle 0');
     model.commitRow();
-    expect(log.at(-1)).toBe('hint card 0'); // the goal, said once
-    for (let t = 0; t < TIMING.cardHint + 0.1; t += 0.05) flow.update(0.05);
-    expect(log.at(-1)).toBe('hint knots 0'); // then what the knots mean, once
-    for (let t = 0; t < TIMING.cardHint + 0.1; t += 0.05) flow.update(0.05);
+    // no words about the card or the knots: the guide goes straight on (the ghost hand and the yellow row show the goal)
+    expect(log.some((l) => l.startsWith('hint card') || l.startsWith('hint knots'))).toBe(false);
     expect(log.at(-1)).toBe('hint shuttle 0'); // row 1 is the stem again: lever 0 is still up
     // a wrong row (lever 1 joins too early) → undo
     model.setLatched(1, true);
