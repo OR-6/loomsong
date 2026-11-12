@@ -21,7 +21,7 @@ Hand tracking has no touch, so Loomsong puts every interaction on a real surface
 5. Pinch-and-slide, or just poke: poking works on every control.
 6. Nothing to log into. Progress stays in the browser.
 7. **Short on time?** Add `?start=friends` to the link to start at the fourth picture, where your plushes become tools (poke a plush to seat it on the cushion). `?finale=1` shows the ending.
-8. **Phone caller:** on the 2D page open "Play together" and press Host (a toy telephone appears on your desk with the code), then enter the code on any phone at the same link. Alone? Wait 20 seconds and a practice caller picks up: the picture leaves the loom and felt pins drop on each row's threads. Poke the telephone to hang up.
+8. **Phone caller:** on the 2D page press "Host a loom" (under "No headset? Be the caller on your phone"; a toy telephone appears on your desk with the code), then enter the code on any phone at the same link. Alone? Wait 20 seconds and a practice caller picks up: the picture leaves the loom and felt pins drop on each row's threads. Poke the telephone to hang up.
 
 ## What's in it
 

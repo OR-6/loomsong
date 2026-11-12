@@ -85,6 +85,9 @@ const KNOB_NAMES: Record<number, string> = { 0xe8553e: 'red', 0x1fb3a0: 'teal', 
 /** Seconds either side of a music beat that count as "on the beat". */
 const BEAT_WINDOW = 0.12;
 
+/** A picture's plate before it comes alive: its name is the surprise. */
+const SURPRISE_PLATE = 'What is it?';
+
 /** Seconds the toy telephone waits for a friend before a practice caller picks up. */
 const PRACTICE_AFTER = 20;
 
@@ -530,7 +533,7 @@ export class GameSystem extends createSystem({
         this.view.card.setPicture(level.color ?? null, level.par);
         // a picture you haven't woven yet keeps its name until it comes alive: "?" on the plate, the name on the win
         this.nameHidden = !!level.chapter && level.id !== 'thanks' && !((this.progress.best[level.id] ?? 0) > 0);
-        const plate = this.nameHidden ? '?' : level.name;
+        const plate = this.nameHidden ? SURPRISE_PLATE : level.name;
         this.view.plaque.set(plate);
         if (this.debug) this.debug.plaque = plate;
         // a new picture: any friend goes home (the shelf and desk are rebuilt below); the cushion shows if this one needs a friend

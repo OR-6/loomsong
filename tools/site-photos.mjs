@@ -44,8 +44,8 @@ const gallery = async (name, out, frame = null) => {
   xr('set-device-state', { state: { fov: f.fov } });
   xr('set-transform', { device: 'headset', position: { x: O[0] + f.p[0], y: O[1] + f.p[1], z: O[2] + f.p[2] } });
   xr('look-at', { device: 'headset', target: { x: O[0] + f.t[0], y: O[1] + f.t[1], z: O[2] + f.t[2] } });
-  // a picture still being woven keeps its name a surprise: '?' on the plate, as the text says
-  evalJs(`const g = window.__loom.game; g.hideHints = true; if (g.flow.phase === 'play') g.view.plaque.set('?'); return 1;`);
+  // a picture still being woven keeps its name a surprise: 'What is it?' on the plate, as the text says
+  evalJs(`const g = window.__loom.game; g.hideHints = true; if (g.flow.phase === 'play') g.view.plaque.set('What is it?'); return 1;`);
   await wait(350);
   cli('browser', 'screenshot', '--output-file', `${TMP}/g-${name}.png`);
   evalJs(`window.__loom.game.hideHints = false; return 1;`);
@@ -147,7 +147,7 @@ await gallery('card', '08-picture-card.jpg', { p: [0.0, 0.2, 0.2], t: [0.0, 0.15
 // 9. call a friend: the toy telephone with its code (the line shown as open, for the photo)
 evalJs(`const g = window.__loom.game; g.view.phone.setState('calling', 'KDXW'); return 1;`);
 await shoot('phone', [0.2, 0.2, 0.42], [0.33, 0.02, 0.17], 40);
-await gallery('phone', '11-call-a-friend.jpg');
+await gallery('phone', '11-call-a-friend.jpg', { p: [0.34, 0.24, 0.52], t: [0.31, 0.035, 0.11], fov: 42 }); // the telephone up front, the lever box and the loom behind it
 evalJs(`const g = window.__loom.game; g.view.phone.setState('idle'); return 1;`);
 
 // 11. the present of the day: wrapped, with its Today tag, wherever today's spot is
