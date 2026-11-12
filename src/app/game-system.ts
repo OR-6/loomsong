@@ -64,6 +64,15 @@ import { loadFont } from '../ui/fonts.js';
 
 const params = new URLSearchParams(location.search);
 const FIXED_DESK = params.get('desk');
+/**
+ * Where the present of the day may stand: [x on the shelf side (multiplied by -side), z].
+ * Beside the basket, in front of it, beyond the lever box: one per day, in turn.
+ */
+const GIFT_SPOTS: readonly (readonly [number, number])[] = [
+  [0.322, 0.17],
+  [0.2, 0.25],
+  [-0.48, 0.06],
+];
 /** ?finale=1: play the grand finale shortly after the loom is placed (for filming). */
 const FORCE_FINALE = params.get('finale') === '1';
 /** ?film=table (any picture id): start there with every earlier picture woven, for recording a moment. */
@@ -1472,9 +1481,23 @@ export class GameSystem extends createSystem({
     const lv = dailyLevel(this.today);
     const next = dayKey(new Date(Date.now() + 86400000));
     this.view.daily.set(offered ? (this.dailyDone ? 'done' : 'new') : 'hidden', lv.color ?? 0xe2563b, { key: next, rows: dailyLevel(next).target });
+    // the present waits somewhere new each day: one of a few spots in reach, if the real table is there
     const side = this.controller.bankSide;
-    this.dailyVec.set(-side * DAILY_BALL.x, DAILY_BALL.y, DAILY_BALL.z);
+    const spots = GIFT_SPOTS;
+    let h = 0;
+    for (let i = 0; i < this.today.length; i++) h = (h * 31 + this.today.charCodeAt(i)) >>> 0;
+    let [gx, gz] = spots[0];
+    const pick = spots[h % spots.length];
+    const at = { x: -side * pick[0], y: 0.01, z: pick[1] };
+    if (this.onTable(at)) [gx, gz] = pick;
+    this.giftAt[0] = -side * gx;
+    this.giftAt[1] = gz;
+    this.view.setGiftSpot(this.giftAt[0], this.giftAt[1]);
+    this.dailyVec.set(this.giftAt[0], DAILY_BALL.y, this.giftAt[1]);
   }
+  private giftDirty = false;
+  /** Where today's present stands (loom space x, z). */
+  private giftAt: [number, number] = [0, 0];
 
   /** Weave today's picture (once a day; the ball says when the next one comes). */
   private startDaily(): void {
@@ -1490,7 +1513,7 @@ export class GameSystem extends createSystem({
     // the present opens: the lid pops off with a little burst
     this.view.daily.open();
     const side = this.controller.bankSide;
-    this.view.fx.confetti(-side * DAILY_BALL.x, 0.04, DAILY_BALL.z, 28, 0.45);
+    this.view.fx.confetti(this.giftAt[0], 0.04, this.giftAt[1], 28, 0.45);
     audio.swapYarn();
     this.flow.startChallenge(lv, this.today);
     this.showNotice(`Today: ${lv.name}`, 3, 'centre');
@@ -1647,7 +1670,7 @@ export class GameSystem extends createSystem({
   private onProp(x: number, z: number, margin: number): boolean {
     const side = this.controller.bankSide;
     const phone = this.view.phone.root.visible && Math.hypot(x - side * TOY_PHONE.x, z - TOY_PHONE.z) < 0.06 + margin;
-    const gift = this.view.daily.root.visible && Math.hypot(x + side * DAILY_BALL.x, z - DAILY_BALL.z) < 0.045 + margin;
+    const gift = this.view.daily.root.visible && Math.hypot(x - this.giftAt[0], z - this.giftAt[1]) < 0.045 + margin;
     return phone || gift;
   }
 
@@ -1742,7 +1765,9 @@ export class GameSystem extends createSystem({
     this.view.daily.hover(isKind(c.hover.left, 'daily') || isKind(c.hover.right, 'daily'));
     // the toy telephone: once the first picture is done (never in the first minutes), not during the finale
     const ph = this.view.phone;
-    ph.root.visible = this.progress.tutorialDone && this.picturesDone() >= 4 && !this.grand; // the telephone: once Garden is woven
+    // the telephone: once Garden is woven, or straight away when a call is hosted (e.g. from the 2D page)
+    const calling = coop.status.state === 'hosting' || (coop.status.state === 'connected' && coop.status.role === 'host');
+    ph.root.visible = ((this.progress.tutorialDone && this.picturesDone() >= 4) || calling) && !this.grand;
     this.phoneVec.set(this.controller.bankSide * TOY_PHONE.x, TOY_PHONE.y, TOY_PHONE.z);
     c.phoneSpot = ph.root.visible && this.flow?.phase === 'play' && !this.flow.challenge ? this.phoneVec : null;
     ph.hover(isKind(c.hover.left, 'phone') || isKind(c.hover.right, 'phone'));
@@ -1975,6 +2000,10 @@ export class GameSystem extends createSystem({
     this.debug.challenge = this.flow.challenge;
     this.debug.anchored = this.loomEntity.hasComponent(XRAnchor) && this.loomEntity.getValue(XRAnchor, 'attached') === true;
     if (this.debug.anchored) this.saveLoomPose();
+    if (this.giftDirty) {
+      this.giftDirty = false;
+      this.syncDaily();
+    }
     this.updateQuilts(dt);
     this.gazeQuilts(dt);
     this.gazePip(dt);
@@ -2221,6 +2250,7 @@ export class GameSystem extends createSystem({
     this.controller.bankSide = side;
     this.debug.bankSide = side;
     this.view.setSide(side);
+    this.giftDirty = true; // the present's spot depends on the side and on the table: place it once the loom stands
     this.forwardFlat(this.fwd);
     const root = this.view.root;
     // a new placement is in world space: take the loom back from last session's anchor group first

@@ -66,7 +66,7 @@ hands();
 // 0. the first minute: only the loom, the card, Pip and two levers on the desk
 evalJs(`window.__loom.game.hideHints = true; return 1;`);
 await shoot('start', [0.06, 0.3, 0.5], [0.0, 0.03, 0.0], 50, 900);
-await gallery('start', '05-the-first-minute.jpg', { p: [0.05, 0.24, 0.38], t: [0.0, 0.06, -0.06], fov: 50 });
+await gallery('start', '05-the-first-minute.jpg', { p: [0.12, 0.27, 0.44], t: [0.07, 0.04, -0.04], fov: 58 }); // both levers in
 evalJs(`window.__loom.game.hideHints = false; return 1;`);
 
 // 1. the first lever lifts its threads (level 1)
@@ -94,14 +94,14 @@ await wait(1500);
 hands();
 await shoot('hero', [0.14, 0.3, 0.56], [0.03, 0.02, 0.06], 56, 1200);
 save('hero', 'hero-34.jpg', 1100, 618);
-await gallery('hero', '06-loom-on-your-desk.jpg', { p: [0.1, 0.22, 0.44], t: [0.0, 0.05, -0.04], fov: 58 });
+await gallery('hero', '06-loom-on-your-desk.jpg', { p: [0.04, 0.27, 0.52], t: [0.0, 0.04, -0.02], fov: 68 }); // every prop whole
 save('hero', 'og.jpg', 1200, 630, 1280, 672);
 save('hero', 'loom-clip-poster.jpg', 960, 540);
 
 // 4. the shelf and the desk: plushes where you put them, the present beside the basket
 await shoot('shelf', [-0.12, 0.22, 0.44], [-0.27, 0.03, 0.1], 52);
 save('shelf', 'shelf.jpg', 800, 500, 1152, 720);
-await gallery('shelf', '09-shelf-and-desk.jpg');
+await gallery('shelf', '09-shelf-and-desk.jpg', { p: [-0.08, 0.25, 0.48], t: [-0.2, 0.04, 0.04], fov: 64 });
 
 // 5. the Duck comes alive and dances
 // a clean desk for it (no second Duck): the Sprout and the Tulip on the shelf, the Duck on the loom, woven in par
@@ -113,7 +113,7 @@ await shoot('dance', [0, 0.26, 0.56], [0, 0.1, 0.1], 52, 200);
 evalJs(`window.__loom.game.hideHints = false; return 1;`);
 save('dance', 'plush-dance.jpg', 800, 600, 960, 720);
 // the dance is a moment: crop the gallery still from the same frame instead of re-shooting it
-execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-i', `${TMP}/dance.png`, '-vf', 'crop=930:620:175:20,scale=1500:1000:flags=lanczos', '-q:v', '2', `${GALLERY}/01-picture-comes-alive.jpg`]); // tighter: no empty desk below
+execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-i', `${TMP}/dance.png`, '-vf', 'crop=1000:667:150:8,scale=1500:1000:flags=lanczos', '-q:v', '2', `${GALLERY}/01-picture-comes-alive.jpg`]); // tighter: no empty desk below
 await wait(9000);
 
 // 6. Sea: a boat on two colours of yarn
@@ -145,6 +145,14 @@ evalJs(`const g = window.__loom.game; g.view.phone.setState('calling', 'KDXW'); 
 await shoot('phone', [0.2, 0.2, 0.42], [0.33, 0.02, 0.17], 40);
 await gallery('phone', '11-call-a-friend.jpg');
 evalJs(`const g = window.__loom.game; g.view.phone.setState('idle'); return 1;`);
+
+// 11. the present of the day: wrapped, with its Today tag, wherever today's spot is
+run('tools/seed-garden-three.mjs');
+await wait(900);
+const gift = evalJs(`const g = window.__loom.game; g.syncDaily(); return g.giftAt;`);
+hands();
+await shoot('gift', [gift[0] * 0.7, 0.2, gift[1] + 0.26], [gift[0], 0.02, gift[1]], 46);
+await gallery('gift', '13-present-of-the-day.jpg');
 
 // 10. Night: what a lever lifts stays hidden until you try it (one tried and dyed, the rest undyed wool)
 run('tools/seed-night.mjs');

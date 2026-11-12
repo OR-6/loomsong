@@ -1641,6 +1641,14 @@ export class LoomView {
    * The level's colours and tie-up. `color` is the picture colour (lifted
    * threads); null falls back to the theme's weft colour.
    */
+  /** The present of the day stands at (x, z) today (loom space); its contact shadow follows. */
+  setGiftSpot(x: number, z: number): void {
+    this.daily.root.position.set(x, 0, z);
+    this.daily.root.rotation.y = -Math.sign(x || 1) * 0.18; // turned a little toward the seat
+    const b = this.blobs[3];
+    if (b) b.position.set(x, b.position.y, z + 0.004);
+  }
+
   /** Night's cloth: dusk-blue ground yarn (set before setPicture, which repaints). */
   nightCloth = false;
 
