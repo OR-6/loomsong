@@ -5,7 +5,7 @@ export default async function run({ page, frame }) {
     g.controller.releaseAll();
     for (const id of ['sprout', 'tulip', 'duck', 'cup', 'heart', 'house', 'star']) g.progress.best[id] = 3;
     g.syncBasket(g.flow.level);
-    g.pickChapter(2);
+    g.pickChapter(2); g.pickChapter(2); // the second poke confirms
     await new Promise((r) => setTimeout(r, 400));
     return { level: g.flow.level.id, mystery: g.flow.level.mystery };
   });

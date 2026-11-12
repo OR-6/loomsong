@@ -2,7 +2,7 @@
 export default async function run({ page, frame }) {
   return await (frame ?? page).evaluate(async () => {
     const g = window.__loom.game;
-    g.pickChapter(0);
+    g.pickChapter(0); g.pickChapter(0); // the second poke confirms
     await new Promise((r) => setTimeout(r, 400));
     return { level: g.flow.level.id };
   });

@@ -88,6 +88,15 @@ const BEAT_WINDOW = 0.12;
 /** A picture's plate before it comes alive: its name is the surprise. */
 const SURPRISE_PLATE = 'What is it?';
 
+/** The first-time tour: what each part is (seconds before it starts, per tag). */
+const INTRO = [
+  { part: 'card', text: 'Weave this picture' },
+  { part: 'levers', text: 'Levers lift threads' },
+  { part: 'pip', text: 'Pip weaves a row' },
+] as const;
+const INTRO_WAIT = 1.2;
+const INTRO_STEP = 2.4;
+
 /** Seconds the toy telephone waits for a friend before a practice caller picks up. */
 const PRACTICE_AFTER = 20;
 
@@ -101,7 +110,7 @@ const HINT_TEXT: Record<HintStep, string> = {
   knots: 'Each lever move unties a knot',
   combo: '', // the aha is a gold ribbon over the card, not a tag
   more: 'Add another lever',
-  friendOn: 'Seat a plush on the cushion',
+  friendOn: 'Poke a shelf plush: it sits on the cushion',
   friendOff: 'Lift the plush off',
   friendSwap: 'Try a plush with other feet',
   none: '',
@@ -160,6 +169,10 @@ export interface GameDebug {
   friend?: string;
   /** The last chapter quilt that sang because it was looked at (debug/E2E). */
   quiltSong?: string;
+  /** The first-time tour's current part ('done' once over) (debug/E2E). */
+  intro?: string;
+  /** Times the loom was moved from the name plate (debug/E2E). */
+  moved?: number;
   /** A practice caller is on the line (debug/E2E). */
   practice?: boolean;
   /** The last control pressed by looking at it (debug/E2E). */
@@ -360,7 +373,9 @@ export class GameSystem extends createSystem({
       },
       pass: () => audio.thud(),
       undo: () => audio.unpick(),
-      token: () => this.setTheme(otherTheme(this.progress.theme)),
+      token: () => {
+        if (this.confirmPoke('style', 'Change the style? Poke it again')) this.setTheme(otherTheme(this.progress.theme));
+      },
       skein: (i) => this.pickChapter(i),
       nudge: (dir) => this.nudgeDesk(dir),
       plush: (i) => {
@@ -385,6 +400,9 @@ export class GameSystem extends createSystem({
       windKey: () => this.playShelf(),
       daily: () => this.startDaily(),
       phone: () => this.pokePhone(),
+      plate: () => {
+        if (this.confirmPoke('move', 'Move the loom? Poke it again')) this.moveLoom();
+      },
       cardRow: (i) => this.playCardRow(i),
       swap: () => {
         this.model.setWeft(this.model.weft ? 0 : 1);
@@ -1026,6 +1044,26 @@ export class GameSystem extends createSystem({
     this.debug.anchored = false;
   }
 
+  /**
+   * Move the loom (from the name plate, inside the headset): it folds away and unfolds wherever you
+   * rest your hand next, or in front of you if no hand is seen. Progress and the picture stay.
+   */
+  private moveLoom(): void {
+    if (!this.placement || this.placement.phase !== 'placed' || this.coopLink) return;
+    if (this.loomEntity.hasComponent(XRAnchor)) this.loomEntity.removeComponent(XRAnchor);
+    this.controller.releaseAll();
+    this.placement = new Placement();
+    this.view.root.visible = false;
+    this.controller.nudgeEnabled = false;
+    this.view.nudges.visible = false;
+    this.settings = { ...this.settings, placeFresh: true }; // the new spot wins over the saved one
+    this.loomSaved = false;
+    this.debug.phase = 'waiting';
+    this.debug.anchored = false;
+    this.debug.moved = (this.debug.moved ?? 0) + 1;
+    audio.click(false);
+  }
+
   /** Default placement: move the loom up/down to meet the real desk. */
   private nudgeDesk(dir: 1 | -1): void {
     const y = (this.placement.deskY ?? this.view.root.position.y) + dir * NUDGE.step;
@@ -1040,14 +1078,14 @@ export class GameSystem extends createSystem({
   }
 
   /** The ghost hand demonstrates the current tutorial gesture on the real target. */
-  /** The tag's words: levers by number and colour ("Lift lever 1 (red)"); in the tutorial the card hint states the goal once. */
+  /** The tag's words: levers by number and colour ("Push lever 1 (red) away"); in the tutorial the card hint states the goal once. */
   private hintText(step: HintStep): string {
     if (step === 'card' && this.flow?.tutorial) return 'Weave each row like the card';
     const look = !!this.settings.lookToPlay;
     if (step === 'lever' || step === 'unlatch') {
       const name = this.leverName(this.hintLever);
       if (look) return `Look at ${name}`;
-      return step === 'lever' ? `Lift ${name}` : `Put ${name} back`;
+      return step === 'lever' ? `Push ${name} away` : `Pull ${name} back`; // levers slide away from you ("lift" read as pull up)
     }
     if (look && step === 'shuttle') return 'Look at Pip';
     if (look && step === 'undo') return 'Look at the spool to undo';
@@ -1086,7 +1124,7 @@ export class GameSystem extends createSystem({
       if (busyNow || this.flow.phase !== 'play' || Object.keys(this.progress.placed ?? {}).length > 0) this.carryDemo = 0;
     }
     ghost.show(
-      this.settings.lookToPlay
+      this.settings.lookToPlay || this.introT >= 0
         ? null // no hands to show: the ring of beads on what you look at is the guide
         : this.carryDemo > 0 && this.carryGesture
         ? this.carryGesture
@@ -1096,7 +1134,9 @@ export class GameSystem extends createSystem({
           ? { kind: 'lever', k: this.hintLever, back: step === 'unlatch' }
           : step === 'shuttle'
             ? { kind: 'shuttle', fromEnd: c.shuttle.t < 0.5 ? 0 : 1 }
-            : null,
+            : step === 'friendOn'
+              ? this.friendDemo(side)
+              : null,
       side,
     );
     const busy = c.hover.left !== null || c.hover.right !== null || c.holding.left !== null || c.holding.right !== null;
@@ -1108,6 +1148,20 @@ export class GameSystem extends createSystem({
   private carryShown = false;
   private carryIn = -1;
   private carryGesture: import('../loom/ghost-hand.js').GhostGesture = null;
+  /** A picture that needs a friend: the ghost hand carries a shelf plush onto the cushion (what "a plush" and "the cushion" are). */
+  private friendGest: { kind: 'carry'; ax: number; ay: number; az: number; bx: number; by: number; bz: number } | null = null;
+  private friendGestKey = '';
+  private friendDemo(side: 1 | -1): import('../loom/ghost-hand.js').GhostGesture {
+    let i = -1;
+    for (let k = 0; k < PLUSH.slots && i < 0; k++) if (this.view.plushes.idAt(k)) i = k;
+    if (i < 0 || !this.view.plushes.plushCentre(i, this.tmp2)) return null;
+    const key = `${i}:${side}`;
+    if (key !== this.friendGestKey || !this.friendGest) {
+      this.friendGestKey = key;
+      this.friendGest = { kind: 'carry', ax: this.tmp2.x, ay: this.tmp2.y, az: this.tmp2.z, bx: side * FRIEND_SEAT.x, by: FRIEND_SEAT.top + 0.02, bz: FRIEND_SEAT.z };
+    }
+    return this.friendGest;
+  }
   private startCarryDemo(): void {
     if (this.carryShown || Object.keys(this.progress.placed ?? {}).length > 0 || this.coopLink) return;
     let i = -1;
@@ -1595,6 +1649,7 @@ export class GameSystem extends createSystem({
       this.showNotice('A new picture tomorrow', 3, 'centre');
       return;
     }
+    if (!this.confirmPoke('daily', "Open today's picture? Poke it again")) return;
     const lv = dailyLevel(this.today);
     audio.restyle();
     // the present opens: the lid pops off with a little burst
@@ -2029,6 +2084,7 @@ export class GameSystem extends createSystem({
     ph.root.visible = ((this.progress.tutorialDone && this.picturesDone() >= 4) || calling) && !this.grand;
     this.phoneVec.set(this.controller.bankSide * TOY_PHONE.x, TOY_PHONE.y, TOY_PHONE.z);
     c.phoneSpot = ph.root.visible && this.flow?.phase === 'play' && !this.flow.challenge ? this.phoneVec : null;
+    c.plateSpot = this.flow?.phase === 'play' && !this.flow.challenge && !this.grand && !(this.coopLink instanceof CoopGuest) ? this.view.plaque.mesh.position : null;
     ph.hover(isKind(c.hover.left, 'phone') || isKind(c.hover.right, 'phone'));
   }
 
@@ -2182,6 +2238,15 @@ export class GameSystem extends createSystem({
         lift = 0.045;
         break;
       }
+      case 'plate': {
+        const pp = this.view.plaque.mesh.position;
+        at.x = pp.x;
+        at.y = pp.y;
+        at.z = pp.z;
+        text = 'Move the loom';
+        lift = 0.05;
+        break;
+      }
       case 'windKey':
         if (c.keySpot) Object.assign(at, c.keySpot);
         at.x -= side * 0.05; // out past the key, never over a plush
@@ -2249,6 +2314,24 @@ export class GameSystem extends createSystem({
   }
 
   /** A chapter's yarn ball was pressed: jump to its first unfinished picture. */
+  /**
+   * Things that change what you're playing (another chapter, the style, today's present) take a
+   * second poke within a few seconds: a hand passing by shouldn't swap the picture you're weaving.
+   */
+  private armedPoke = '';
+  private armedUntil = 0;
+  private confirmPoke(key: string, ask: string): boolean {
+    if (this.armedPoke === key && this.time < this.armedUntil) {
+      this.armedPoke = '';
+      return true;
+    }
+    this.armedPoke = key;
+    this.armedUntil = this.time + 4;
+    audio.tick();
+    this.showNotice(ask, 4, 'centre');
+    return false;
+  }
+
   private pickChapter(i: number): void {
     const ch = CHAPTERS[i];
     if (!ch || this.flow.phase !== 'play' || this.coopLink || this.grand) return;
@@ -2259,6 +2342,7 @@ export class GameSystem extends createSystem({
       return;
     }
     if (states[i] === 'current') return;
+    if (!this.confirmPoke(`chapter${i}`, `Go to ${ch.name}? Poke it again`)) return;
     const id = ch.levels.find((l) => !((this.progress.best[l] ?? 0) > 0)) ?? ch.levels[0];
     const idx = LEVELS.findIndex((l) => l.id === id);
     if (idx < 0) return;
@@ -2647,7 +2731,67 @@ export class GameSystem extends createSystem({
     else if (this.settings.calibrateNext) this.startCalibration(hand);
     else if (fallback) this.showNotice('Nudge to your desk', 7, 'nudge');
     else if (this.flow.challenge) this.showNotice('Weave this cloth', 6);
+    // the very first time: name the parts before the first move (what the card, the levers and Pip are)
+    if (!resume && !this.coopLink && !fallback && this.flow.tutorial && this.picturesDone() === 0 && !this.settings.calibrateNext) this.introT = 0;
     audio.bloom();
+  }
+
+  /**
+   * First-time tour, as the loom unfolds: a tag names each part in turn (the card, the levers, Pip),
+   * the tutorial waiting until it's done. A hand reaching in skips it.
+   */
+  private introT = -1;
+  private introK = -1;
+  private introV = new Vector3();
+  private introP = { x: 0, y: 0, z: 0 };
+  private tickIntro(dt: number): void {
+    if (this.introT < 0) return;
+    const c = this.controller;
+    const busy = c.holding.left !== null || c.holding.right !== null || this.model.rows.length > 0 || this.flow.phase !== 'play';
+    this.introT += dt;
+    const k = Math.floor((this.introT - INTRO_WAIT) / INTRO_STEP);
+    if (busy || k >= INTRO.length) {
+      this.introT = -1;
+      this.introK = -1;
+      this.tip.mesh.visible = false;
+      this.tipCode = -2; // a hover tag works its words out afresh
+      this.debug.intro = 'done';
+      return;
+    }
+    // the tutorial's words wait for the tour (the ghost hand already does)
+    this.tutor.mesh.visible = false;
+    if (k < 0) {
+      this.tip.mesh.visible = false;
+      return;
+    }
+    const at = this.introP;
+    let lift = 0.05;
+    if (INTRO[k].part === 'card') {
+      const v = this.view.cardRowPos(0, this.introV);
+      if (v) {
+        at.x = v.x;
+        at.y = v.y;
+        at.z = v.z;
+      }
+      lift = 0.1; // above the card's top edge, clear of its knots
+    } else if (INTRO[k].part === 'levers') {
+      c.leverPos(Math.min(1, c.activeLevers - 1), at);
+      lift = 0.07;
+    } else {
+      const x = c.shuttleX();
+      at.x = x;
+      at.y = shuttleY(x);
+      at.z = SHUTTLE.z;
+      lift = 0.06;
+    }
+    if (k !== this.introK) {
+      this.introK = k;
+      this.tip.set(INTRO[k].text);
+      audio.tick();
+      this.debug.intro = INTRO[k].part;
+    }
+    this.tip.mesh.visible = true;
+    this.tip.mesh.position.set(at.x, at.y + lift, at.z);
   }
 
   /** Position the tutorial label over its target and pulse that target. */
@@ -2825,6 +2969,7 @@ export class GameSystem extends createSystem({
     }
     this.view.setPreview(this.model.shed, this.flow.phase === 'play');
     this.syncHint(dt);
+    this.tickIntro(dt);
     this.view.update(dt);
     this.debug.shed = this.model.shed;
     this.debug.shuttleT = Math.round(c.shuttle.t * 1000) / 1000;
@@ -2947,6 +3092,8 @@ function targetCode(t: unknown): number {
       return 60 + ((x as { i?: number }).i ?? 0);
     case 'windKey':
       return 40;
+    case 'plate':
+      return 43;
     case 'swap':
       return 41;
     default:

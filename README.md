@@ -16,7 +16,7 @@ Hand tracking has no touch, so Loomsong puts every interaction on a real surface
 
 1. Open https://or-6.github.io/loomsong/ in the headset's browser (Quest 3 or 3S). Turn hand tracking on and put the controllers down (if you're still holding them, the game asks you to).
 2. Sit at a table with decent light. Press **Enter mixed reality**.
-3. **Rest one hand flat on the table for a second.** The loom unfolds there. (No hand seen? It appears at a default height after a few seconds; poke the yellow arrows to raise or lower it.)
+3. **Rest one hand flat on the table for a second.** The loom unfolds there, and the first time, tags name its parts: the card, the levers and Pip. (No hand seen? It appears at a default height after a few seconds; poke the yellow arrows to raise or lower it.)
 4. Follow the ghost hand: slide the glowing lever away from you, then pinch Pip and slide him across. Your first row plays within a minute.
 5. Pinch-and-slide, or just poke: poking works on every control.
 6. Nothing to log into. Progress stays in the browser.
@@ -35,7 +35,7 @@ Hand tracking has no touch, so Loomsong puts every interaction on a real surface
 - **The room changes with the chapter.** At Night your real room dims to dusk around the loom; by the Sea, pool-light ripples drift across your real table.
 - **Pip likes you.** Look at Pip for a moment and it waves; stroke it with a flat hand and it closes its eyes and trills.
 - **Welcome back.** After a few hours away, Pip is asleep on its perch (felt Zs drift up) and wakes with a stretch when your hand reaches in.
-- **The room remembers.** Once the loom is held by IWSDK's persistent spatial anchor, its pose is saved. Next session, if the same anchor comes back and the spot is still within seated reach, the loom unfolds right where you left it. "Move the loom" in the settings sets a new spot.
+- **The room remembers.** Once the loom is held by IWSDK's persistent spatial anchor, its pose is saved. Next session, if the same anchor comes back and the spot is still within seated reach, the loom unfolds right where you left it. "Move the loom" in the settings sets a new spot. In the headset, poke the loom's name plate twice: it folds away and unfolds in front of you wherever you rest your hand next (the picture is kept).
 - **A picture of the day.** A wrapped present, somewhere new on your desk each day, holds today's picture (21 of them, the same for everyone that day). Weave it and its plush hops onto your desk; days in a row are counted, and the opened box shows tomorrow's picture as a silhouette.
 - **Music.** Every thread is a recorded kalimba note on a pentatonic scale. Run a fingertip over the threads to play them like a harp. Each thread sounds from its own place across the loom, and a plush sings from where it stands. Each chapter has its own piece by Scott Buckley (soft piano, strings, accordion), played quietly under the threads; the threads, every row and every plush's song are tuned to that piece's key, so the game always plays in harmony with the music.
 - **An ending.** When the last chapter is done, the loom weaves a heart by itself (the levers and Pip move on their own, each row singing), then every chapter's shelf springs up in turn and sings while the credits go by on a felt ribbon. Play then carries on with endless bonus patterns. Add `?finale=1` to the URL to see it straight away.

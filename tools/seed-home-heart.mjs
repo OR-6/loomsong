@@ -5,7 +5,7 @@ export default async function run({ page, frame }) {
     g.controller.releaseAll();
     Object.assign(g.progress.best, { sprout: 3, tulip: 3, duck: 2, cup: 3 });
     const i = g.flow ? [...Array(40).keys()].find((k) => { try { return window.__loom.game.flow && k >= 0 && false; } catch { return false; } }) : 0; void i;
-    g.pickChapter(1); // jumps to Home's first unfinished picture: the heart
+    g.pickChapter(1); g.pickChapter(1); // the second poke confirms // jumps to Home's first unfinished picture: the heart
     await new Promise((r) => setTimeout(r, 400));
     return { level: g.flow.level.id };
   });

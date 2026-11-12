@@ -39,6 +39,7 @@ export type Target =
   | { kind: 'windKey' }
   | { kind: 'daily' }
   | { kind: 'phone' }
+  | { kind: 'plate' }
   | { kind: 'cardRow'; i: number }
   | { kind: 'swap' }
   | { kind: 'nudge'; dir: 1 | -1 }
@@ -72,6 +73,8 @@ export interface ControllerHooks {
   daily?(): void;
   /** The toy telephone was poked: call a friend, or hang up. */
   phone?(): void;
+  /** The name plate was poked (move the loom). */
+  plate?(): void;
   /** A row of the picture card was poked: it plays its tune. */
   cardRow?(i: number): void;
   /** Sea: a swap spool by a perch was touched: Pip changes yarn. */
@@ -81,6 +84,7 @@ export interface ControllerHooks {
 const KEY_TARGET = { kind: 'windKey' } as const;
 const DAILY_TARGET = { kind: 'daily' } as const;
 const PHONE_TARGET = { kind: 'phone' } as const;
+const PLATE_TARGET = { kind: 'plate' } as const;
 /** The two nudge arrows (direction, z): allocated once, not per hand per frame. */
 const NUDGE_SPOTS = [[1, NUDGE.upZ], [-1, NUDGE.downZ]] as const;
 const SWAP_TARGET = { kind: 'swap' } as const;
@@ -122,6 +126,8 @@ export class LoomController {
   dailySpot: { x: number; y: number; z: number } | null = null;
   /** The toy telephone's handset (null: not on the desk). */
   phoneSpot: { x: number; y: number; z: number } | null = null;
+  /** The loom's name plate (loom space): poke it to move the loom. */
+  plateSpot: { x: number; y: number; z: number } | null = null;
   /** The picture card's rows (loom space; null: not pokeable now). */
   cardRows: ({ x: number; y: number; z: number } | null)[] = [];
   /** Sea's swap spools by each perch (null: this level has one weft). */
@@ -226,6 +232,8 @@ export class LoomController {
         this.hooks.daily?.();
       } else if (t?.kind === 'phone') {
         this.hooks.phone?.();
+      } else if (t?.kind === 'plate') {
+        this.hooks.plate?.();
       } else if (t?.kind === 'cardRow') {
         this.hooks.cardRow?.(t.i);
       } else if (t?.kind === 'swap') {
@@ -300,6 +308,8 @@ export class LoomController {
       this.hooks.daily?.();
     } else if (t.kind === 'phone') {
       this.hooks.phone?.();
+    } else if (t.kind === 'plate') {
+      this.hooks.plate?.();
     } else if (t.kind === 'cardRow') {
       this.hooks.cardRow?.(t.i);
     } else if (t.kind === 'swap') {
@@ -484,7 +494,7 @@ export class LoomController {
   }
 
   private sliderOf(t: Exclude<Target, null>): Slider {
-    if (t.kind === 'token' || t.kind === 'nudge' || t.kind === 'skein' || t.kind === 'plush' || t.kind === 'windKey' || t.kind === 'daily' || t.kind === 'phone' || t.kind === 'cardRow' || t.kind === 'swap') return this.bobbin; // never held
+    if (t.kind === 'token' || t.kind === 'nudge' || t.kind === 'skein' || t.kind === 'plush' || t.kind === 'windKey' || t.kind === 'daily' || t.kind === 'phone' || t.kind === 'plate' || t.kind === 'cardRow' || t.kind === 'swap') return this.bobbin; // never held
     if (t.kind === 'shuttle') return this.shuttle;
     if (t.kind === 'bobbin') return this.bobbin;
     return this.levers[t.k];
@@ -593,6 +603,15 @@ export class LoomController {
       if (dd < bestD) {
         bestD = dd;
         best = PHONE_TARGET;
+      }
+    }
+    if (this.plateSpot) {
+      // a wide, low slat: measure across it more loosely than along
+      const c = this.plateSpot;
+      const dd = Math.hypot(Math.max(0, Math.abs(p.x - c.x) - 0.035), p.y - c.y, p.z - c.z) - 0.012;
+      if (dd < bestD) {
+        bestD = dd;
+        best = PLATE_TARGET;
       }
     }
     if (this.nudgeEnabled) {

@@ -5,7 +5,7 @@ export default async function run({ page, frame }) {
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const id of ['sprout', 'tulip', 'duck', 'cup', 'heart', 'house', 'mushroom']) g.progress.best[id] = 3;
     g.syncBasket(g.flow.level);
-    g.pickChapter(2);
+    g.pickChapter(2); g.pickChapter(2); // the second poke confirms
     await sleep(300);
     const hex = () => g.view.leverMats.map((m) => m.color.getHexString());
     const before = hex();

@@ -32,6 +32,10 @@ export const BONES: Array<[string, string]> = (() => {
 })();
 
 const JOINTS = 25;
+/** Metres the wrist may move between two frames before it counts as a tracking jump. */
+const JUMP = 0.12;
+/** Frames a hand's occluders stay off after a jump. */
+const HOLD_FRAMES = 8;
 const COUNT = JOINTS + BONES.length;
 
 export const occluderState = { enabled: true };
@@ -44,8 +48,12 @@ export class HandOccluderSystem extends createSystem({}) {
   private s = new Vector3();
   private pos = new Map<string, Vector3>();
   private rad = new Map<string, number>();
-  private hidVisuals = false;
+  private valid = new Set<string>();
   private seen = { left: false, right: false };
+  /** Last wrist position per hand, and frames left with that hand's occluders off after a tracking jump. */
+  private lastWrist = { left: new Vector3(), right: new Vector3() };
+  private hadWrist = { left: false, right: false };
+  private hold = { left: 0, right: 0 };
 
   init() {
     const geo = new SphereGeometry(1, 10, 8);
@@ -75,27 +83,46 @@ export class HandOccluderSystem extends createSystem({}) {
     this.hideIwsdkHands();
     const frame = this.xrFrame;
     const ref = this.renderer.xr.getReferenceSpace();
-    if (!frame?.session) this.hidVisuals = false; // re-hide in the next session
     const seen = this.seen;
     seen.left = seen.right = false;
     if (occluderState.enabled && frame?.session && ref && frame.getJointPose) {
       for (const src of frame.session.inputSources) {
         if (!src.hand || (src.handedness !== 'left' && src.handedness !== 'right')) continue;
-        this.pos.clear();
-        this.rad.clear();
+        const side = src.handedness;
+        this.valid.clear();
         let i = 0;
-        const mesh = this.meshes[src.handedness];
+        const mesh = this.meshes[side];
+        // In dim light hand tracking can jump: a hand that moved further in one frame than a real hand
+        // can keeps its occluders off for a moment, so they never punch holes where the hand isn't.
+        const wristSpace = src.hand.get('wrist');
+        const wrist = wristSpace ? frame.getJointPose(wristSpace, ref) : undefined;
+        if (!wrist) {
+          this.hadWrist[side] = false;
+          continue;
+        }
+        const w = wrist.transform.position;
+        this.p.set(w.x, w.y, w.z);
+        if (this.hadWrist[side] && this.p.distanceTo(this.lastWrist[side]) > JUMP) this.hold[side] = HOLD_FRAMES;
+        this.lastWrist[side].copy(this.p);
+        this.hadWrist[side] = true;
+        if (this.hold[side] > 0) {
+          this.hold[side]--;
+          continue;
+        }
         for (const [name, space] of src.hand.entries()) {
           const pose = frame.getJointPose(space, ref);
           if (!pose) continue;
           const t = pose.transform.position;
-          const r = (pose.radius ?? 0.008) * 1.08;
-          const v = (this.pos.get(name) ?? new Vector3()).set(t.x, t.y, t.z);
-          this.pos.set(name, v);
+          const r = pose.radius ?? 0.008; // the joint's own size: a bigger sphere eats the loom beside a finger
+          let v = this.pos.get(name);
+          if (!v) this.pos.set(name, (v = new Vector3())); // once per joint name, then reused
+          v.set(t.x, t.y, t.z);
           this.rad.set(name, r);
+          this.valid.add(name);
           this.write(mesh, i++, v, r);
         }
         for (const [a, b] of BONES) {
+          if (!this.valid.has(a) || !this.valid.has(b)) continue;
           const pa = this.pos.get(a);
           const pb = this.pos.get(b);
           if (!pa || !pb) continue;
@@ -115,13 +142,22 @@ export class HandOccluderSystem extends createSystem({}) {
     mesh.setMatrixAt(i, this.m);
   }
 
-  /** Real device: hide IWSDK's hand mesh (passthrough shows the real hand). */
+  /**
+   * Real device: hide IWSDK's hand mesh (passthrough shows the real hand). IWSDK sets the model's
+   * `visible` back to true every frame and makes a new model whenever tracking reconnects, and it
+   * nudges the model off surfaces it touches, so on a headset a stiff white outline drifted beside
+   * the real hand and its depth-writing inner mesh cut holes in the loom. Take every model off all
+   * render layers instead (IWSDK never touches layers), checking each frame for new ones.
+   */
   private hideIwsdkHands() {
-    if (this.hidVisuals || import.meta.env.DEV) return;
+    if (import.meta.env.DEV) return; // the emulator has no real hands to see: keep its hand model
     const ad = this.input.xr.visualAdapters?.hand;
     if (!ad) return;
-    ad.left.toggleVisual(false);
-    ad.right.toggleVisual(false);
-    this.hidVisuals = true;
+    for (const a of [ad.left, ad.right]) {
+      const model = a.visual?.model;
+      if (!model || model.userData.loomHidden) continue;
+      model.userData.loomHidden = true;
+      model.traverse((o) => o.layers.disableAll());
+    }
   }
 }

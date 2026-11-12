@@ -32,7 +32,7 @@ export function mountLanding(world: World): void {
             <i class="tape" aria-hidden="true"></i>
 
             <p id="tagline">A tiny loom on your real desk. Hands only.</p>
-            <p class="lede">Lift the levers, slide Pip across, and each row you weave sings. Finish a picture and it comes alive as a little felt toy that stays on your desk.</p>
+            <p class="lede">Push the levers away, slide Pip across, and each row you weave sings. Finish a picture and it comes alive as a little felt toy that stays on your desk.</p>
             <div class="go">
               <button id="enter-xr" class="patch" type="button">Enter mixed reality</button>
               <p class="note">Sit at a desk with your controllers down and hand tracking on.</p>
@@ -62,7 +62,7 @@ export function mountLanding(world: World): void {
           </svg>
           <ol class="steps">
             <li class="s1" data-hang><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('levers-close.jpg')}" alt="The red lever lifts its threads" width="800" height="600" /></figure>
-              <div class="hang"><b><span class="num" aria-hidden="true">1</span><span class="visually-hidden">Step 1: </span>Lift the levers</b>Each lever lifts its own threads. Pick the ones that make the next row on the card.</div></li>
+              <div class="hang"><b><span class="num" aria-hidden="true">1</span><span class="visually-hidden">Step 1: </span>Push the levers</b>Each lever lifts its own threads. Pick the ones that make the next row on the card.</div></li>
             <li class="s2" data-hang><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('pip-pinch.jpg')}" alt="A ghost hand shows how to pinch Pip" width="800" height="600" /></figure>
               <div class="hang"><b><span class="num" aria-hidden="true">2</span><span class="visually-hidden">Step 2: </span>Slide Pip across</b>Pinch the little bird and slide it through. The row is woven, and its threads ring out.</div></li>
             <li class="s3" data-hang><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('plush-dance.jpg')}" alt="The finished duck pops off the loom as a felt plush" width="800" height="600" /></figure>

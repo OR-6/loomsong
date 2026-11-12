@@ -104,6 +104,7 @@ export class GhostHand {
     m.position.set(0, 0, 0);
     m.quaternion.set(0, 0, 0, 1);
     m.visible = true;
+    m.traverse((o) => o.layers.set(0)); // the player's own hand model is taken off every layer on a headset; the ghost is drawn
     // the captured pinch pose
     m.traverse((o) => {
       const b = PINCH_POSE.bones[o.name as keyof typeof PINCH_POSE.bones];
