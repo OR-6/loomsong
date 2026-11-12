@@ -21,7 +21,12 @@ export default async function run({ page, frame }) {
       g.flow.start({ table: 3, lantern: 12, jellyfish: 17 }[lv]); // Garden's, Night's and the Sea's friend pictures
       await sleep(700);
     }
+    // Pip may be weaving a repeated row by himself: let him land first (and after, so it's all in one step)
+    const idle = async () => {
+      for (let w = 0; w < 60 && (g.repeatAt >= 0 || g.controller.autoThrow); w++) await sleep(100);
+    };
     if (action === 'row') {
+      await idle();
       const lv = g.flow.level;
       const r = g.model.rows.length;
       const want = lv.target[r] & 255;
@@ -37,6 +42,7 @@ export default async function run({ page, frame }) {
       await sleep(300);
       g.controller.throwShuttle();
       await sleep(1700);
+      await idle();
     }
     if (action === 'seat') {
       let i = -1;

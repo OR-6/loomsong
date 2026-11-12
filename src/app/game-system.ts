@@ -2228,7 +2228,9 @@ export class GameSystem extends createSystem({
     if (c.shuttle.held || c.autoThrow) return; // Pip's still in a hand (or in flight): wait for him
     this.repeatAt = -1;
     audio.chirp('happy');
+    c.shedLock = true; // the row is decided: levers moved mid-flight wait for him to land
     c.throwShuttle();
+    if (!c.autoThrow) c.unlockShed();
     this.debug.repeats = (this.debug.repeats ?? 0) + 1;
     if (!this.repeatTold) {
       this.repeatTold = true;

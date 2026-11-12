@@ -14,10 +14,10 @@ function lum(hex: number) {
 }
 
 describe('themes', () => {
-  it('workshop unlocks only after the Garden chapter is finished', () => {
+  it('workshop unlocks a little into Home (never during Garden)', () => {
     expect(workshopUnlocked({ best: {} })).toBe(false);
-    expect(workshopUnlocked({ best: { sprout: 3, tulip: 1, tree: 2 } })).toBe(false);
-    expect(workshopUnlocked({ best: { sprout: 3, tulip: 1, tree: 2, duck: 1 } })).toBe(true);
+    expect(workshopUnlocked({ best: { sprout: 3, tulip: 1, duck: 1, table: 2 } })).toBe(false);
+    expect(workshopUnlocked({ best: { sprout: 3, tulip: 1, duck: 1, table: 2, heart: 1, house: 1 } })).toBe(true);
   });
   it('every theme keeps yarn luminance contrast ≥ 3:1 (pattern legible without hue)', () => {
     for (const t of Object.values(THEMES)) {

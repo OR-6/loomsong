@@ -16,7 +16,7 @@ export default async function run({ page, frame }) {
       let i = -1;
       for (let k = 0; k < 45; k++) if (g.view.plushes.idAt(k) === 'cup') i = k;
       const at = g.progress.placed.sprout;
-      g.dropPlush(i, { x: at[0] + s * 0.07, y: 0.01, z: at[1] + 0.02 });
+      g.dropPlush(i, { x: at[0] - s * 0.07, y: 0.01, z: at[1] + 0.02 }); // the other side: a visitor's present may stand on this one
       await sleep(400);
     }
     return { level: g.flow.level.id, phase: g.flow.phase, rows: g.model.rows.length, plaque: L.debug.plaque, reveal: L.debug.nameReveal ?? '', banner: L.debug.banner ?? '', autoUndo: L.debug.autoUndo ?? 0, hello: L.debug.hello ?? 0, lastDrop: L.debug.lastDrop };

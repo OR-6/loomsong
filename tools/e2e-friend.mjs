@@ -12,8 +12,8 @@ await wait(1000);
 let s = F('seed');
 check('the Table is up, with a cushion for a friend', s.level === 'table' && s.cushion === true && s.helper === 0, JSON.stringify(s));
 check('the Sprout waits on the Garden shelf', s.heartAt >= 0 && s.heartAt < 5, String(s.heartAt));
-F('row');
 s = F('row');
+for (let i = 0; i < 3 && s.rows < 2; i++) s = F('row'); // the legs repeat: Pip may weave the second by himself
 check('the legs weave with the levers alone', s.rows === 2 && s.statuses.startsWith('ok'.repeat(1)) && !s.statuses.includes('x'), s.statuses);
 check('then the game asks for a friend', s.hint === 'friendOn', s.hint);
 s = F('seat');

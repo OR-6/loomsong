@@ -199,6 +199,7 @@ export class LoomController {
       if (this.shuttle.settle(dt, speed)) {
         this.autoThrow = false;
         this.checkPassComplete();
+        this.unlockShed();
       }
     }
     this.strum(dt);
@@ -373,6 +374,17 @@ export class LoomController {
     this.hooks.undo?.();
   }
 
+  /** Pip has landed: apply any lever changes made during his flight. */
+  unlockShed(): void {
+    if (!this.shedLock) return;
+    this.shedLock = false;
+    for (let k = 0; k < this.pendingLatch.length; k++) {
+      const v = this.pendingLatch[k];
+      this.pendingLatch[k] = undefined;
+      if (v !== undefined) this.setLatched(k, v);
+    }
+  }
+
   /** Co-op: apply a lever state decided elsewhere (slider springs there). */
   applyLatched(k: number, v: boolean): void {
     if (this.model.latched[k] === v) return;
@@ -399,7 +411,15 @@ export class LoomController {
     }
   }
 
+  /** While Pip flies a row by himself (a repeat), lever changes wait until he lands: that row is already decided. */
+  shedLock = false;
+  private pendingLatch: (boolean | undefined)[] = [];
+
   private setLatched(k: number, v: boolean): void {
+    if (this.shedLock) {
+      this.pendingLatch[k] = v;
+      return;
+    }
     if (this.model.latched[k] === v) return;
     this.model.setLatched(k, v);
     this.hooks.leverClick?.(k, v);

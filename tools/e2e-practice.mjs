@@ -21,11 +21,11 @@ check('its pins mark exactly the next row', s.row !== null && s.pinned === s.row
 // weave that row (the right levers, then Pip) and the caller pins the next one
 execFileSync('npx', ['@iwsdk/cli', 'browser', 'run', 'tools/weave-row.mjs'], { encoding: 'utf8' });
 const rows = s.rows;
-for (let i = 0; i < 24 && !(s.rows === rows + 1 && s.pinned === s.row && s.pinned); i++) {
+for (let i = 0; i < 24 && !(s.rows > rows && s.pinned === s.row && s.pinned); i++) {
   await wait(500);
   s = P('state');
 }
-check('the next row gets its own pins', s.rows === rows + 1 && s.pinned === s.row, JSON.stringify([s.rows, s.pinned, s.row]));
+check('the next row gets its own pins', s.rows > rows && s.pinned === s.row, JSON.stringify([s.rows, s.pinned, s.row]));
 s = P('hangup');
 await wait(300);
 s = P('state');
