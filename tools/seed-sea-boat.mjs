@@ -5,7 +5,7 @@ export default async function run({ page, frame }) {
     // wait out any win or playback first (a chapter pick is ignored mid-celebration)
     for (let w = 0; w < 100 && g.flow.phase !== 'play'; w++) await new Promise((r) => setTimeout(r, 100));
     g.controller.releaseAll();
-    for (const id of ['sprout', 'tulip', 'duck', 'cup', 'heart', 'house', 'star', 'table', 'moon', 'ghost', 'owl', 'cat', 'fish', 'crab', 'octopus']) g.progress.best[id] = 3;
+    for (const id of ['sprout', 'tulip', 'duck', 'cup', 'heart', 'house', 'star', 'table', 'moon', 'ghost', 'owl', 'cat', 'lantern', 'fish', 'crab', 'octopus']) g.progress.best[id] = 3;
     g.syncBasket(g.flow.level);
     g.pickChapter(3);
     await new Promise((r) => setTimeout(r, 500));

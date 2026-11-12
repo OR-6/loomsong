@@ -4,7 +4,8 @@
 // them again; the picture finishes with the friend's help and the friend goes home after.
 import { execFileSync } from 'node:child_process';
 import { wait, freshSession, setTable, check, done } from './e2e-lib.mjs';
-const F = (action) => JSON.parse(execFileSync('npx', ['@iwsdk/cli', 'browser', 'run', 'tools/friend-state.mjs'], { encoding: 'utf8', env: { ...process.env, FRIEND_ACTION: action } })).data.result;
+const F = (action, level = 'table', who = 'heart') =>
+  JSON.parse(execFileSync('npx', ['@iwsdk/cli', 'browser', 'run', 'tools/friend-state.mjs'], { encoding: 'utf8', env: { ...process.env, FRIEND_ACTION: action, FRIEND_LEVEL: level, FRIEND_ID: who } })).data.result;
 await freshSession();
 await setTable();
 await wait(1000);
@@ -26,4 +27,20 @@ check('with the friend, the tabletop, vase and flower weave right', !s.statuses.
 for (let i = 0; i < 30 && F('state').level === 'table'; i++) await wait(1000);
 s = F('state');
 check('next picture: the cushion goes and the friend is back home', s.level !== 'table' && s.cushion === false && s.helper === 0, JSON.stringify(s));
+// the Lantern (Night): the friend must come from the Night shelf; the Moon's feet don't fit, the Owl's do
+s = F('seed', 'lantern', 'moon');
+check('the Lantern is up with a cushion', s.level === 'lantern' && s.cushion === true, JSON.stringify(s));
+check('its wide stand asks for a friend straight away', s.hint === 'friendOn' && s.rows === 0, JSON.stringify(s));
+s = F('seat', 'lantern', 'moon');
+check("the Moon's feet are wrong for it: try other feet", s.friend === 'moon' && s.hint === 'friendSwap', JSON.stringify(s));
+F('unseat', 'lantern', 'moon');
+s = F('seat', 'lantern', 'owl');
+check('the Owl fits', s.friend === 'owl' && s.hint !== 'friendSwap' && s.hint !== 'friendOn', JSON.stringify(s));
+for (let r = 0; r < 6 && s.phase === 'play'; r++) {
+  s = F('state', 'lantern', 'owl');
+  if (s.hint === 'friendOff') s = F('unseat', 'lantern', 'owl');
+  if (s.hint === 'friendOn') s = F('seat', 'lantern', 'owl');
+  s = F('row', 'lantern', 'owl');
+}
+check('on and off the cushion, the Lantern weaves right', !s.statuses.includes('x') && s.phase !== 'play', `${s.statuses} ${s.phase}`);
 done('friend');

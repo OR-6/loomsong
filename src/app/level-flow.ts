@@ -101,6 +101,15 @@ export class LevelFlow {
     this.idleShown = false;
     if (this.tutorial) this.guide();
     else this.setHint('none');
+    this.friendHint(); // a friend picture that starts with the friend: say so straight away
+  }
+
+  /** Friend pictures: "seat a plush" / "lift it off" / "other feet" whenever that's the next thing to do. */
+  private friendHint(): void {
+    if (this.tutorial || !this.level?.friend || this.phase !== 'play' || this.mirror) return;
+    const n = nextStep(this.level, this.model.rows, this.model.latched, this.model.weft, this.model.helper);
+    if (n.step === 'friendOn' || n.step === 'friendOff' || n.step === 'friendSwap') this.setHint(n.step);
+    else if (this.hintStep === 'friendOn' || this.hintStep === 'friendOff' || this.hintStep === 'friendSwap') this.setHint('none');
   }
 
   /** Weave someone else's cloth; afterwards resume normal progression. */
@@ -238,11 +247,7 @@ export class LevelFlow {
       else if (this.hintStep === 'weft') this.setHint('none');
     }
     // friend pictures: "seat a plush" / "lift it off" whenever that's the next thing to do (the rest stays the puzzle)
-    if (!this.tutorial && this.level.friend && this.phase === 'play' && !this.mirror) {
-      const n = nextStep(this.level, this.model.rows, this.model.latched, this.model.weft, this.model.helper);
-      if (n.step === 'friendOn' || n.step === 'friendOff' || n.step === 'friendSwap') this.setHint(n.step);
-      else if (this.hintStep === 'friendOn' || this.hintStep === 'friendOff' || this.hintStep === 'friendSwap') this.setHint('none');
-    }
+    this.friendHint();
     if (!this.tutorial || this.phase !== 'play') return;
     if (e.type === 'row' && !this.goalShown && this.model.rows.length === 1 && this.model.rows[0] === this.level.target[0]) {
       // the first right row: say the goal once, then keep guiding
@@ -341,35 +346,36 @@ export function nextStep(level: Level, rows: readonly Mask8[], latched: readonly
   const r = rows.length;
   if (r > 0 && rows[r - 1] !== level.target[r - 1]) return { step: 'undo', lever: -1 };
   if (r >= level.target.length) return { step: 'none', lever: -1 };
-  // a friend picture: the rows holding the friend's threads need it seated; the others need it off
-  let want = warpsOf(level.target[r]);
-  if (level.friend) {
-    const needs = (want & level.friend) === level.friend;
-    if (needs && helper && helper !== level.friend) return { step: 'friendSwap', lever: -1 }; // its feet lift the wrong threads
-    if (needs && helper !== level.friend) return { step: 'friendOn', lever: -1 };
-    if (!needs && helper) return { step: 'friendOff', lever: -1 };
-    if (needs) want &= ~level.friend;
-  } else if (helper && (warpsOf(level.target[r]) & helper) !== helper) return { step: 'friendOff', lever: -1 };
+  // the cheapest lever set (from the levers as they are) that, with `h` lifted by a seated plush, makes the row; -1: none
+  const want = warpsOf(level.target[r]);
   const L = level.tieUp.length;
-  let best = -1;
-  let bestCost = Infinity;
-  for (let s = 0; s < 1 << L; s++) {
-    let m = 0;
-    for (let k = 0; k < L; k++) if ((s >> k) & 1) m |= level.tieUp[k];
-    if (m !== want) continue;
-    let flips = 0;
-    let count = 0;
-    for (let k = 0; k < L; k++) {
-      const on = ((s >> k) & 1) === 1;
-      if (on !== !!latched[k]) flips++;
-      if (on) count++;
+  const bestFor = (h: Mask8): number => {
+    if (h & ~want) return -1; // the plush's feet lift a thread this row leaves down
+    let best = -1;
+    let bestCost = Infinity;
+    for (let s = 0; s < 1 << L; s++) {
+      let m = 0;
+      for (let k = 0; k < L; k++) if ((s >> k) & 1) m |= level.tieUp[k];
+      if ((m | h) !== want) continue;
+      let flips = 0;
+      let count = 0;
+      for (let k = 0; k < L; k++) {
+        const on = ((s >> k) & 1) === 1;
+        if (on !== !!latched[k]) flips++;
+        if (on) count++;
+      }
+      const cost = flips * 10 + count;
+      if (cost < bestCost) {
+        bestCost = cost;
+        best = s;
+      }
     }
-    const cost = flips * 10 + count;
-    if (cost < bestCost) {
-      bestCost = cost;
-      best = s;
-    }
-  }
+    return best;
+  };
+  // a seated plush helps if its feet fit this row; if not, it comes off (or a different friend is needed)
+  const best = helper ? bestFor(helper) : bestFor(0);
+  if (best < 0 && helper) return { step: bestFor(0) >= 0 ? 'friendOff' : 'friendSwap', lever: -1 };
+  if (best < 0 && level.friend) return { step: 'friendOn', lever: -1 };
   if (best < 0) return { step: 'card', lever: -1 };
   for (let k = 0; k < L; k++) if (!!latched[k] && !((best >> k) & 1)) return { step: 'unlatch', lever: k };
   for (let k = 0; k < L; k++) if (!latched[k] && (best >> k) & 1) return { step: 'lever', lever: k };

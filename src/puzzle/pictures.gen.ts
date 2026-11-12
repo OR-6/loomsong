@@ -35,7 +35,8 @@ export const CHAPTERS: Chapter[] = [
       "moon",
       "ghost",
       "owl",
-      "cat"
+      "cat",
+      "lantern"
     ]
   },
   {
@@ -412,6 +413,37 @@ export const PICTURES: PictureLevel[] = [
     "rootMidi": 69
   },
   {
+    "id": "lantern",
+    "name": "Lantern",
+    "chapter": "night",
+    "mystery": true,
+    "color": 0xf2b632,
+    "friend": 60,
+    "picture": [
+      "...##...",
+      ".######.",
+      ".#....#.",
+      ".#.##.#.",
+      ".#....#.",
+      "########"
+    ],
+    "tieUp": [
+      66,
+      24,
+      129
+    ],
+    "target": [
+      255,
+      66,
+      90,
+      66,
+      126,
+      24
+    ],
+    "par": 7,
+    "rootMidi": 62
+  },
+  {
     "id": "fish",
     "name": "Fish",
     "chapter": "sea",
@@ -438,7 +470,7 @@ export const PICTURES: PictureLevel[] = [
       28
     ],
     "par": 9,
-    "rootMidi": 62
+    "rootMidi": 60
   },
   {
     "id": "crab",
@@ -469,7 +501,7 @@ export const PICTURES: PictureLevel[] = [
       129
     ],
     "par": 9,
-    "rootMidi": 60
+    "rootMidi": 65
   },
   {
     "id": "octopus",
@@ -500,7 +532,7 @@ export const PICTURES: PictureLevel[] = [
       316
     ],
     "par": 7,
-    "rootMidi": 65
+    "rootMidi": 67
   },
   {
     "id": "boat",
@@ -532,7 +564,7 @@ export const PICTURES: PictureLevel[] = [
       8
     ],
     "par": 9,
-    "rootMidi": 67
+    "rootMidi": 64
   }
 ];
 
@@ -567,7 +599,7 @@ export const DAILY: PictureLevel[] = [
       24
     ],
     "par": 7,
-    "rootMidi": 64
+    "rootMidi": 69
   },
   {
     "id": "day-mushroom",
@@ -596,7 +628,7 @@ export const DAILY: PictureLevel[] = [
       60
     ],
     "par": 9,
-    "rootMidi": 69
+    "rootMidi": 62
   },
   {
     "id": "day-pine",
@@ -627,7 +659,7 @@ export const DAILY: PictureLevel[] = [
       24
     ],
     "par": 9,
-    "rootMidi": 62
+    "rootMidi": 60
   },
   {
     "id": "day-pear",
@@ -658,7 +690,7 @@ export const DAILY: PictureLevel[] = [
       48
     ],
     "par": 9,
-    "rootMidi": 60
+    "rootMidi": 65
   },
   {
     "id": "day-key",
@@ -684,7 +716,7 @@ export const DAILY: PictureLevel[] = [
       6
     ],
     "par": 7,
-    "rootMidi": 65
+    "rootMidi": 67
   },
   {
     "id": "day-rabbit",
@@ -715,7 +747,7 @@ export const DAILY: PictureLevel[] = [
       20
     ],
     "par": 7,
-    "rootMidi": 67
+    "rootMidi": 64
   },
   {
     "id": "day-sun",
@@ -746,7 +778,7 @@ export const DAILY: PictureLevel[] = [
       153
     ],
     "par": 8,
-    "rootMidi": 64
+    "rootMidi": 69
   },
   {
     "id": "day-crown",
@@ -773,7 +805,7 @@ export const DAILY: PictureLevel[] = [
       153
     ],
     "par": 6,
-    "rootMidi": 69
+    "rootMidi": 62
   },
   {
     "id": "day-butterfly",
@@ -804,7 +836,7 @@ export const DAILY: PictureLevel[] = [
       195
     ],
     "par": 8,
-    "rootMidi": 62
+    "rootMidi": 60
   },
   {
     "id": "day-snowman",
@@ -835,7 +867,7 @@ export const DAILY: PictureLevel[] = [
       24
     ],
     "par": 7,
-    "rootMidi": 60
+    "rootMidi": 65
   },
   {
     "id": "day-icecream",
@@ -866,7 +898,7 @@ export const DAILY: PictureLevel[] = [
       60
     ],
     "par": 8,
-    "rootMidi": 65
+    "rootMidi": 67
   },
   {
     "id": "day-frog",
@@ -895,7 +927,7 @@ export const DAILY: PictureLevel[] = [
       102
     ],
     "par": 12,
-    "rootMidi": 67
+    "rootMidi": 64
   },
   {
     "id": "day-bear",
@@ -924,7 +956,7 @@ export const DAILY: PictureLevel[] = [
       195
     ],
     "par": 12,
-    "rootMidi": 64
+    "rootMidi": 69
   },
   {
     "id": "day-rocket",
@@ -955,7 +987,7 @@ export const DAILY: PictureLevel[] = [
       24
     ],
     "par": 5,
-    "rootMidi": 69
+    "rootMidi": 62
   },
   {
     "id": "day-candle",
@@ -986,7 +1018,7 @@ export const DAILY: PictureLevel[] = [
       8
     ],
     "par": 7,
-    "rootMidi": 62
+    "rootMidi": 60
   },
   {
     "id": "day-gift",
@@ -1017,7 +1049,7 @@ export const DAILY: PictureLevel[] = [
       36
     ],
     "par": 9,
-    "rootMidi": 60
+    "rootMidi": 65
   },
   {
     "id": "day-anchor",
@@ -1048,7 +1080,7 @@ export const DAILY: PictureLevel[] = [
       24
     ],
     "par": 11,
-    "rootMidi": 65
+    "rootMidi": 67
   },
   {
     "id": "day-acorn",
@@ -1079,7 +1111,7 @@ export const DAILY: PictureLevel[] = [
       24
     ],
     "par": 7,
-    "rootMidi": 67
+    "rootMidi": 64
   },
   {
     "id": "day-ladybug",
@@ -1110,7 +1142,7 @@ export const DAILY: PictureLevel[] = [
       36
     ],
     "par": 11,
-    "rootMidi": 64
+    "rootMidi": 69
   },
   {
     "id": "day-jelly",
@@ -1141,7 +1173,7 @@ export const DAILY: PictureLevel[] = [
       60
     ],
     "par": 7,
-    "rootMidi": 69
+    "rootMidi": 62
   },
   {
     "id": "day-robot",
@@ -1172,6 +1204,6 @@ export const DAILY: PictureLevel[] = [
       24
     ],
     "par": 9,
-    "rootMidi": 62
+    "rootMidi": 60
   }
 ];

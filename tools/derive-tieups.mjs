@@ -29,6 +29,9 @@ const CHAPTERS = [
     { id: 'ghost', name: 'Ghost', color: 0xc9cdf7, rows: ['..####..', '.######.', '.#.##.#.', '.######.', '.#######', '.....###'] },
     { id: 'owl', name: 'Owl', color: 0xe08a3c, rows: ['.#....#.', '.######.', '#.#..#.#', '###..###', '.######.', '..####..'] },
     { id: 'cat', name: 'Cat', color: 0x8f63c9, rows: ['#......#', '##....##', '########', '#.#..#.#', '########', '.######.'] },
+    // the second friend picture: only a Night plush is in reach here; the Owl's feet (the middle four) light the
+    // lantern's top and its wide stand (the Cat's wide feet do too); the hook, frame and flame need the friend off again
+    { id: 'lantern', name: 'Lantern', color: 0xf2b632, rows: ['...##...', '.######.', '.#....#.', '.#.##.#.', '.#....#.', '########'], tie: [0b01000010, 0b00011000, 0b10000001], friend: 0b00111100 },
   ] },
   { id: 'sea', name: 'Sea', idea: 'mostly combinations', rule: 'parts', mystery: true, pics: [
     { id: 'fish', name: 'Fish', color: 0xf08a4b, weft: 0x6cc0f0, rows: ['..###...', '~#####~#', '###~####', '~#####~#', '~~###~~~'] },

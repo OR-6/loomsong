@@ -212,7 +212,9 @@ describe('friend pictures', () => {
     expect(nextStep(table, [], [false, false, false], 0, 0b00011000).step).toBe('friendOff');
     const legs = [0b00100100, 0b00100100];
     expect(nextStep(table, legs, [true, false, false], 0, 0).step).toBe('friendOn');
-    expect(nextStep(table, legs, [true, false, false], 0, 0b00111000).step).toBe('friendSwap');
+    expect(nextStep(table, legs, [true, false, false], 0, 0b00111000)).toEqual({ step: 'lever', lever: 1 }); // wider feet that still fit the tabletop help too
+    const vase = [...legs, 0b11111111];
+    expect(nextStep(table, vase, [true, true, true], 0, 0b11000000).step).toBe('friendSwap'); // feet off to the side: not for the vase
     expect(nextStep(table, legs, [true, false, false], 0, 0b00011000)).toEqual({ step: 'lever', lever: 1 });
     expect(nextStep(table, legs, [true, true, true], 0, 0b00011000).step).toBe('shuttle');
   });
