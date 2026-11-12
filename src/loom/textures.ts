@@ -38,8 +38,9 @@ export function weaveTexture(): CanvasTexture {
 }
 
 /** Faint painted-wood grain (tileable along U). */
-export function grainTexture(): CanvasTexture {
-  if (grain) return grain;
+let softGrain: CanvasTexture | null = null;
+export function grainTexture(soft = false): CanvasTexture {
+  if (soft ? softGrain : grain) return (soft ? softGrain : grain)!;
   const c = document.createElement('canvas');
   c.width = 256;
   c.height = 64;
@@ -50,7 +51,7 @@ export function grainTexture(): CanvasTexture {
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   for (let i = 0; i < 26; i++) {
     const y = rnd() * 64;
-    const a = 0.03 + rnd() * 0.06;
+    const a = (0.03 + rnd() * 0.06) * (soft ? 0.5 : 1);
     g.strokeStyle = `rgba(60,35,10,${a})`;
     g.lineWidth = 1 + rnd() * 2;
     g.beginPath();
@@ -58,10 +59,12 @@ export function grainTexture(): CanvasTexture {
     for (let x = 0; x <= 256; x += 32) g.lineTo(x, y + Math.sin(x * 0.05 + i) * 2.5);
     g.stroke();
   }
-  grain = new CanvasTexture(c);
-  grain.colorSpace = SRGBColorSpace;
-  grain.wrapS = grain.wrapT = RepeatWrapping;
-  return grain;
+  const t = new CanvasTexture(c);
+  t.colorSpace = SRGBColorSpace;
+  t.wrapS = t.wrapT = RepeatWrapping;
+  if (soft) softGrain = t;
+  else grain = t;
+  return t;
 }
 
 let yarn: CanvasTexture | null = null;

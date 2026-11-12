@@ -407,7 +407,7 @@ export class LoomView {
         }
       }
       // the toy loom's frame is painted mustard (art direction): a made toy, not bare plastic-looking pipe
-      if (theme.id === 'toy' && name === 'Beech') sm.color.setHex(0xe8ac3e);
+      if (theme.id === 'toy' && name === 'Beech') sm.color.setHex(0xd29a52); // honey: warm wood under a thin wash of paint, not lemon
     };
     this.frameNode = null;
     if (models) {
@@ -424,7 +424,7 @@ export class LoomView {
         this.frameNode,
         (m) => {
           const sm = m as MeshStandardMaterial;
-          sm.map = grainTexture();
+          sm.map = grainTexture(true); // a soft grain: paint over wood
           sm.needsUpdate = true;
         },
         new MeshStandardMaterial({ color: 0x6b3e26, roughness: 0.9, envMapIntensity: 0.3, name: 'FramePegWalnut' }),
@@ -440,7 +440,7 @@ export class LoomView {
     const warpMat = new MeshStandardMaterial({ color: palette.warp, roughness: 1, map: yarnTexture() });
     // Round twisted yarn: a cylinder along Z, stretched per segment.
     // Each logical warp is a bundle of STRANDS strands that gather through its eyelet.
-    const warpGeo = new CylinderGeometry(0.0031, 0.0031, 1, 12, 1, true);
+    const warpGeo = new CylinderGeometry(0.0021, 0.0021, 1, 12, 1, true); // yarn, not dowels: thin enough to read as thread, thick enough to see lift from the seat
     warpGeo.rotateX(Math.PI / 2);
     // three segments per strand: back beam → heddle → fell → under the cloth to the front beam
     this.warps = new InstancedMesh(warpGeo, warpMat, WARPS * 3 * STRANDS);
@@ -550,13 +550,26 @@ export class LoomView {
         cap.roughness = theme.knobRoughness;
         cap.metalness = theme.knobMetalness;
         if (theme.id === 'toy') {
-          // painted wood: no candy glint (no clearcoat, a soft satin at most)
+          // a felt pompom, not a candy dome: felt fibres, fully matte, a soft fuzz catching the light at its rim
           cap.envMapIntensity = 0.25;
-          cap.roughness = Math.max(cap.roughness, 0.82);
+          cap.roughness = 1;
+          cap.map = feltTexture();
           const pc = cap as MeshPhysicalMaterial;
           if (pc.isMeshPhysicalMaterial) {
             pc.clearcoat = 0;
-            pc.specularIntensity = 0.5;
+            pc.specularIntensity = 0.35;
+            pc.sheen = 1;
+            pc.sheenRoughness = 0.8;
+            pc.sheenColor.setHex(0xfff4e0).multiplyScalar(0.55);
+          }
+          cap.needsUpdate = true;
+          // on a walnut dowel, not a white stick
+          const stem = materialOf(knob, 'Stem') as MeshStandardMaterial | null;
+          if (stem) {
+            stem.color.setHex(0x8a5a36);
+            stem.map = grainTexture();
+            stem.roughness = 0.9;
+            stem.needsUpdate = true;
           }
         }
         this.leverMats.push(cap);
