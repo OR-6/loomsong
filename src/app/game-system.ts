@@ -98,7 +98,7 @@ const LOOK_PLUSH = 100;
 /** The first-time tour: what each part is (seconds before it starts, per tag). */
 const INTRO = [
   { part: 'card', text: 'Weave this picture' },
-  { part: 'levers', text: 'Levers lift threads' },
+  { part: 'levers', text: 'Push levers away' },
   { part: 'pip', text: 'Pip weaves a row' },
 ] as const;
 const INTRO_WAIT = 1.2;
@@ -110,16 +110,16 @@ const PRACTICE_AFTER = 20;
 const HINT_TEXT: Record<HintStep, string> = {
   lever: 'Slide it away',
   unlatch: 'Slide it back',
-  weft: "Swap Pip's yarn",
+  weft: 'Poke the spool by the levers',
   shuttle: 'Slide Pip across, or poke it',
   undo: 'Poke the spool to undo',
   card: 'Match the next row',
   knots: 'Each lever move unties a knot',
   combo: '', // the aha is a gold ribbon over the card, not a tag
-  more: 'Add another lever',
+  more: 'Push another lever away too',
   friendOn: 'Poke a shelf plush: it sits on the cushion',
-  friendOff: 'Lift the plush off',
-  friendSwap: 'Try a plush with other feet',
+  friendOff: 'Poke the plush to send it home',
+  friendSwap: 'Try a different plush',
   none: '',
 };
 
@@ -381,7 +381,7 @@ export class GameSystem extends createSystem({
       pass: () => audio.thud(),
       undo: () => audio.unpick(),
       token: () => {
-        if (this.confirmPoke('style', 'Change the style? Poke it again')) this.setTheme(otherTheme(this.progress.theme));
+        if (this.confirmPoke('style', 'New look? Poke it again')) this.setTheme(otherTheme(this.progress.theme));
       },
       skein: (i) => this.pickChapter(i),
       nudge: (dir) => this.nudgeDesk(dir),
@@ -424,7 +424,7 @@ export class GameSystem extends createSystem({
     this.placement = new Placement();
 
     // In-world tutorial label (child of the loom; faces the user).
-    this.tutor = new Label(0.17, 0.036);
+    this.tutor = new Label(0.21, 0.036); // wide enough for "Push lever 1 (red) away" without squeezing
     this.tutor.mesh.rotation.x = -0.35;
     // hints are never hidden behind a bowl or a post
     (this.tutor.mesh.material as import('@iwsdk/core').MeshBasicMaterial).depthTest = false;
@@ -438,7 +438,7 @@ export class GameSystem extends createSystem({
       this.hud.mesh.position.set(0, CARD.baseY + 0.16, CARD.z - 0.01);
       this.view.root.add(this.hud.mesh);
     }
-    this.tip = new Label(0.13, 0.028);
+    this.tip = new Label(0.16, 0.028);
     this.tip.mesh.rotation.x = -0.35;
     (this.tip.mesh.material as import('@iwsdk/core').MeshBasicMaterial).depthTest = false;
     this.tip.mesh.renderOrder = 21;
@@ -632,7 +632,7 @@ export class GameSystem extends createSystem({
         }
         // the very first gold bow: say what it's for, once the plush has landed
         if (stars >= 3 && Object.values(this.progress.best).filter((b) => b >= 3).length === 1) {
-          this.laterNotice = 'Fewest moves: a gold bow!';
+          this.laterNotice = 'Fewest moves: your plush gets gold';
           this.laterNoticeIn = 4.6;
         }
         // a friend helped: it sings along with the new plush, and gets a thank-you
@@ -895,7 +895,7 @@ export class GameSystem extends createSystem({
     const side = { model: this.model, controller: this.controller, flow: this.flow };
     // a call from the toy telephone didn't get through: say so, and how to try again
     if (st.state === 'error' && this.view.phone.phoneState === 'calling' && !this.practice) {
-      if (!this.startPractice('The line is busy, so a practice caller picks up')) this.showNotice('The line is busy: poke the telephone to try again', 7, 'centre');
+      if (!this.startPractice('Line busy: a practice call')) this.showNotice('The line is busy: poke the telephone to try again', 7, 'centre');
     }
     // the toy telephone's tag: the code while it waits for the caller
     const hosting = st.role === 'host' && (st.state === 'hosting' || st.state === 'connected');
@@ -939,7 +939,7 @@ export class GameSystem extends createSystem({
       }
       if (this.placement.phase === 'placed') {
         // a host learns who joined from their hello (a phone caller says so at once)
-        if (st.role !== 'host') this.showNotice('You throw the shuttle', 6, 'centre');
+        this.showNotice(st.role !== 'host' ? 'You slide Pip; they push levers' : 'You push levers; they slide Pip', 6, 'centre');
       }
     }
   }
@@ -1102,9 +1102,9 @@ export class GameSystem extends createSystem({
     }
     if (look && step === 'shuttle') return 'Look at Pip';
     if (look && step === 'undo') return 'Look at the spool to undo';
-    if (look && step === 'weft') return 'Look at the yarn balls';
-    if (look && step === 'friendOn') return 'Look at a plush to seat it';
-    if (look && step === 'friendOff') return 'Look at the plush to lift it off';
+    if (look && step === 'weft') return 'Look at the spool by the levers';
+    if (look && step === 'friendOn') return 'Look at a plush: it sits down';
+    if (look && step === 'friendOff') return 'Look at the plush to send it home';
     return HINT_TEXT[step];
   }
 
@@ -1660,7 +1660,7 @@ export class GameSystem extends createSystem({
     if (this.flow.phase !== 'play' || this.coopLink || this.flow.daily || this.grand) return;
     if (this.practice) {
       audio.tick();
-      this.showNotice('Hang up the telephone first', 3, 'centre');
+      this.showNotice('Poke the telephone to hang up', 3, 'centre');
       return;
     }
     this.syncDaily();
@@ -1947,7 +1947,7 @@ export class GameSystem extends createSystem({
     }
     if (!this.lookTold) {
       this.lookTold = true;
-      this.showNotice('Look to play: look at a lever or Pip for a moment to press it', 6, 'centre');
+      this.showNotice('Look at a lever or Pip to press it', 6, 'centre');
     }
     this.lookT += dt;
     const DWELL = 1.1;
@@ -2153,7 +2153,7 @@ export class GameSystem extends createSystem({
     this.view.phone.setState('calling', '…');
     // where the friend goes: this page's address, short (no https://, no trailing slash)
     const where = (location.host + location.pathname).replace(/\/(index\.html)?$/, '');
-    this.showNotice(`Your friend opens ${where} on a phone and types the code`, 9, 'centre');
+    this.showNotice(`On a phone, open ${where}`, 9, 'centre');
     this.practiceIn = PRACTICE_AFTER;
     void coop.host();
   }
@@ -2181,7 +2181,7 @@ export class GameSystem extends createSystem({
     this.view.phone.setState('connected');
     this.setCallerGap(true);
     audio.chirp('happy');
-    this.showNotice(`${notice}: they pin the threads of each row`, 8, 'centre');
+    this.showNotice(`${notice}. Weave the pinned threads`, 8, 'centre');
     this.debug.practice = true;
     return true;
   }
@@ -2208,7 +2208,7 @@ export class GameSystem extends createSystem({
       this.practiceIn -= dt;
       if (this.practiceIn <= 0) {
         this.practiceIn = -1;
-        this.startPractice('No one yet, so a practice caller picks up');
+        this.startPractice('No one yet: a practice call');
       }
       return;
     }
@@ -2277,7 +2277,7 @@ export class GameSystem extends createSystem({
     let lift = 0.04;
     switch (t.kind) {
       case 'token':
-        text = 'Change the style';
+        text = 'Poke for a new look';
         at.x = tokenX(side);
         at.y = TOKEN.y;
         at.z = TOKEN.z;
@@ -2292,7 +2292,7 @@ export class GameSystem extends createSystem({
       case 'daily': {
         if (c.dailySpot) Object.assign(at, c.dailySpot);
         const n = streakOf(this.progress.days ?? [], this.today);
-        text = this.dailyDone ? (n >= 2 ? `${n} days in a row` : 'A new one tomorrow') : `Today: ${dailyLevel(this.today).name}`;
+        text = this.dailyDone ? (n >= 2 ? `${n} days in a row` : 'A new one tomorrow') : "Poke to open today's present";
         lift = 0.045;
         break;
       }
@@ -2301,19 +2301,19 @@ export class GameSystem extends createSystem({
         at.x = pp.x;
         at.y = pp.y;
         at.z = pp.z;
-        text = 'Move the loom';
+        text = 'Poke twice to move the loom';
         lift = 0.05;
         break;
       }
       case 'windKey':
         if (c.keySpot) Object.assign(at, c.keySpot);
         at.x -= side * 0.05; // out past the key, never over a plush
-        text = 'Play the shelf';
+        text = 'Poke: your plushes sing';
         break;
       case 'swap':
         if (step !== 'weft' && c.swapSpot) {
           Object.assign(at, c.swapSpot);
-          text = "Swap Pip's yarn";
+          text = "Poke to swap Pip's yarn";
           lift = 0.05;
         }
         break;
@@ -2330,7 +2330,8 @@ export class GameSystem extends createSystem({
         const i = t.i ?? 0;
         skeinPos(i, side, at);
         const st = chapterStates(this.progress, this.flow?.level?.chapter)[i];
-        text = st === 'locked' ? `${CHAPTERS[i]?.name ?? ''} (locked)` : (CHAPTERS[i]?.name ?? '');
+        void st; // the basket's own tag names the chapter and what a poke does (one tag, not two)
+        text = '';
         break;
       }
       case 'plush': {
@@ -2340,7 +2341,9 @@ export class GameSystem extends createSystem({
         if (id && spot && this.view.plushes.carried < 0) {
           Object.assign(at, spot);
           const name = pictureById(id)?.name ?? '';
-          text = i < PLUSH.slots ? `${name}: poke to sing, pinch to carry` : `${name}: poke to sing`;
+          // on a friend picture a poke seats the plush (or sends the seated one home), so say that
+          const friendPic = !!this.flow?.level?.friend && this.flow.phase === 'play';
+          text = friendPic ? (i === this.seated ? `${name}: poke to go home` : `${name}: poke to sit on cushion`) : i < PLUSH.slots ? `${name}: poke to sing, pinch to carry` : `${name}: poke to sing`;
           lift = 0.045;
         }
         break;
@@ -2785,10 +2788,10 @@ export class GameSystem extends createSystem({
       // resumed: the notice comes from tryResume
     } else if (this.coopLink) {
       const host = this.coopLink instanceof CoopHost ? this.coopLink : null;
-      this.showNotice(host ? (host.caller ? 'Your caller has the picture: ask them!' : 'Your friend can join on their phone') : 'You throw the shuttle', 6, 'centre');
+      this.showNotice(host ? (host.caller ? 'Your caller has the picture: ask them!' : 'You push levers; they slide Pip') : 'You slide Pip; they push levers', 6, 'centre');
     }
     else if (this.settings.calibrateNext) this.startCalibration(hand);
-    else if (fallback) this.showNotice('Nudge to your desk', 7, 'nudge');
+    else if (fallback) this.showNotice('Poke the arrows to reach your desk', 7, 'nudge');
     else if (this.flow.challenge) this.showNotice('Weave this cloth', 6);
     // the very first time: name the parts before the first move (what the card, the levers and Pip are)
     if (!resume && !this.coopLink && !fallback && this.flow.tutorial && this.picturesDone() === 0 && !this.settings.calibrateNext) this.introT = 0;
@@ -2817,8 +2820,9 @@ export class GameSystem extends createSystem({
       this.debug.intro = 'done';
       return;
     }
-    // the tutorial's words wait for the tour (the ghost hand already does)
+    // the tutorial's words wait for the tour (the ghost hand already does); flagged so they come back after
     this.tutor.mesh.visible = false;
+    this.hintsHidden = true;
     if (k < 0) {
       this.tip.mesh.visible = false;
       return;
@@ -2862,7 +2866,7 @@ export class GameSystem extends createSystem({
     }
     if (this.unlockNoticeIn > 0) {
       this.unlockNoticeIn -= dt;
-      if (this.unlockNoticeIn <= 0) this.showNotice('New style unlocked', 6, 'unlock');
+      if (this.unlockNoticeIn <= 0) this.showNotice('New look! Poke the disc', 6, 'unlock');
     }
     this.syncGhost(dt, step);
     const m = this.tutor.mesh;

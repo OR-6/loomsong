@@ -12,7 +12,7 @@ The `?debug=1` part shows a small tag behind the picture card with three numbers
 2. Rest one hand flat on the table, palm down, for a second.
    - Send: did the loom appear on the table, at the right height (not floating, not sunk in)? How long did it take? **(fps)**
 3. Follow the hints without help from anyone. Weave the first picture (the Sprout).
-   - Send: was it clear what to do? Where did you get stuck, and for how long? When "This row needs more threads" appeared, did you work out the second lever yourself? **(fps while weaving)**
+   - Send: was it clear what to do? Where did you get stuck, and for how long? When a row needed two levers ("Push another lever away too"), did you work it out yourself? **(fps while weaving)**
    - Try both: pinch and slide a lever, and also just poke one with a fingertip.
 4. Watch the plush come out of the cloth, dance and hop onto the shelf.
    - Send: could you see it well? Did the sound play? **(fps during the celebration)**

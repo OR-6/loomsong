@@ -218,7 +218,8 @@ export class Basket {
       return;
     }
     const st = this.states[i];
-    this.label.set(st === 'locked' ? `${this.names[i]} (locked)` : st === 'current' ? `${this.names[i]} (here)` : this.names[i]);
+    const name = this.names[i];
+    this.label.set(st === 'locked' ? `${name}: finish ${this.names[i - 1] ?? 'the last'} first` : st === 'current' ? `${name}: you're here` : `${name}: poke to go`);
   }
 
   /** Ball positions plus their wound strands (one instanced mesh for all). */

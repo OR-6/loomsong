@@ -55,8 +55,16 @@ export class Label {
     const h = canvas.height;
     const pad = h * 0.34;
     const hole = h * 0.62;
-    ctx.font = `400 ${Math.round(h * 0.6)}px ${this.theme.font}`;
-    const tw = Math.min(canvas.width - hole - pad * 2 - 8, ctx.measureText(text).width);
+    // long words get a slightly smaller font before they are squeezed (squeezed letters are hard to read in a headset)
+    const avail = canvas.width - hole - pad * 2 - 8;
+    let px = Math.round(h * 0.6);
+    ctx.font = `400 ${px}px ${this.theme.font}`;
+    const full = ctx.measureText(text).width;
+    if (full > avail) {
+      px = Math.max(Math.round(h * 0.44), Math.floor((px * avail) / full));
+      ctx.font = `400 ${px}px ${this.theme.font}`;
+    }
+    const tw = Math.min(avail, ctx.measureText(text).width);
     const w = hole + tw + pad * 1.6;
     const x0 = (canvas.width - w) / 2;
     const y0 = h * 0.08;

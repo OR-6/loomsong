@@ -244,7 +244,7 @@ export function mountLanding(world: World): void {
           ? `Connected (${st.code}). Enter XR.`
           : st.role === 'caller'
             ? `Connected (${st.code}). You're the caller.`
-            : `Connected (${st.code}). You throw the shuttle. Enter XR.`,
+            : `Connected (${st.code}). You slide Pip. Enter XR.`,
       error: st.message ?? 'Something went wrong',
       closed: st.message ?? 'Disconnected',
     };

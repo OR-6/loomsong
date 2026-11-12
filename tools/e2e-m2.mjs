@@ -21,7 +21,7 @@ await wait(9500);
 let s = state();
 check('no hands for 8 s → default placement', s.debug.phase === 'placed' && s.debug.deskSource === 'default', `${s.debug.phase} ${s.debug.deskSource}`);
 check('default desk = head − 0.45 m', Math.abs(s.debug.deskY - (s.targets.head[1] - 0.45)) < 0.005, `deskY=${s.debug.deskY} head=${s.targets.head[1]}`);
-check('nudge notice shown', s.debug.notice === 'Nudge to your desk', s.debug.notice);
+check('nudge notice shown', s.debug.notice === 'Poke the arrows to reach your desk', s.debug.notice);
 xr('set-connected', { device: 'hand-right', connected: true });
 await wait(500);
 const cal0 = await calibrate();

@@ -49,7 +49,7 @@ Hand tracking has no touch, so Loomsong puts every interaction on a real surface
 - **Levers by count, not just colour:** the lever box marks each slot with 1–4 inlaid dots (and red, teal, mustard and plum also differ in lightness), so colour-blind players and Night's undyed mystery levers never depend on hue.
 - **Fit to my hands** (on the 2D page): three pinches and a 2 s hold tune pinch thresholds, smoothing and target size (1.0–1.8×).
 - **High contrast:** pure white/black yarn, a black-and-white card and opaque labels. Row status never relies on hue: ticks, crosses, arrows and hatching carry it.
-- **No timers, no fail states, undo always available** (after the first picture a wrong row unweaves itself once Pip has drooped). Hints name levers by number and colour ("Lift lever 1 (red)"), matching the dots on the lever box.
+- **No timers, no fail states, undo always available** (a wrong row unweaves itself once Pip has drooped). Hints name levers by number and colour ("Push lever 1 (red) away"), matching the dots on the lever box.
 - In-world text has a cap height of at least 1.5 cm, with at most 5 words per label.
 - **Look to play** (on the 2D page): no hands needed at all. Look at a lever, Pip, the undo spool or the yarn swap for about a second and it is pressed; a ring of felt beads fills around it while you look, and each look presses once. The loom already places itself at a default height if no hand is seen.
 - **Calm motion** (on the 2D page; on by default when your system asks for reduced motion): far less confetti, small hops and bounces, and the Sea's light on the table barely drifts.

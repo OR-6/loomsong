@@ -15,7 +15,7 @@ const k = run('tools/key-where.mjs').key;
 xr('set-transform', { device: HAND, position: { x: k[0] - off[0], y: k[1] + 0.006 - off[1], z: k[2] - off[2] }, orientation: FLAT });
 await wait(900);
 const tip = run('tools/tip-state.mjs');
-check('hovering the key shows its tooltip', tip.visible && tip.text === 'Play the shelf', JSON.stringify(tip));
+check('hovering the key shows its tooltip', tip.visible && tip.text === 'Poke: your plushes sing', JSON.stringify(tip));
 if (process.argv[2]) {
   xr('set-device-state', { state: { fov: 45 } });
   xr('set-transform', { device: 'headset', position: { x: k[0] + 0.1, y: k[1] + 0.2, z: k[2] + 0.3 } });
