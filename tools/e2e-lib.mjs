@@ -44,6 +44,8 @@ export async function freshSession({ clear = true } = {}) {
   if (clear) run('tools/clear-storage.mjs');
   cli('browser', 'reload');
   await wait(2500);
+  // a reload that didn't really happen would leave saving blocked (and a later reload would lose progress)
+  if (run('tools/unblock-storage.mjs') === 'unblocked') console.log('note: the reload did not reset the page; saving unblocked');
   if (!xr('status').sessionActive) xr('enter');
   xr('set-input-mode', { mode: 'hand' });
   // Seated player: eyes 1.2 m above the floor (desk ~0.4 m below the eyes).

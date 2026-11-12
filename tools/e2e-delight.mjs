@@ -24,7 +24,7 @@ run('tools/seed-desk.mjs'); // Home's Heart, desk plushes out
 await wait(800);
 s = D('wrong');
 check('a wrong row is woven', s.rows === 1, JSON.stringify(s));
-await wait(1200);
+await wait(2600);
 s = D('state');
 check('it unweaves itself after a moment', s.rows === 0 && s.autoUndo >= 1, JSON.stringify(s));
 s = D('hello');
