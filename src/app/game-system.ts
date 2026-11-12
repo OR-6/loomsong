@@ -115,6 +115,7 @@ const LOOK_TOKEN = 25;
 const LOOK_PLUSH = 100;
 const LOOK_CARD = 200;
 const LOOK_SKEIN = 300;
+const LOOK_SETTING = 400;
 
 /** The first-time tour: what each part is (seconds before it starts, per tag). */
 const INTRO = [
@@ -441,6 +442,7 @@ export class GameSystem extends createSystem({
       windKey: () => this.playShelf(),
       daily: () => this.startDaily(),
       phone: () => this.pokePhone(),
+      setting: (i) => this.pokeSetting(i),
       plate: () => {
         if (this.confirmPoke('move', 'Move the loom? Poke it again')) this.moveLoom();
       },
@@ -510,6 +512,7 @@ export class GameSystem extends createSystem({
       audio.setMusic(this.settings.music);
       this.restyle();
       this.flow.refresh();
+      this.refreshSettingTags();
     };
     window.addEventListener('loomsong:settings', onSettings);
     const onCoop = (e: Event) => this.onCoop((e as CustomEvent<CoopStatus>).detail);
@@ -952,6 +955,7 @@ export class GameSystem extends createSystem({
     this.view.setTheme(theme);
     this.tutor.setTheme(theme);
     this.tip?.setTheme(theme);
+    for (const l of this.setLabels) l.setTheme(theme);
     this.banner?.setTheme(theme);
     audio.tone = theme.tone;
   }
@@ -2134,6 +2138,10 @@ export class GameSystem extends createSystem({
       this.lookConsider(LOOK_NUDGE_DOWN, nx, NUDGE.y, NUDGE.downZ);
     }
     if (c.tokenEnabled) this.lookConsider(LOOK_TOKEN, tokenX(c.bankSide), TOKEN.y, TOKEN.z);
+    for (let i = 0; i < c.settingSpots.length; i++) {
+      const p = c.settingSpots[i];
+      if (p) this.lookConsider(LOOK_SETTING + i, p.x, p.y, p.z);
+    }
     const best = this.lookBest;
     // a free preview while you look at a lever (its threads glow), as a hand hovering gets: no move spent to find out
     if (best >= LOOK_LEVER && best < LOOK_PIP) this.view.setHoverLever(best - LOOK_LEVER);
@@ -2158,7 +2166,10 @@ export class GameSystem extends createSystem({
     this.lookSpent = true; // once per look: glance away to press it again
     audio.tick();
     let name: string;
-    if (best >= LOOK_SKEIN) {
+    if (best >= LOOK_SETTING) {
+      c.hooks.setting?.(best - LOOK_SETTING);
+      name = `setting${best - LOOK_SETTING}`;
+    } else if (best >= LOOK_SKEIN) {
       c.hooks.skein?.(best - LOOK_SKEIN);
       name = `skein${best - LOOK_SKEIN}`;
     } else if (best >= LOOK_CARD) {
@@ -2196,6 +2207,75 @@ export class GameSystem extends createSystem({
       name = `lever${best - LOOK_LEVER}`;
     }
     this.debug.lookPressed = name;
+  }
+
+  /**
+   * Settings inside the headset: a small felt "Settings" tag at the loom's front corner opens four
+   * toggles (calm motion, high contrast, rows by ear, look to play). Each saves at once, the same way
+   * the 2D page does; the tags fold away when you poke "Settings" again, or after a while.
+   */
+  private setLabels: Label[] = [];
+  private setOpen = false;
+  private setIdle = 0;
+  private setVecs: Vector3[] = [];
+  private static readonly SET_KEYS = ['calm', 'contrast', 'ear', 'look'] as const;
+  private buildSettingTags(): void {
+    for (let i = 0; i < 5; i++) {
+      const l = new Label(i === 0 ? 0.09 : 0.15, 0.026);
+      l.mesh.rotation.x = -0.35;
+      l.mesh.visible = false;
+      this.view.root.add(l.mesh);
+      this.setLabels.push(l);
+      this.setVecs.push(new Vector3());
+    }
+    this.setLabels[0].set('Settings');
+    this.refreshSettingTags();
+  }
+  private refreshSettingTags(): void {
+    if (!this.setLabels.length) return;
+    const st = this.settings;
+    const on = (b: boolean) => (b ? 'on' : 'off');
+    const calm = st.calmMotion ?? prefersReducedMotion();
+    this.setLabels[1].set(`Calm motion: ${on(calm)}`);
+    this.setLabels[2].set(`High contrast: ${on(st.highContrast)}`);
+    this.setLabels[3].set(`Rows by ear: ${on(st.hearRows !== false)}`);
+    this.setLabels[4].set(`Look to play: ${on(!!st.lookToPlay)}`);
+  }
+  private pokeSetting(i: number): void {
+    audio.click(true);
+    this.setIdle = 0;
+    if (i === 0) {
+      this.setOpen = !this.setOpen;
+      return;
+    }
+    const st = loadSettings();
+    const key = GameSystem.SET_KEYS[i - 1];
+    if (key === 'calm') st.calmMotion = !(st.calmMotion ?? prefersReducedMotion());
+    else if (key === 'contrast') st.highContrast = !st.highContrast;
+    else if (key === 'ear') st.hearRows = st.hearRows === false;
+    else st.lookToPlay = !st.lookToPlay;
+    saveSettings(st);
+    window.dispatchEvent(new CustomEvent('loomsong:settings')); // the same path as the 2D page: everything restyles
+    this.refreshSettingTags();
+  }
+  private syncSettingTags(dt: number): void {
+    if (!this.setLabels.length) this.buildSettingTags();
+    const c = this.controller;
+    const shown = this.placement.phase === 'placed' && this.flow.phase === 'play' && !this.grand && !this.calibrator && !this.photoMode && !this.hideHints;
+    if (this.setOpen && (this.setIdle += dt) > 15) this.setOpen = false;
+    const side = c.bankSide;
+    const x = -side * 0.16; // clear of the plate
+    const z = LOOM.frontBeamZ + 0.07;
+    for (let i = 0; i < 5; i++) {
+      const vis = shown && (i === 0 || this.setOpen);
+      const l = this.setLabels[i];
+      l.mesh.visible = vis;
+      const v = this.setVecs[i];
+      if (i === 0) v.set(x, 0.016, z);
+      else v.set(x - side * 0.01, 0.035 + i * 0.03, z - 0.01);
+      l.mesh.position.copy(v);
+      c.settingSpots[i] = vis ? v : null;
+    }
   }
 
   /** The current picture's not-yet-woven plate (captures). */
@@ -3430,6 +3510,7 @@ export class GameSystem extends createSystem({
     this.view.setPreview(this.model.shed, this.flow.phase === 'play');
     this.syncHint(dt);
     this.tickIntro(dt);
+    this.syncSettingTags(dt);
     this.view.update(dt);
     this.debug.shed = this.model.shed;
     this.debug.shuttleT = Math.round(c.shuttle.t * 1000) / 1000;
