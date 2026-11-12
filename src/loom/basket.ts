@@ -121,9 +121,10 @@ export class Basket {
       // felt badge facing the player, a little up
       const bt = new CanvasTexture(document.createElement('canvas'));
       bt.colorSpace = SRGBColorSpace;
-      const badge = new Mesh(badgeGeo, new MeshStandardMaterial({ map: bt, roughness: 0.9 }));
+      const badge = new Mesh(badgeGeo, new MeshStandardMaterial({ map: bt, roughness: 1, envMapIntensity: 0.3 }));
       badge.position.set(0, R * 0.38, R * 0.86);
-      badge.rotation.x = -0.42;
+      badge.rotation.set(-0.42, 0, (i - 1.5) * 0.35); // each patch turned a little differently
+      badge.scale.set(1 + 0.05 * ((i % 2) * 2 - 1), 1 - 0.04 * ((i % 2) * 2 - 1), 1); // hand-cut: not quite round
       g.add(badge);
       this.root.add(g);
       this.balls.push(g);
@@ -328,13 +329,29 @@ function drawBadge(t: CanvasTexture, icon: (typeof ICONS)[number] | 'locked', co
   const c = t.image as HTMLCanvasElement;
   c.width = c.height = 128;
   const g = c.getContext('2d')!;
-  g.fillStyle = '#fff6e8';
+  // oatmeal felt, not white card: warm, with fibres and flecks
+  g.fillStyle = '#efe1c6';
   g.fillRect(0, 0, 128, 128);
-  g.setLineDash([7, 6]);
-  g.lineWidth = 4;
-  g.strokeStyle = 'rgba(90,60,35,0.45)';
+  let seed = 3 + (color % 97);
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let k = 0; k < 260; k++) {
+    g.fillStyle = rnd() < 0.5 ? `rgba(120,90,55,${0.06 + rnd() * 0.08})` : `rgba(255,250,238,${0.15 + rnd() * 0.2})`;
+    const a = rnd() * Math.PI;
+    const x = rnd() * 128;
+    const y = rnd() * 128;
+    g.save();
+    g.translate(x, y);
+    g.rotate(a);
+    g.fillRect(-3, -0.5, 6, 1); // a short fibre
+    g.restore();
+  }
+  // a running stitch sewing it on, in a brown thread
+  g.setLineDash([9, 7]);
+  g.lineWidth = 5;
+  g.lineCap = 'round';
+  g.strokeStyle = 'rgba(95,60,32,0.7)';
   g.beginPath();
-  g.arc(64, 64, 54, 0, Math.PI * 2);
+  g.arc(64, 64, 52, 0, Math.PI * 2);
   g.stroke();
   g.setLineDash([]);
   const col = '#' + color.toString(16).padStart(6, '0');

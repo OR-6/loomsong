@@ -231,11 +231,24 @@ export class TargetCard {
           // painted squares with paper showing between them (no ruled grid): each a touch
           // uneven in size and tone, like gouache dabbed on card
           const j = ((i * 7 + r * 13) % 5) / 5; // deterministic wobble 0..1
+          const j2 = ((i * 11 + r * 5) % 7) / 7;
           const gap = px(cell) * (0.07 + 0.03 * j);
-          roundRect(g, px(x) + gap, px(y) + gap * (1.2 - 0.4 * j), px(cell) - gap * 2, px(cell) - gap * 2, px(cell) * 0.12);
+          const sz = px(cell) - gap * 2;
+          // stamped by hand: a hair of tilt, corners of mixed roundness
+          g.save();
+          g.translate(px(x) + gap + sz / 2, px(y) + gap * (1.2 - 0.4 * j) + sz / 2);
+          g.rotate((j2 - 0.5) * 0.05);
+          roundRect(g, -sz / 2, -sz / 2, sz, sz, px(cell) * (0.07 + 0.11 * j2));
           g.fill();
           g.fillStyle = `rgba(${j < 0.5 ? '255,255,255' : '60,40,20'},${0.04 + 0.04 * j})`;
           g.fill();
+          if (lifted) {
+            // the paint pools a little at the edge, as gouache does
+            g.strokeStyle = 'rgba(40,25,15,0.16)';
+            g.lineWidth = px(0.00045);
+            g.stroke();
+          }
+          g.restore();
         }
         if (highContrast) {
           g.strokeStyle = '#000';

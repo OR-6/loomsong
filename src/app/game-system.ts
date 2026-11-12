@@ -66,6 +66,8 @@ const params = new URLSearchParams(location.search);
 const FIXED_DESK = params.get('desk');
 /** ?finale=1: play the grand finale shortly after the loom is placed (for filming). */
 const FORCE_FINALE = params.get('finale') === '1';
+/** ?film=table (any picture id): start there with every earlier picture woven, for recording a moment. */
+const FILM = params.get('film');
 
 const KNOB_NAMES: Record<number, string> = { 0xe8553e: 'red', 0x1fb3a0: 'teal', 0xf2b632: 'yellow', 0x7b5bb8: 'purple' };
 
@@ -646,8 +648,16 @@ export class GameSystem extends createSystem({
     };
     applyCalibration(this.settings.calibration);
     const shared = clothFromHash(location.hash);
+    const film = FILM ? LEVELS.findIndex((l) => l.id === FILM) : -1;
     if (shared) this.flow.startChallenge(clothLevel(shared));
-    else this.flow.start();
+    else if (film > 0) {
+      // ?film=<picture>: every picture before it woven (their plushes on the shelves), that one on the loom
+      for (let i = 0; i < film; i++) this.progress.best[LEVELS[i].id] ??= 2;
+      this.progress.tutorialDone = true;
+      this.progress.level = film;
+      saveProgress(this.progress);
+      this.flow.start(film);
+    } else this.flow.start();
     this.debug.challenge = this.flow.challenge;
     (window as unknown as { __loom: unknown }).__loom = {
       debug: this.debug,
