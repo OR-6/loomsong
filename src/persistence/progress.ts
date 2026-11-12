@@ -8,7 +8,7 @@ export interface Progress {
   /** Chosen visual theme (only 'workshop' once unlocked). */
   theme: 'toy' | 'workshop';
   /** Most recently finished cloth (for the share card). */
-  lastCloth?: { tieUp: number[]; rows: number[]; rootMidi: number };
+  lastCloth?: { tieUp: number[]; rows: number[]; rootMidi: number; color?: number; weft?: number };
   /** Plushes set down on the real desk: picture id → [x, z] in loom space (m). */
   placed?: Record<string, [number, number]>;
   /** Where the loom stood, relative to the room's persistent anchor (resumed next session). */
@@ -35,7 +35,7 @@ export interface SavedLoom {
 }
 
 /** The Workshop look unlocks a little into Home (one new thing at a time, never during Garden). */
-export const WORKSHOP_UNLOCK = ['sprout', 'tulip', 'duck', 'table', 'heart', 'house'];
+export const WORKSHOP_UNLOCK = ['sprout', 'tulip', 'duck', 'table', 'heart', 'house', 'star', 'cup'];
 
 export function workshopUnlocked(p: Pick<Progress, 'best'>): boolean {
   return WORKSHOP_UNLOCK.every((id) => (p.best[id] ?? 0) > 0);
@@ -82,7 +82,10 @@ function validCloth(c: unknown): c is NonNullable<Progress['lastCloth']> {
     Array.isArray(x.rows) &&
     x.tieUp.length >= 1 &&
     x.tieUp.length <= 4 &&
-    [...x.tieUp, ...x.rows].every((v) => Number.isInteger(v) && v >= 0 && v <= 255) &&
+    x.tieUp.every((v) => Number.isInteger(v) && v >= 0 && v <= 255) &&
+    x.rows.every((v) => Number.isInteger(v) && v >= 0 && v <= 511) && // bit 8: a row in the second yarn (the Sea)
+    (x.color === undefined || (Number.isInteger(x.color) && x.color >= 0 && x.color <= 0xffffff)) &&
+    (x.weft === undefined || (Number.isInteger(x.weft) && x.weft >= 0 && x.weft <= 0xffffff)) &&
     x.rows.length > 0 &&
     x.rows.length <= 12 &&
     typeof x.rootMidi === 'number'

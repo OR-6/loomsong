@@ -126,6 +126,7 @@ export function mountCaller(link: Transport, code: string, onLeave: () => void):
   let level = -1;
   let rowsDone = -1;
   let pins = 0;
+  let pinHintUntil = 0;
   let last: Snapshot | null = null;
   let wasPlaying = false;
   let album = loadAlbum();
@@ -140,14 +141,24 @@ export function mountCaller(link: Transport, code: string, onLeave: () => void):
     else pins = 0;
   };
 
-  // tap a square: pin (or unpin) its thread in the headset
+  // tap a square: pin (or unpin) its thread in the headset; two pins a row, the rest is said out loud
+  const MAX_PINS = 2;
   card.element.addEventListener('click', (e) => {
     audio.resume(); // a tap is a gesture: the phone may play sound from now on
     if (!last || last.ph !== 'play') return;
     const b = card.element.getBoundingClientRect();
     const hit = card.cellAt((e.clientX - b.left) / b.width, (e.clientY - b.top) / b.height);
     if (!hit) return;
-    setPin(hit.i, !((pins >> hit.i) & 1));
+    const on = !((pins >> hit.i) & 1);
+    let n = 0;
+    for (let i = 0; i < WARPS; i++) n += (pins >> i) & 1;
+    if (on && n >= MAX_PINS) {
+      pinHintUntil = performance.now() + 2600;
+      navigator.vibrate?.([8, 40, 8]);
+      apply(last);
+      return;
+    }
+    setPin(hit.i, on);
     navigator.vibrate?.(12);
     apply(last);
   });
@@ -238,15 +249,16 @@ export function mountCaller(link: Transport, code: string, onLeave: () => void):
     }
     wasPlaying = playing;
     card.pinned = playing ? pins : 0;
-    card.draw(lv.name, lv.target, rowStatuses(lv, s.r), playing ? 0 : s.st);
+    const title = playing ? 'What is it?' : lv.name; // the name comes with the plush, on both sides
+    card.draw(title, lv.target, rowStatuses(lv, s.r), playing ? 0 : s.st);
     clearBtn.disabled = !pins || !playing;
     const next = Math.min(s.r.length + 1, lv.target.length);
     const row = lv.target[next - 1] ?? 0;
     let filled = 0;
     for (let i = 0; i < WARPS; i++) if (isLifted(row, i)) filled++;
     const sq = `${filled} coloured square${filled === 1 ? '' : 's'}`;
-    statusEl.textContent = playing ? `${lv.name}, row ${next} of ${lv.target.length}: ${sq}` : `${lv.name} woven! ${'★'.repeat(s.st)}`;
-    card.element.setAttribute('aria-label', `The picture card: ${lv.name}. Row ${next} has ${sq}.`);
+    statusEl.textContent = playing && performance.now() < pinHintUntil ? 'Two pins a row: say the rest out loud' : playing ? `Row ${next} of ${lv.target.length}: ${sq}` : `${lv.name} woven! ${'★'.repeat(s.st)}`;
+    card.element.setAttribute('aria-label', `The picture card. Row ${next} has ${sq}.`);
   };
   // repaint at most ~10×/s (snapshots come at 20 Hz)
   let pending: Snapshot | null = null;

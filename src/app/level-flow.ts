@@ -157,7 +157,9 @@ export class LevelFlow {
       this.idle += dt;
       if (this.idle > TIMING.idleHint && !this.idleShown) {
         this.idleShown = true;
-        this.idleHint();
+        this.idleHint(false);
+      } else if (this.idle > TIMING.idleHint * 2 && this.idleShown && this.hintStep === 'card' && (this.level.chapter === 'garden' || !this.level.chapter)) {
+        this.idleHint(true); // still stuck a while later: in Garden, now the lever (it is no longer 'card' after this)
       }
     }
     if (this.phase === 'play') return;
@@ -183,8 +185,25 @@ export class LevelFlow {
     }
     if (this.phase === 'between') {
       if (this.mirror) return; // wait for the host's next level
-      this.start(this.challenge ? this.progress.level : this.index + 1);
+      this.start(this.challenge ? this.progress.level : this.nextIndex());
     }
+  }
+
+  /** How many pictures there are (0: just go on in order). */
+  total = 0;
+  /**
+   * The next picture: the following one, unless it's already woven, then the first still to weave
+   * (finish the Sea first and Home is next, not Garden again); with all woven, the first without gold.
+   */
+  nextIndex(): number {
+    const n = this.total;
+    const after = this.index + 1;
+    if (!n) return after;
+    const best = (i: number) => this.progress.best[this.levelAt(i).id] ?? 0;
+    if (after < n && best(after) === 0) return after;
+    for (let k = 0; k < n; k++) if (best((after + k) % n) === 0) return (after + k) % n;
+    for (let k = 0; k < n; k++) if (best((after + k) % n) < 3) return n + ((after + k) % n);
+    return after;
   }
 
   /** Rows alternate direction, like the shuttle did. */
@@ -269,11 +288,12 @@ export class LevelFlow {
   private win(): void {
     this.phase = 'won';
     this.timer = TIMING.winPause;
-    this.lastStars = stars(this.level.par, this.model.leverFlips);
+    // Garden is for learning the levers (its card shows no knots): every picture woven there is a full one
+    this.lastStars = this.level.chapter === 'garden' ? 3 : stars(this.level.par, this.model.leverFlips);
     if (!this.challenge) {
       const id = this.level.id;
       this.progress.best[id] = Math.max(this.progress.best[id] ?? 0, this.lastStars);
-      this.progress.level = this.index + 1;
+      this.progress.level = this.nextIndex(); // where play goes on (a resume comes back there too)
       this.progress.tutorialDone = true;
     } else if (this.daily) {
       // the picture of the day counts: its plush is kept, and the day joins the streak
@@ -287,6 +307,8 @@ export class LevelFlow {
       tieUp: this.level.friend ? [...this.level.tieUp, this.level.friend] : [...this.level.tieUp],
       rows: [...this.model.rows],
       rootMidi: this.level.rootMidi,
+      ...(this.level.color !== undefined ? { color: this.level.color } : {}),
+      ...(this.level.weft !== undefined ? { weft: this.level.weft } : {}),
     };
     this.hooks.save(this.progress);
     this.emitStatus();
@@ -314,9 +336,10 @@ export class LevelFlow {
   }
 
   /** After the tutorial, idle hints point at the kind of action, not the answer (except in Garden). */
-  private idleHint(): void {
+  private idleHint(again: boolean): void {
     const n = nextStep(this.level, this.model.rows, this.model.latched, this.model.weft, this.model.helper);
-    const easy = this.level.chapter === 'garden' || !this.level.chapter;
+    // Garden names the lever, but only after a second wait: someone studying the card isn't handed the answer
+    const easy = (this.level.chapter === 'garden' || !this.level.chapter) && again;
     if (n.step === 'undo' || n.step === 'shuttle' || n.step === 'weft' || n.step === 'friendOn' || n.step === 'friendOff' || n.step === 'friendSwap' || easy) this.setHint(n.step, n.lever);
     else this.setHint('card'); // "match the next row": the puzzle stays the player's
   }
@@ -340,7 +363,8 @@ export function totalStars(p: Pick<Progress, 'best'>): number {
  */
 export function nextStep(level: Level, rows: readonly Mask8[], latched: readonly boolean[], weft: 0 | 1 = 0, helper: Mask8 = 0): { step: HintStep; lever: number } {
   const r = rows.length;
-  if (r > 0 && rows[r - 1] !== level.target[r - 1]) return { step: 'undo', lever: -1 };
+  // any wrong row (not only the last: one can be buried under a later row) has to come undone first
+  for (let i = 0; i < r; i++) if (rows[i] !== level.target[i]) return { step: 'undo', lever: -1 };
   if (r >= level.target.length) return { step: 'none', lever: -1 };
   // the cheapest lever set (from the levers as they are) that, with `h` lifted by a seated plush, makes the row; -1: none
   const want = warpsOf(level.target[r]);

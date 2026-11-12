@@ -5,6 +5,7 @@ export default async function run({ page, frame }) {
     const g = window.__loom.game;
     if (action === 'call') {
       g.pokePhone();
+      if (g.view.phone.phoneState !== 'calling') g.pokePhone(); // the second poke confirms the call
       g.practiceIn = 0.5; // don't wait the full minute-ish in a test
     }
     if (action === 'hangup') g.pokePhone();

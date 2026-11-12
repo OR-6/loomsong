@@ -19,7 +19,7 @@ await wait(1500);
 e = run('tools/ear-state.mjs');
 check('when it comes up Pip hums it', e.rows === e.earRow && e.hums >= 1, JSON.stringify(e));
 const notices = run('tools/state.mjs').debug.notices ?? [];
-check('a notice says to listen (no lever hint gives it away)', notices.some((n) => /Pip hums it/.test(n)) && !/lever \d/.test(e.tag), JSON.stringify({ notices: notices.slice(-2), tag: e.tag }));
+check('a notice says to listen (no lever hint gives it away)', notices.some((n) => /Pip hums it/.test(n) || /Match his tune/.test(n)) && !/lever \d/.test(e.tag), JSON.stringify({ notices: notices.slice(-2), tag: e.tag }));
 // a first wrong try: no answer given, the patch stays, Pip hums it again (with the threads quivering)
 execFileSync('npx', ['@iwsdk/cli', 'browser', 'run', 'tools/delight-state.mjs'], { encoding: 'utf8', env: { ...process.env, DELIGHT_ACTION: 'wrong' } });
 for (let i = 0; i < 12 && run('tools/ear-state.mjs').rows !== e.earRow; i++) await wait(500);

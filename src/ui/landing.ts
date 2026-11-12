@@ -11,7 +11,7 @@ import { loadProgress, workshopUnlocked } from '../persistence/progress.js';
 import { THEMES, type ThemeId } from './theme.js';
 import { clothDataUrl } from './cloth-image.js';
 import { clothFromHash, shareUrl } from '../net/share.js';
-import { loadSettings, saveSettings, type HandPref } from '../persistence/settings.js';
+import { loadSettings, restPressOn, saveSettings, type HandPref } from '../persistence/settings.js';
 import { normaliseCode, coop, type CoopStatus } from '../net/coop.js';
 import { mountCaller, shouldCall, unmountCaller } from './caller.js';
 
@@ -64,7 +64,7 @@ export function mountLanding(world: World): void {
             <li class="s1" data-hang><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('levers-close.jpg')}" alt="The red lever lifts its threads" width="800" height="600" /></figure>
               <div class="hang"><b><span class="num" aria-hidden="true">1</span><span class="visually-hidden">Step 1: </span>Push the levers</b>Each lever lifts its own threads. Pick the ones that make the next row on the card.</div></li>
             <li class="s2" data-hang><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('pip-pinch.jpg')}" alt="A ghost hand shows how to pinch Pip" width="800" height="600" /></figure>
-              <div class="hang"><b><span class="num" aria-hidden="true">2</span><span class="visually-hidden">Step 2: </span>Slide Pip across</b>Pinch the little bird and slide it through. The row is woven, and its threads ring out.</div></li>
+              <div class="hang"><b><span class="num" aria-hidden="true">2</span><span class="visually-hidden">Step 2: </span>Slide Pip across</b>Pinch the little bird and slide him through. The row is woven, and its threads ring out.</div></li>
             <li class="s3" data-hang><figure class="photo"><i class="peg"></i><img loading="lazy" src="${sitePhoto('plush-dance.jpg')}" alt="The finished duck pops off the loom as a felt plush" width="800" height="600" /></figure>
               <div class="hang"><b><span class="num" aria-hidden="true">3</span><span class="visually-hidden">Step 3: </span>Watch it come alive</b>A finished picture pops off the loom as a plush and hops onto your shelf.</div></li>
           </ol>
@@ -77,7 +77,7 @@ export function mountLanding(world: World): void {
             <path data-line d="M-10 30 Q 300 4 520 22 T 1010 10" fill="none" stroke="url(#ply-teal)" stroke-width="4.5" stroke-linecap="round"/>
           </svg>
           <figure class="photo small" data-hang><i class="peg"></i><span class="label">Your shelf, your desk</span><img loading="lazy" src="${sitePhoto('shelf.jpg')}" alt="Finished plushes on the shelf and on the desk, beside the wrapped present of the day" width="800" height="500" /></figure>
-          <div class="note-card"><i class="tape"></i><b>Four chapters, and visitors</b><p>Garden teaches your hands, Home combines levers, Night hides what they lift, and Sea weaves in two colours. In Home, one row per picture is hummed by Pip: find it by ear. Some pictures need a friend: sit a plush on the felt mat and it lifts the threads under its feet. Carry your plushes anywhere on your desk and they stay; leave one out and tomorrow a visitor comes for it.</p></div>
+          <div class="note-card"><i class="tape"></i><b>Four chapters, and visitors</b><p>Garden teaches your hands, Home combines levers, Night hides what they lift, and the Sea hides them too while you weave in two colours. In Home, one row per picture is hummed by Pip: find it by ear. Some pictures need a friend: sit a plush on the felt cushion and it lifts the threads under its feet. Carry your plushes anywhere on your desk and they stay; leave one out and a visitor comes for it.</p></div>
           <figure class="photo small" data-hang><i class="peg"></i><span class="label">Your plushes help</span><img loading="lazy" src="${sitePhoto('plush-friend.jpg')}" alt="The Sprout plush sits on a felt cushion in front of the loom and lifts the two middle threads" width="800" height="500" /></figure>
         </section>
 
@@ -97,8 +97,9 @@ export function mountLanding(world: World): void {
           <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="hc" role="switch" aria-checked="false">High contrast</button></span>
           <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="music" role="switch" aria-checked="true">Music</button></span>
           <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="calm" role="switch" aria-checked="false">Calm motion</button></span>
-          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="look" role="switch" aria-checked="false" title="No hands needed: look at a lever, Pip or the spool for a moment to press it">Look to play</button></span>
+          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="look" role="switch" aria-checked="false" title="No hands needed: look at any control for a moment to press it">Look to play</button></span>
           <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="ear" role="switch" aria-checked="true" title="One row per picture is hummed by Pip instead of shown. Off: every row shows on the card">Rows by ear</button></span>
+          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="rest" role="switch" aria-checked="false" title="Hold a fingertip still on a lever, Pip or the spool for a moment to press it (for slow or unsteady hands)">Rest to press</button></span>
           <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="fit" aria-pressed="false">Fit to my hands</button></span>
           <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="fresh" aria-pressed="false" title="Next time, rest your palm on the desk to set the loom somewhere new">Move the loom</button></span>
           <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><div role="radiogroup" aria-label="Lever side" id="hand-pick">
@@ -120,7 +121,7 @@ export function mountLanding(world: World): void {
           <figure class="photo phone"><i class="peg"></i><img loading="lazy" src="${sitePhoto('caller-phone.jpg')}" alt="The caller's phone: the picture card with a pin on one square, and a Ring Pip button" width="520" height="787" /></figure>
           <div class="coop-text">
             <h2 id="coop-title">No headset? Be the caller on your phone.</h2>
-            <p>The weaver pokes the toy telephone on their desk in the headset and reads out the code. Open this page on your phone and join. Only you can see the picture, and only they can see which threads each lever lifts, so you have to talk it through. Tap a square to pin its thread on their loom, or ring Pip to make it wave. Every picture you finish together leaves a postcard on your phone.</p>
+            <p>The weaver pokes the toy telephone on their desk twice in the headset and reads out the code. Open this page on your phone and join. Only you can see the picture, and only they can see which threads each lever lifts, so you have to talk it through. Tap up to two squares a row to pin their threads on their loom (the rest you say out loud), or ring Pip to make him wave. Every picture you finish together leaves a postcard on your phone.</p>
             <div class="row">
               <button type="button" id="coop-host" class="patch" hidden>Host a loom</button>
               <input id="coop-code" maxlength="4" placeholder="CODE" aria-label="Room code" autocomplete="off" />
@@ -201,7 +202,7 @@ export function mountLanding(world: World): void {
   const syncCloth = () => {
     const p = loadProgress();
     card.hidden = !p.lastCloth;
-    if (p.lastCloth) img.src = clothDataUrl(p.lastCloth.rows, THEMES[p.theme]);
+    if (p.lastCloth) img.src = clothDataUrl(p.lastCloth.rows, THEMES[p.theme], 28, p.lastCloth.color, p.lastCloth.weft);
   };
   el.querySelector('#share-btn')!.addEventListener('click', async () => {
     const c = loadProgress().lastCloth;
@@ -268,6 +269,7 @@ export function mountLanding(world: World): void {
   const calm = el.querySelector<HTMLButtonElement>('#calm')!;
   const look = el.querySelector<HTMLButtonElement>('#look')!;
   const ear = el.querySelector<HTMLButtonElement>('#ear')!;
+  const rest = el.querySelector<HTMLButtonElement>('#rest')!;
   const handPick = el.querySelector<HTMLElement>('#hand-pick')!;
   const fit = el.querySelector<HTMLButtonElement>('#fit')!;
   const fresh = el.querySelector<HTMLButtonElement>('#fresh')!;
@@ -278,6 +280,7 @@ export function mountLanding(world: World): void {
     calm.setAttribute('aria-checked', String(st.calmMotion ?? prefersReducedMotion()));
     look.setAttribute('aria-checked', String(!!st.lookToPlay));
     ear.setAttribute('aria-checked', String(st.hearRows !== false));
+    rest.setAttribute('aria-checked', String(restPressOn(st)));
     fit.setAttribute('aria-pressed', String(st.calibrateNext));
     fit.textContent = st.calibrateNext
       ? 'Fitting on next entry'
@@ -306,6 +309,12 @@ export function mountLanding(world: World): void {
   ear.addEventListener('click', () => {
     const st = loadSettings();
     saveSettings({ ...st, hearRows: st.hearRows === false });
+    syncSettings();
+    changed();
+  });
+  rest.addEventListener('click', () => {
+    const st = loadSettings();
+    saveSettings({ ...st, restPress: !restPressOn(st) });
     syncSettings();
     changed();
   });

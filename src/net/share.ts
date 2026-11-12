@@ -12,12 +12,18 @@ export interface SharedCloth {
   tieUp: Mask8[];
   rows: Mask8[];
   rootMidi: number;
+  color?: number;
+  weft?: number;
 }
 
-const VERSION = 1;
+const VERSION = 2;
+const SEA = 0x6cc0f0;
 
 export function encodeCloth(c: SharedCloth): string {
-  const bytes = [VERSION, c.tieUp.length, ...c.tieUp, c.rows.length, ...c.rows, c.rootMidi & 0x7f];
+  let water = 0;
+  c.rows.forEach((r, i) => (water |= r & 256 ? 1 << i : 0));
+  const col = c.color ?? 0;
+  const bytes = [VERSION, c.tieUp.length, ...c.tieUp, c.rows.length, ...c.rows.map((r) => r & 0xff), water & 0xff, (water >> 8) & 0xff, (col >> 16) & 0xff, (col >> 8) & 0xff, col & 0xff, c.rootMidi & 0x7f];
   let bin = '';
   for (const b of bytes) bin += String.fromCharCode(b & 0xff);
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -30,7 +36,8 @@ export function decodeCloth(code: string): SharedCloth | null {
     const bin = atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4));
     const b = Array.from(bin, (ch) => ch.charCodeAt(0));
     let i = 0;
-    if (b[i++] !== VERSION) return null;
+    const v = b[i++];
+    if (v !== 1 && v !== VERSION) return null;
     const L = b[i++];
     if (!(L >= 2 && L <= 4)) return null;
     const tieUp = b.slice(i, i + L);
@@ -39,12 +46,23 @@ export function decodeCloth(code: string): SharedCloth | null {
     if (!(R >= 1 && R <= 12)) return null;
     const rows = b.slice(i, i + R);
     i += R;
+    let color: number | undefined;
+    let weft: number | undefined;
+    if (v === 2) {
+      const water = b[i] | (b[i + 1] << 8);
+      i += 2;
+      const col = (b[i] << 16) | (b[i + 1] << 8) | b[i + 2];
+      i += 3;
+      if (col) color = col;
+      for (let k = 0; k < R; k++) if ((water >> k) & 1) rows[k] |= 256;
+      if (water) weft = SEA;
+    }
     const rootMidi = b[i++];
     if (i !== b.length || tieUp.length !== L || rows.length !== R) return null;
     if (tieUp.some((m) => m === 0) || new Set(tieUp).size !== L) return null;
     if (rows.some((r) => !rowReachable(tieUp, r))) return null;
     if (!(rootMidi >= 48 && rootMidi <= 84)) return null;
-    return { tieUp, rows, rootMidi };
+    return { tieUp, rows, rootMidi, ...(color !== undefined ? { color } : {}), ...(weft !== undefined ? { weft } : {}) };
   } catch {
     return null;
   }
@@ -59,6 +77,8 @@ export function clothLevel(c: SharedCloth): Level {
     target: [...c.rows],
     rootMidi: c.rootMidi,
     par: computePar(c.tieUp, c.rows),
+    ...(c.color !== undefined ? { color: c.color } : {}),
+    ...(c.weft !== undefined ? { weft: c.weft } : {}),
   };
 }
 

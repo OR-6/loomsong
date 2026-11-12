@@ -48,7 +48,7 @@ describe('level flow', () => {
     expect(flow.progress.level).toBe(1);
   });
 
-  it('wrong rows never win; undo fixes them; extra flips cost stars', () => {
+  it('wrong rows never win; undo fixes them; Garden always gives full stars', () => {
     const { model, flow, log } = setup({ level: 0, best: {}, tutorialDone: true, theme: 'toy' });
     flow.start();
     weave(model, [[0, 1]]); // wrong first row
@@ -57,7 +57,7 @@ describe('level flow', () => {
     model.setLatched(1, false);
     weave(model, [[1, 0], [1, 0], [1, 1]]);
     expect(log.some((l) => l.startsWith('win'))).toBe(true);
-    expect(flow.lastStars).toBe(2); // 4 flips vs par 2
+    expect(flow.lastStars).toBe(3); // Garden: every picture woven is a full one (its card shows no knots)
   });
 
   it('timing: playback starts after the win pause', () => {
@@ -148,7 +148,9 @@ describe('level flow', () => {
     flow.start();
     expect(flow.tutorial).toBe(false);
     for (let t = 0; t < TIMING.idleHint + 0.2; t += 0.1) flow.update(0.1);
-    expect(log.at(-1)).toBe('hint lever 0'); // Garden: the exact lever
+    expect(log.at(-1)).toBe('hint card 0'); // first: match the next row (the puzzle stays the player's)
+    for (let t = 0; t < TIMING.idleHint; t += 0.1) flow.update(0.1);
+    expect(log.at(-1)).toBe('hint lever 0'); // still stuck, in Garden: the exact lever
     model.setLatched(0, true);
     expect(log.at(-1)).toBe('hint none 0');
   });
@@ -158,6 +160,7 @@ describe('level flow', () => {
     expect(nextStep(lv, [], [false, false]).step).toBe('lever');
     expect(nextStep(lv, [], [true, false]).step).toBe('shuttle');
     expect(nextStep(lv, [lv.target[0] ^ 1], [true, false]).step).toBe('undo');
+    expect(nextStep(lv, [lv.target[0] ^ 1, lv.target[1]], [true, false]).step).toBe('undo'); // a wrong row buried under a right one
     const s = nextStep(lv, [], [true, true]);
     expect(s).toEqual({ step: 'unlatch', lever: 1 });
   });

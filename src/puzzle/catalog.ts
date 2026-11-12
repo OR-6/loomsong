@@ -80,6 +80,11 @@ function dayNumber(key: string): number {
   return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(2026, 0, 1)) / 86400000);
 }
 
+/** Every third day the picture of the day hides its levers' threads, Night's rule (for players who know it). */
+export function hiddenLeverDay(key: string): boolean {
+  return ((dayNumber(key) % 3) + 3) % 3 === 2;
+}
+
 /** The day's picture: the same for everyone that day; the whole set comes round before any repeats. */
 export function dailyLevel(key = dayKey()): Level {
   const n = DAILY_LEVELS.length;
@@ -106,20 +111,25 @@ export const VISITOR_LIKES: Readonly<Record<string, string>> = {
   'day-candle': 'lantern',
   'day-sun': 'crab',
   'day-pine': 'fish',
-  'day-jelly': 'octopus',
+  'day-jelly': 'jellyfish',
+  'day-robot': 'octopus',
+  'day-crown': 'house',
+  'day-bear': 'heart',
+  'day-pear': 'tulip',
   'day-anchor': 'boat',
 };
 
 /**
- * Today's visitor: one who likes a plush standing on your desk (not yet woven first, then any),
+ * Today's visitor: one who likes a plush standing on your desk and hasn't been woven yet,
  * chosen by the day so it's stable; null when no plush you've left out has a visitor.
  */
 export function visitorFor(key: string, onDesk: readonly string[], woven: (id: string) => boolean): Level | null {
   const desk = new Set(onDesk);
   const all = Object.keys(VISITOR_LIKES).filter((v) => desk.has(VISITOR_LIKES[v]));
   if (!all.length) return null;
-  const fresh = all.filter((v) => !woven(v));
-  const pool = (fresh.length ? fresh : all).sort();
+  // only a visitor you haven't woven yet: once they've all been, the day's own picture comes instead
+  const pool = all.filter((v) => !woven(v)).sort();
+  if (!pool.length) return null;
   const n = dayNumber(key);
   const id = pool[((n % pool.length) + pool.length) % pool.length];
   return DAILY_LEVELS.find((l) => l.id === id) ?? null;

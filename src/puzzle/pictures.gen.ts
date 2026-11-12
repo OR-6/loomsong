@@ -138,7 +138,7 @@ export const PICTURES: PictureLevel[] = [
   },
   {
     "id": "table",
-    "name": "Table",
+    "name": "Flower table",
     "chapter": "garden",
     "mystery": false,
     "color": 0xb5683a,
@@ -265,28 +265,28 @@ export const PICTURES: PictureLevel[] = [
     "mystery": false,
     "color": 0x3d8fd1,
     "picture": [
-      "##.##.##",
-      "########",
-      "#######.",
-      "#######.",
-      ".#####..",
-      "..###..."
+      ".#..#...",
+      "######..",
+      "#####.#.",
+      "#####.#.",
+      "######..",
+      ".####..."
     ],
     "tieUp": [
-      28,
-      62,
-      91,
-      195
+      45,
+      77,
+      14,
+      18
     ],
     "target": [
-      28,
-      62,
-      127,
-      127,
-      255,
-      219
+      30,
+      63,
+      95,
+      95,
+      63,
+      18
     ],
-    "par": 6,
+    "par": 9,
     "rootMidi": 60
   },
   {
@@ -304,7 +304,7 @@ export const PICTURES: PictureLevel[] = [
       "..###..."
     ],
     "tieUp": [
-      28,
+      24,
       1,
       2,
       4
@@ -317,7 +317,7 @@ export const PICTURES: PictureLevel[] = [
       6,
       28
     ],
-    "par": 10,
+    "par": 6,
     "rootMidi": 65
   },
   {
@@ -348,7 +348,7 @@ export const PICTURES: PictureLevel[] = [
       126,
       60
     ],
-    "par": 7,
+    "par": 3,
     "rootMidi": 67
   },
   {
@@ -366,10 +366,10 @@ export const PICTURES: PictureLevel[] = [
       "..####.."
     ],
     "tieUp": [
-      60,
-      231,
-      165,
-      66
+      28,
+      129,
+      66,
+      36
     ],
     "target": [
       60,
@@ -379,7 +379,7 @@ export const PICTURES: PictureLevel[] = [
       126,
       66
     ],
-    "par": 9,
+    "par": 7,
     "rootMidi": 64
   },
   {
@@ -410,7 +410,7 @@ export const PICTURES: PictureLevel[] = [
       195,
       129
     ],
-    "par": 11,
+    "par": 7,
     "rootMidi": 69
   },
   {
@@ -441,7 +441,7 @@ export const PICTURES: PictureLevel[] = [
       126,
       24
     ],
-    "par": 7,
+    "par": 4,
     "rootMidi": 62
   },
   {
@@ -459,10 +459,10 @@ export const PICTURES: PictureLevel[] = [
       "~~###~~~"
     ],
     "tieUp": [
-      28,
       231,
       182,
-      14
+      12,
+      20
     ],
     "target": [
       284,
@@ -471,7 +471,7 @@ export const PICTURES: PictureLevel[] = [
       446,
       28
     ],
-    "par": 7,
+    "par": 4,
     "rootMidi": 60
   },
   {
@@ -489,10 +489,10 @@ export const PICTURES: PictureLevel[] = [
       "#.#..#.#"
     ],
     "tieUp": [
-      124,
-      129,
-      6,
-      36
+      90,
+      36,
+      1,
+      128
     ],
     "target": [
       165,
@@ -502,7 +502,7 @@ export const PICTURES: PictureLevel[] = [
       165,
       129
     ],
-    "par": 11,
+    "par": 10,
     "rootMidi": 65
   },
   {
@@ -534,7 +534,7 @@ export const PICTURES: PictureLevel[] = [
       382,
       316
     ],
-    "par": 7,
+    "par": 3,
     "rootMidi": 67
   },
   {
@@ -554,9 +554,9 @@ export const PICTURES: PictureLevel[] = [
     ],
     "tieUp": [
       118,
-      24,
       48,
-      8
+      8,
+      16
     ],
     "target": [
       382,
@@ -566,7 +566,7 @@ export const PICTURES: PictureLevel[] = [
       24,
       8
     ],
-    "par": 7,
+    "par": 3,
     "rootMidi": 64
   },
   {
@@ -597,7 +597,7 @@ export const PICTURES: PictureLevel[] = [
       126,
       60
     ],
-    "par": 10,
+    "par": 7,
     "rootMidi": 69
   }
 ];

@@ -17,7 +17,7 @@ describe('picture levels', () => {
       const f = p.friend ?? 0;
       const leverRows = f ? p.target.map((r) => ((r & f) === f ? r & ~f : r)) : p.target;
       for (const row of leverRows) expect(row === 0 || rowReachable(p.tieUp, row), `${p.id} row`).toBe(true);
-      expect(p.par, p.id).toBe(computePar(p.tieUp, leverRows));
+      expect(p.par, p.id).toBe(computePar(p.tieUp, leverRows, p.mystery));
       expect(p.name.split(' ').length).toBeLessThanOrEqual(3);
     }
   });
@@ -59,7 +59,7 @@ describe('picture levels', () => {
       expect(p.target, p.id).toEqual(p.picture.map(bits).reverse());
       expect(p.target.every((r) => r > 0), `${p.id} has an empty row`).toBe(true);
       for (const row of p.target) expect(rowReachable(p.tieUp, row), `${p.id} row`).toBe(true);
-      expect(p.par, p.id).toBe(computePar(p.tieUp, p.target));
+      expect(p.par, p.id).toBe(computePar(p.tieUp, p.target, !!p.mystery));
       expect(PICTURES.some((q) => q.picture.join() === p.picture.join()), p.id).toBe(false);
       expect(pictureById(p.id)?.name).toBe(p.name);
     }

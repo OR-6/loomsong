@@ -19,8 +19,12 @@ function stateShed(tieUp: readonly Mask8[], state: number): Mask8 {
   return m & 0xff;
 }
 
-/** Returns Infinity when some target row cannot be woven with this tie-up. */
-export function computePar(tieUp: readonly Mask8[], target: readonly Mask8[]): number {
+/**
+ * Returns Infinity when some target row cannot be woven with this tie-up. `firstTryFree` (mystery
+ * levers): the first time each lever is pushed away costs nothing, as in the game.
+ */
+export function computePar(tieUp: readonly Mask8[], target: readonly Mask8[], firstTryFree = false): number {
+  if (firstTryFree) return parFirstFree(tieUp, target);
   const S = 1 << tieUp.length;
   let cost = new Array<number>(S).fill(Infinity);
   cost[0] = 0;
@@ -32,6 +36,32 @@ export function computePar(tieUp: readonly Mask8[], target: readonly Mask8[]): n
         if (cost[p] === Infinity) continue;
         const c = cost[p] + popcount(p ^ s);
         if (c < next[s]) next[s] = c;
+      }
+    }
+    cost = next;
+  }
+  return Math.min(...cost);
+}
+
+/** Par over (lever state, levers tried so far): a lever's first push away is free. */
+function parFirstFree(tieUp: readonly Mask8[], target: readonly Mask8[]): number {
+  const S = 1 << tieUp.length;
+  const key = (s: number, r: number) => s * S + r;
+  let cost = new Array<number>(S * S).fill(Infinity);
+  cost[key(0, 0)] = 0;
+  for (const row of target) {
+    const next = new Array<number>(S * S).fill(Infinity);
+    for (let s = 0; s < S; s++) {
+      if (stateShed(tieUp, s) !== (row & 0xff)) continue;
+      for (let p = 0; p < S; p++) {
+        for (let r = 0; r < S; r++) {
+          const c0 = cost[key(p, r)];
+          if (c0 === Infinity) continue;
+          const on = s & ~p;
+          const c = c0 + popcount(p ^ s) - popcount(on & ~r);
+          const k = key(s, r | s);
+          if (c < next[k]) next[k] = c;
+        }
       }
     }
     cost = next;

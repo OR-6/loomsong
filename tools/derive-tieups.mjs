@@ -16,13 +16,14 @@ const CHAPTERS = [
     { id: 'duck', name: 'Duck', color: 0xe9a21a, rule: 'parts', rows: ['.##.....', '####....', '.##.....', '.######.', '########', '.######.'] },
     // a friend picture: a plush on the cushion lifts the threads under its feet (its bottom row);
     // the legs need it off, the tabletop, vase and flower need it on (the Sprout and the Tulip on the Garden shelf fit)
-    { id: 'table', name: 'Table', color: 0xb5683a, rows: ['...##...', '..####..', '########', '..#..#..', '..#..#..'], tie: [0b00100100, 0b00000011, 0b11000000], friend: 0b00011000 },
+    { id: 'table', name: 'Flower table', color: 0xb5683a, rows: ['...##...', '..####..', '########', '..#..#..', '..#..#..'], tie: [0b00100100, 0b00000011, 0b11000000], friend: 0b00011000 },
   ] },
   { id: 'home', name: 'Home', idea: 'two levers at once', rule: 'parts', pics: [
     { id: 'heart', name: 'Heart', color: 0xe2563b, rows: ['.##..##.', '########', '########', '.######.', '..####..', '...##...'] },
     { id: 'house', name: 'House', color: 0xf08a4b, rows: ['...##...', '..####..', '.######.', '########', '##.##.##', '##.##.##'] },
     { id: 'star', name: 'Star', color: 0xf2b632, rows: ['...##...', '...##...', '########', '.######.', '..####..', '.##..##.'] },
-    { id: 'cup', name: 'Cup', color: 0x3d8fd1, rows: ['##.##.##', '########', '#######.', '#######.', '.#####..', '..###...'] },
+    // a mug side-on: two wisps of steam, the rim, the handle's loop on the right, a foot
+    { id: 'cup', name: 'Cup', color: 0x3d8fd1, rows: ['.#..#...', '######..', '#####.#.', '#####.#.', '######..', '.####...'] },
   ] },
   { id: 'night', name: 'Night', idea: 'mystery levers', rule: 'parts', mystery: true, pics: [
     { id: 'moon', name: 'Moon', color: 0xeeae1c, rows: ['..###...', '.##.....', '##......', '##......', '.##.....', '..###...'] },
@@ -148,6 +149,9 @@ function greedy(tie, target) {
   }
   return total;
 }
+/** Picture rows (all of them, repeats counted) that one lever makes alone. */
+let SOLO_ROWS = [];
+const soloRows = (D, tie) => SOLO_ROWS.filter((r) => tie.includes(r)).length;
 /** Pairs of levers that share threads (then a row can be made more than one way). */
 function overlaps(tie) {
   let n = 0;
@@ -157,7 +161,7 @@ function overlaps(tie) {
 /** Planning: how many moves greedy loses against par (in the order the rows are woven). */
 function planning(tie, rowsInOrder) {
   const g = greedy(tie, rowsInOrder);
-  return Number.isFinite(g) ? g - par(tie, rowsInOrder) : 0;
+  return Number.isFinite(g) ? g - par(tie, rowsInOrder, false) : 0; // like for like: neither counts free first tries
 }
 
 function partsTieUp(rows, ordered = rows) {
@@ -184,7 +188,7 @@ function partsTieUp(rows, ordered = rows) {
     const rec = (s) => {
       if (pick.length === L) {
         if (!canMake(D, pick)) return;
-        const score = combosOf(D, pick) * 10 + choicesOf(D, pick) * 6 - pick.reduce((n, m) => n + runs(m), 0) - (usedSets.has(sig(pick)) ? 100 : 0) + PLAN_W * planning(pick, ordered) + OVERLAP_W * overlaps(pick);
+        const score = combosOf(D, pick) * 10 + choicesOf(D, pick) * 6 - pick.reduce((n, m) => n + runs(m), 0) - (usedSets.has(sig(pick)) ? 100 : 0) + PLAN_W * planning(pick, ordered) + OVERLAP_W * overlaps(pick) - SOLO_W * soloRows(D, pick);
         if (score > bestScore) { bestScore = score; best = [...pick]; }
         return;
       }
@@ -193,14 +197,15 @@ function partsTieUp(rows, ordered = rows) {
     rec(0);
     if (best) {
       // keep looking up to 4 levers; take the best-scoring set overall
-      const score = (t) => combosOf(D, t) * 10 + choicesOf(D, t) * 6 - (usedSets.has(sig(t)) ? 100 : 0) - t.length * 2 + PLAN_W * planning(t, ordered) + OVERLAP_W * overlaps(t);
+      const score = (t) => combosOf(D, t) * 10 + choicesOf(D, t) * 6 - (usedSets.has(sig(t)) ? 100 : 0) - t.length * 2 + PLAN_W * planning(t, ordered) + OVERLAP_W * overlaps(t) - SOLO_W * soloRows(D, t);
       if (!found || score(best) > score(found)) found = best;
     }
   }
   return found;
 }
 
-function par(tie, target) {
+function par(tie, target, firstFree = MYSTERY_PAR) {
+  if (firstFree) return parFirstFree(tie, target);
   const S = 1 << tie.length;
   const sh = (s) => tie.reduce((m, t, k) => ((s >> k) & 1 ? m | t : m), 0);
   let cost = Array(S).fill(Infinity); cost[0] = 0;
@@ -212,7 +217,31 @@ function par(tie, target) {
   return Math.min(...cost);
 }
 
+/** Mystery levers: the first push away of each is free (the game refunds it). */
+function parFirstFree(tie, target) {
+  const S = 1 << tie.length;
+  const sh = (s) => tie.reduce((m, t, k) => ((s >> k) & 1 ? m | t : m), 0);
+  let cost = new Map([[0, 0]]); // key s*S+r
+  for (const row of target) {
+    const next = new Map();
+    for (const [k0, c0] of cost) {
+      const p = Math.floor(k0 / S), r = k0 % S;
+      for (let s = 0; s < S; s++) {
+        if (sh(s) !== row) continue;
+        const c = c0 + pc(p ^ s) - pc(s & ~p & ~r);
+        const k = s * S + (r | s);
+        if (!(next.get(k) <= c)) next.set(k, c);
+      }
+    }
+    cost = next;
+  }
+  return Math.min(...cost.values());
+}
+
 const ROOTS = [62, 60, 65, 67, 64, 69];
+let MYSTERY_PAR = false;
+/** Later chapters: a lever that is a whole row by itself makes that row a one-lever lookup (penalised). */
+let SOLO_W = 0;
 let PLAN_W = 0;
 let OVERLAP_W = 0;
 let EXTRA_CANDS = false;
@@ -227,6 +256,10 @@ for (const ch of CHAPTERS) {
     PLAN_W = ch.id === 'garden' ? 0 : 40;
     OVERLAP_W = ch.id === 'garden' ? 0 : 4;
     EXTRA_CANDS = ch.id !== 'garden';
+    // Night and the Sea come after Home: more rows that need levers together (and their par counts first tries free)
+    MYSTERY_PAR = !!ch.mystery;
+    SOLO_W = ch.id === 'night' || ch.id === 'sea' ? 45 : 0;
+    SOLO_ROWS = warps;
     const tie = p.tie ? [...p.tie] : rule === 'parts' ? partsTieUp(warps, warps) ?? bestTieUp(warps) : bestTieUp(warps);
     if (tie) usedSets.add(sig(tie));
     if (!tie) { console.error('NOT WEAVABLE:', p.id); process.exitCode = 1; continue; }
@@ -249,6 +282,9 @@ for (const p of DAILY) {
   PLAN_W = 40;
   OVERLAP_W = 4;
   EXTRA_CANDS = true;
+  MYSTERY_PAR = false;
+  SOLO_W = 0;
+  SOLO_ROWS = warps;
   const tie = partsTieUp(warps, warps) ?? bestTieUp(warps);
   if (!tie) { console.error('NOT WEAVABLE:', p.id); process.exitCode = 1; continue; }
   usedSets.add(sig(tie));

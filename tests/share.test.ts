@@ -9,9 +9,9 @@ describe('share codes', () => {
       const c = { tieUp: l.friend ? [...l.tieUp, l.friend] : l.tieUp, rows: l.target, rootMidi: l.rootMidi }; // as the win saves it
       const code = encodeCloth(c);
       expect(code).toMatch(/^[A-Za-z0-9_-]+$/);
-      expect(code.length).toBeLessThanOrEqual(30);
-      // share links carry the warps only (a two-colour cloth is shared single-colour)
-      expect(decodeCloth(code)).toEqual({ ...c, rows: c.rows.map((r) => r & 255) });
+      expect(code.length).toBeLessThanOrEqual(36); // v2: water rows and colour ride along
+      // a two-colour cloth keeps its water rows (and arrives in the Sea's blue)
+      expect(decodeCloth(code)).toEqual({ ...c, ...(c.rows.some((r) => r & 256) ? { weft: 0x6cc0f0 } : {}) });
     }
   });
   it('rejects malformed or unsafe codes', () => {

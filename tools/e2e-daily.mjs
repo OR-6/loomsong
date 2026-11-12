@@ -14,7 +14,7 @@ run('tools/seed-garden-three.mjs');
 await wait(600);
 w = run('tools/daily-where.mjs');
 check('not during Garden (the first chapter is just the loom)', !w.visible, JSON.stringify({ visible: w.visible }));
-run('tools/seed-home-two.mjs');
+run('tools/seed-home-three.mjs');
 await wait(600);
 w = run('tools/daily-where.mjs');
 check('once Home has begun the present offers today', w.visible && w.bow && !!w.ball, JSON.stringify({ visible: w.visible, bow: w.bow }));

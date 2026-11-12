@@ -10,7 +10,7 @@ export default async function run({ page, frame }) {
       c.throwShuttle();
       for (let w = 0; w < 40 && g.model.rows.length <= n; w++) await sleep(100); // wait for the pass to land
       await sleep(300);
-      if (i === 0) c.toggleLever(1);
+      if (i === 1) c.toggleLever(1); // the Sprout: stem, stem, then stem and leaves (all right rows)
     }
     return window.__loom.debug.rows.length;
   });

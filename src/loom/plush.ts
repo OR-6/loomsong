@@ -253,11 +253,30 @@ function tagTexture(): CanvasTexture {
   return tagTex;
 }
 
+/**
+ * Pictures seen side-on, whose face belongs on a head rather than the widest row (bottom-first rows,
+ * joined): one button eye at column `x`, row `r` (+ `dy` cells), no smile.
+ */
+const PROFILE_FACE: Record<string, { r: number; x: number; dy: number }> = {
+  '126,255,126,6,15,6': { r: 4, x: 1.75, dy: 0.45 }, // the Duck: its eye on the head, behind the beak
+};
+
 /** Button eyes on the widest upper row, blush cheeks and a stitched smile. */
 function addFace(g: Group, rows: readonly Mask8[], color: number): void {
   void color;
   if (!rows.length) return;
   const cell = PLUSH.cell;
+  const prof = PROFILE_FACE[rows.join(',')];
+  if (prof) {
+    eyeGeo ??= new SphereGeometry(1, 14, 10);
+    eyeGeo.userData.sharedGeometry = true;
+    eyeMat ??= new MeshStandardMaterial({ color: 0x1f1714, roughness: 0.65 });
+    const eye = new Mesh(eyeGeo, eyeMat);
+    eye.scale.set(0.005, 0.005, 0.0014);
+    eye.position.set((prof.x - (WARPS - 1) / 2) * cell, LIFT + cell / 2 + (prof.r + prof.dy) * cell, (cell * PLUSH.depth) / 2 + 0.0006);
+    g.add(eye);
+    return;
+  }
   const want = Math.floor(rows.length * 0.66);
   let best = -1;
   let bestScore = -Infinity;

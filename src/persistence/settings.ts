@@ -18,6 +18,8 @@ export interface Settings {
   hearRows?: boolean;
   /** Look to play: look at a control for a moment to press it (no hands needed). */
   lookToPlay?: boolean;
+  /** Rest to press: a fingertip held still in a control presses it; undefined: on when "Fit to my hands" found limited pinch or a tremor. */
+  restPress?: boolean;
   /** Calm motion; undefined: follow the system's reduced-motion preference. */
   calmMotion?: boolean;
   calibration?: CalResult;
@@ -36,9 +38,17 @@ export function loadSettings(): Settings {
     placeFresh: s.placeFresh === true,
     calmMotion: typeof s.calmMotion === 'boolean' ? s.calmMotion : undefined,
     lookToPlay: s.lookToPlay === true,
+    restPress: typeof s.restPress === 'boolean' ? s.restPress : undefined,
     hearRows: s.hearRows !== false,
     calibration: validCal(s.calibration) ? s.calibration : undefined,
   };
+}
+
+/** Rest to press, as it applies: the switch, or (unset) only for hands that need it. */
+export function restPressOn(s: Settings): boolean {
+  if (typeof s.restPress === 'boolean') return s.restPress;
+  const c = s.calibration;
+  return !!c && (c.radiusMul > 1.15 || c.pinchScale > 1.25);
 }
 
 export function saveSettings(s: Settings): void {

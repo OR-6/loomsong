@@ -54,6 +54,8 @@ export interface ControllerHooks {
   grab?(target: Exclude<Target, null>): void;
   pass?(row: number): void;
   undo?(): void;
+  /** A wrong last row is waiting to come undone: carrying Pip back over it unweaves it instead of weaving another. */
+  missPending?(): boolean;
   /** Co-op guest: ask the host to act. */
   request?(what: 'throw' | 'undo'): void;
   /** Style token pressed (poke or pinch). */
@@ -121,6 +123,8 @@ export class LoomController {
   /** +1 bank on the right of the loom, -1 on the left. */
   bankSide: 1 | -1 = 1;
   radiusMul = 1;
+  /** Rest to press (an accessibility switch): off, a fingertip resting while you think presses nothing. */
+  restPress = false;
   /** Auto-throw in progress (poke mode). */
   autoThrow = false;
   enabled = true;
@@ -309,7 +313,7 @@ export class LoomController {
     // or a fingertip resting still inside the control for a moment (no speed or pointing needed)
     const code = targetKey(t);
     const still = Math.hypot(h.indexVel.x, h.indexVel.y, h.indexVel.z) < POKE.restStillSpeed;
-    if (code !== this.restOn[side] || !still) {
+    if (!this.restPress || code !== this.restOn[side] || !still) {
       this.restOn[side] = code;
       this.restT[side] = 0;
     } else this.restT[side] += this.frameDt;
@@ -473,6 +477,14 @@ export class LoomController {
     if (this.mirror) return; // the host commits; we follow its snapshots
     if (!this.enabled) return; // no rows during a win's playback
     const before = this.model.rows.length;
+    if (this.hooks.missPending?.() && this.model.undo() !== undefined) {
+      // Pip went back the way he came: that row unweaves (he lands where it began)
+      this.shuttle.target = this.model.shuttleSide;
+      this.prevShuttleX = this.shuttleX();
+      this.undoQuietUntil = performance.now() + 900; // a spool poke right after takes nothing more
+      this.hooks.undo?.();
+      return;
+    }
     this.model.commitRow();
     this.shuttle.target = this.model.shuttleSide;
     this.hooks.pass?.(before);
