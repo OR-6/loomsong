@@ -23,6 +23,8 @@ export class Label {
   /** @param heightM world height of the label quad; cap height ≈ 0.5 × this. */
   /** 'tag': a paper luggage tag (hints); 'ribbon': a gold celebration banner. */
   style: 'tag' | 'ribbon' = 'tag';
+  /** The tag's card colour (null: the theme's paper). A switched-on setting is mustard, like the 2D page's. */
+  fill: string | null = null;
 
   constructor(public widthM = 0.2, public heightM = 0.035) {
     this.canvas.width = 1024;
@@ -31,7 +33,7 @@ export class Label {
     this.tex = new CanvasTexture(this.canvas);
     this.mesh = new Mesh(
       new PlaneGeometry(widthM, heightM),
-      new MeshBasicMaterial({ map: this.tex, transparent: true, depthWrite: false }),
+      new MeshBasicMaterial({ map: this.tex, transparent: true, depthWrite: false, toneMapped: false }), // the colours as drawn
     );
     this.mesh.renderOrder = 10;
   }
@@ -55,16 +57,30 @@ export class Label {
     const h = canvas.height;
     const pad = h * 0.34;
     const hole = h * 0.62;
-    // long words get a slightly smaller font before they are squeezed (squeezed letters are hard to read in a headset)
+    // long words get a smaller font; past that they wrap onto two lines (never squeezed: squeezed letters blur in a headset)
     const avail = canvas.width - hole - pad * 2 - 8;
     let px = Math.round(h * 0.6);
     ctx.font = `400 ${px}px ${this.theme.font}`;
     const full = ctx.measureText(text).width;
+    let lines = [text];
     if (full > avail) {
-      px = Math.max(Math.round(h * 0.44), Math.floor((px * avail) / full));
+      px = Math.max(Math.round(h * 0.52), Math.floor((px * avail) / full));
       ctx.font = `400 ${px}px ${this.theme.font}`;
+      if (ctx.measureText(text).width > avail) {
+        // two lines, split at the space nearest the middle
+        const mid = text.length / 2;
+        let cut = -1;
+        for (let i = 0; i < text.length; i++) if (text[i] === ' ' && (cut < 0 || Math.abs(i - mid) < Math.abs(cut - mid))) cut = i;
+        if (cut > 0) lines = [text.slice(0, cut), text.slice(cut + 1)];
+        px = Math.round(h * 0.38);
+        ctx.font = `400 ${px}px ${this.theme.font}`;
+        while (px > h * 0.26 && Math.max(...lines.map((l) => ctx.measureText(l).width)) > avail) {
+          px--;
+          ctx.font = `400 ${px}px ${this.theme.font}`;
+        }
+      }
     }
-    const tw = Math.min(avail, ctx.measureText(text).width);
+    const tw = Math.min(avail, Math.max(...lines.map((l) => ctx.measureText(l).width)));
     const w = hole + tw + pad * 1.6;
     const x0 = (canvas.width - w) / 2;
     const y0 = h * 0.08;
@@ -82,14 +98,15 @@ export class Label {
       ctx.closePath();
     };
     // soft drop shadow, then the card
-    ctx.fillStyle = 'rgba(60,35,20,0.28)';
+    ctx.fillStyle = 'rgba(40,25,15,0.5)';
     tag(h * 0.03, h * 0.05);
     ctx.fill();
-    ctx.fillStyle = this.theme.paper;
+    ctx.fillStyle = this.fill ?? this.theme.paper;
     tag(0, 0);
     ctx.fill();
-    ctx.lineWidth = h * 0.025;
-    ctx.strokeStyle = 'rgba(90,60,35,0.35)';
+    // a firm walnut edge: the tag's shape holds against a white desk or a bright window
+    ctx.lineWidth = h * 0.04;
+    ctx.strokeStyle = this.theme.hc ? '#000000' : '#6b3e26';
     ctx.stroke();
     // punched hole with a yarn loop through it
     const hx = x0 + hole * 0.62;
@@ -112,7 +129,11 @@ export class Label {
     ctx.fillStyle = this.theme.ink;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, x0 + hole + pad * 0.5, y0 + th * 0.56, tw);
+    if (lines.length === 1) ctx.fillText(text, x0 + hole + pad * 0.5, y0 + th * 0.56);
+    else {
+      ctx.fillText(lines[0], x0 + hole + pad * 0.5, y0 + th * 0.31);
+      ctx.fillText(lines[1], x0 + hole + pad * 0.5, y0 + th * 0.74);
+    }
     this.tex.needsUpdate = true;
   }
 
@@ -120,8 +141,14 @@ export class Label {
   private drawRibbon(text: string): void {
     const { ctx, canvas } = this;
     const h = canvas.height;
-    ctx.font = `700 ${Math.round(h * 0.5)}px ${this.theme.font}`;
-    const tw = Math.min(canvas.width * 0.7, ctx.measureText(text).width);
+    let rpx = Math.round(h * 0.5);
+    ctx.font = `700 ${rpx}px ${this.theme.font}`;
+    const room = canvas.width * 0.8;
+    if (ctx.measureText(text).width > room) {
+      rpx = Math.floor((rpx * room) / ctx.measureText(text).width);
+      ctx.font = `700 ${rpx}px ${this.theme.font}`;
+    }
+    const tw = ctx.measureText(text).width;
     const w = tw + h * 0.8;
     const x0 = (canvas.width - w) / 2;
     const y0 = h * 0.14;
@@ -129,7 +156,7 @@ export class Label {
     // the band: a strip of tomato felt
     ctx.fillStyle = 'rgba(60,35,20,0.3)';
     ctx.fillRect(x0 + h * 0.03, y0 + h * 0.05, w, th);
-    ctx.fillStyle = '#e2563b';
+    ctx.fillStyle = '#c43c28'; // deep enough for cream lettering (about 4.9:1)
     ctx.fillRect(x0, y0, w, th);
     // felt fuzz
     let seed = 5;
@@ -152,8 +179,12 @@ export class Label {
     // plain cream lettering, as if appliquéd
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = h * 0.04;
+    ctx.strokeStyle = '#7a2a1c';
+    ctx.strokeText(text, canvas.width / 2, y0 + th * 0.55);
     ctx.fillStyle = '#fff4de';
-    ctx.fillText(text, canvas.width / 2, y0 + th * 0.55, tw);
+    ctx.fillText(text, canvas.width / 2, y0 + th * 0.55);
     this.tex.needsUpdate = true;
   }
 }

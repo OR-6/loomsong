@@ -89,7 +89,7 @@ export const NUDGE = {
   upZ: 0.028,
   downZ: 0.06,
   radius: 0.011,
-  step: 0.01,
+  step: 0.02, // 2 cm a poke; holding a fingertip in an arrow repeats
 } as const;
 
 export function nudgeX(side: 1 | -1): number {

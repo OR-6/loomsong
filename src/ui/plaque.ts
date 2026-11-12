@@ -6,7 +6,7 @@
 import { BoxGeometry, CanvasTexture, Mesh, MeshStandardMaterial, SRGBColorSpace } from '@iwsdk/core';
 import { THEMES, type Theme } from './theme.js';
 
-export const PLAQUE = { width: 0.118, height: 0.032, thick: 0.005, tiltDeg: 55 } as const;
+export const PLAQUE = { width: 0.15, height: 0.032, thick: 0.005, tiltDeg: 55 } as const;
 
 export class Plaque {
   readonly mesh: Mesh;
@@ -75,10 +75,18 @@ export class Plaque {
       g.fill();
     }
     g.textBaseline = 'middle';
-    g.font = `400 ${Math.round(h * 0.66)}px ${th.font}`; // cap ≈ 1.6 cm
+    // the name fits by its size, never by squeezing the letters (squeezed letters blur in a headset)
+    const room = c.width - h * 1.0; // clear of the nails
+    let px = Math.round(h * 0.66); // cap ≈ 1.6 cm
+    g.font = `400 ${px}px ${th.font}`;
+    const wide = g.measureText(this.name).width;
+    if (wide > room) {
+      px = Math.max(Math.round(h * 0.46), Math.floor((px * room) / wide));
+      g.font = `400 ${px}px ${th.font}`;
+    }
     g.fillStyle = '#3b2a1c';
     g.textAlign = 'center';
-    g.fillText(this.name, c.width / 2, h * 0.54, c.width - h * 1.0); // clear of the nails
+    g.fillText(this.name, c.width / 2, h * 0.54);
     this.tex.needsUpdate = true;
   }
 }

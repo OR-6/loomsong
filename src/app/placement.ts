@@ -22,6 +22,8 @@ export interface PalmSample {
 export type PlacementPhase = 'waiting' | 'steadying' | 'placed';
 
 export class Placement {
+  /** When a flat palm was last turned down for its height (ms, performance.now()). */
+  rejectedAt = -1e9;
   phase: PlacementPhase = 'waiting';
   /** 0..1 progress of the stillness hold, for the hint ring. */
   progress = 0;
@@ -62,6 +64,8 @@ export class Placement {
     const maxDrop = planeAgrees ? this.cfg.maxDropWithPlane : this.cfg.maxDrop;
     const plausible = Number.isNaN(headY) || (drop >= this.cfg.minDrop && drop <= maxDrop);
     if (!palm || palm.upDot < this.cfg.flatDot || !plausible) {
+      // a flat palm at an unlikely height (on a lap, or standing at a low table): remember it, to say why
+      this.rejectedAt = palm && palm.upDot >= this.cfg.flatDot && !plausible ? performance.now() : this.rejectedAt;
       this.reset();
       return false;
     }

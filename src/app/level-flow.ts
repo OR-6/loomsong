@@ -10,6 +10,9 @@ import { isLifted, warpsOf, weftOf, type Mask8 } from '../puzzle/tieup.js';
 import { WARPS } from '../config.js';
 import type { Progress } from '../persistence/progress.js';
 
+/** Pictures for learning the levers: no bows on the card, always three stars. */
+export const LEARNING: ReadonlySet<string> = new Set(['sprout', 'tulip']);
+
 export type FlowPhase = 'play' | 'won' | 'playback' | 'between';
 
 /**
@@ -125,8 +128,12 @@ export class LevelFlow {
   private load(level: Level): void {
     this.level = level;
     this.model.reset([...this.level.tieUp]);
-    // a tangled cloth arrives already woven (Pip on the side its last row left him)
-    if (this.level.mend) this.model.syncRows(this.level.mend, (this.level.mend.length % 2) as 0 | 1);
+    // a tangled cloth arrives already woven (Pip on the side its last row left him); a picture you left
+    // half-woven comes back as you left it
+    const wip = !this.challenge && this.progress.wip?.level === this.level.id ? this.progress.wip.rows : null;
+    this.resumedRows = wip && wip.length > 0 && wip.length < this.level.target.length ? wip.length : 0;
+    if (this.resumedRows) this.model.syncRows(wip!, (wip!.length % 2) as 0 | 1);
+    else if (this.level.mend) this.model.syncRows(this.level.mend, (this.level.mend.length % 2) as 0 | 1);
     this.phase = 'play';
     this.lastStars = 0;
     this.hooks.load(this.level, this.index);
@@ -208,6 +215,9 @@ export class LevelFlow {
 
   /** The yarn swap has been made once this visit: its hint stops coming up by itself. */
   weftLearned = false;
+
+  /** Rows brought back from last time on this load (0: a fresh start). */
+  resumedRows = 0;
 
   /** How many pictures there are (0: just go on in order). */
   total = 0;
@@ -311,7 +321,8 @@ export class LevelFlow {
     this.phase = 'won';
     this.timer = TIMING.winPause;
     // Garden is for learning the levers (its card shows no knots): every picture woven there is a full one
-    this.lastStars = this.level.chapter === 'garden' ? 3 : stars(this.level.par, this.model.leverFlips);
+    // the first two pictures are for learning the levers (their card shows no bows): always a full one
+    this.lastStars = LEARNING.has(this.level.id) ? 3 : stars(this.level.par, this.model.leverFlips);
     if (!this.challenge) {
       const id = this.level.id;
       this.progress.best[id] = Math.max(this.progress.best[id] ?? 0, this.lastStars);
@@ -324,6 +335,7 @@ export class LevelFlow {
       const days = (this.progress.days ??= []);
       if (!days.includes(this.daily)) days.push(this.daily);
     }
+    this.progress.wip = undefined;
     this.progress.lastCloth = {
       // a friend picture shared: the friend's threads travel as one more lever (whoever opens it has no cushion)
       tieUp: this.level.friend ? [...this.level.tieUp, this.level.friend] : [...this.level.tieUp],

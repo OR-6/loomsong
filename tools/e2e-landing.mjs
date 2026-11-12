@@ -16,5 +16,5 @@ check('High contrast toggles the saved setting', r.hcOn === true && r.hcOff === 
 check('Fit to my hands queues calibration', r.fit === true);
 check('Levers: Left saves hand=left', r.hand === 'left');
 check('co-op panel opens with Host/Join', r.coopOpen === true);
-check('bad room code is rejected politely', r.badCode === 'Codes are 4 letters', r.badCode);
+check('bad room code is rejected politely', r.badCode === "Type the 4 letters on your friend's toy telephone", r.badCode);
 done('E2E landing');

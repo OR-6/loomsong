@@ -31,7 +31,7 @@ import { Placement, loomPose } from './placement.js';
 import { Label } from '../ui/label.js';
 import { audio } from '../audio/synth.js';
 import { keyFor } from '../audio/soundtrack.js';
-import { LevelFlow, TIMING, type HintStep } from './level-flow.js';
+import { LEARNING, LevelFlow, TIMING, type HintStep } from './level-flow.js';
 import { CHAPTERS, DAILY_LEVELS, LEVELS, THANKS_LEVEL, VISITOR_LIKES, chapterStates, dailyLevel, dayKey, dayKind, levelAt, withTwist, pictureById, visitorFor } from '../puzzle/catalog.js';
 import { computePar } from '../puzzle/par.js';
 import type { Level } from '../puzzle/levels.js';
@@ -124,19 +124,20 @@ const INTRO = [
   { part: 'card', text: 'Weave this picture' },
   { part: 'levers', text: 'Push levers away' },
   { part: 'pip', text: 'This is Pip: slide him across' },
+  { part: 'settings', text: 'Settings live here' },
 ] as const;
 const INTRO_WAIT = 1.2;
 const INTRO_STEP = 2.4;
 
 /** Seconds the toy telephone waits for a friend before a practice caller picks up. */
-const PRACTICE_AFTER = 20;
+const PRACTICE_AFTER = 45; // time to open the page on a phone and type the code
 
 const HINT_TEXT: Record<HintStep, string> = {
   lever: 'Slide it away',
   unlatch: 'Slide it back',
-  weft: "Poke the spool by Pip to swap yarn",
+  weft: 'Poke the yarn by Pip to change colour',
   shuttle: 'Slide Pip across, or poke it',
-  undo: 'Poke the spool to unpick',
+  undo: 'Poke the red spool to undo a row',
   card: 'Match the next row',
   knots: 'Each lever move unties a bow',
   combo: '', // the aha is a gold ribbon over the card, not a tag
@@ -192,6 +193,9 @@ export interface GameDebug {
   carryDemo?: boolean;
   winSkips?: number;
   weaveAgain?: string;
+  said?: string;
+  earShown?: boolean;
+  visitorFlew?: boolean;
   /** Plushes that said hello to a neighbour set down beside them (debug/E2E). */
   hello?: number;
   /** Wrong rows the loom unpicked by itself (debug/E2E). */
@@ -526,7 +530,7 @@ export class GameSystem extends createSystem({
       window.addEventListener('error', (e) => count(e.error ?? e.message));
       window.addEventListener('unhandledrejection', (e) => count(e.reason));
     }
-    this.tip = new Label(0.16, 0.028);
+    this.tip = new Label(0.19, 0.032);
     this.tip.mesh.rotation.x = -0.35;
     (this.tip.mesh.material as import('@iwsdk/core').MeshBasicMaterial).depthTest = false;
     this.tip.mesh.renderOrder = 21;
@@ -612,6 +616,11 @@ export class GameSystem extends createSystem({
       if (e.type === 'row' || e.type === 'undo' || e.type === 'sync') {
         this.view.setRows(this.model.rows);
         this.probed = 0; // a row woven (or unpicked): tries since then are moves again
+        // remember a half-woven picture (your own, not a shared, daily or partner's one): next time it's still on the loom
+        if (e.type !== 'sync' && this.flow && !this.flow.challenge && !this.flow.mirror && this.flow.phase === 'play' && this.flow.level) {
+          this.progress.wip = { level: this.flow.level.id, rows: [...this.model.rows] };
+          saveProgress(this.progress);
+        }
       }
       // Pip reacts to each row: a happy hop and wink, or a droop.
       if (e.type === 'row' && this.flow?.level) {
@@ -642,6 +651,7 @@ export class GameSystem extends createSystem({
         this.repeatAt = good && e.index + 1 < tg.length && tg[e.index + 1] === tg[e.index] ? this.time + REPEAT_AFTER : -1;
         audio.chirp(good ? 'happy' : 'sad');
         audio.verdict(good);
+        if (this.practice) this.say(good ? PRAISE[e.index % PRAISE.length] : 'Hmm, not quite. Pull it out and try again');
         // in rhythm: a right row thrown on the music's beat lands with a golden sparkle and a chord
         const off = good ? audio.beatOffset() : null;
         if (off !== null && off < BEAT_WINDOW) {
@@ -653,10 +663,7 @@ export class GameSystem extends createSystem({
             this.model.leverFlips--;
             this.view.card.setUsed(this.model.leverFlips);
             this.flow.refresh();
-            if (!this.beatTold) {
-              this.beatTold = true;
-              this.showNotice('On the beat: a bow ties itself back on', 3, 'centre');
-            }
+            // (quietly: the golden sparkle says it; one less notice)
           }
         }
       }
@@ -684,11 +691,11 @@ export class GameSystem extends createSystem({
         this.view.setWeftColor(level.weft ?? null);
         // Garden is for learning the levers: no knots or live star meter on its card (trying things
         // shouldn't feel like losing lives); the stars still come at the win
-        this.view.card.setPicture(level.color ?? null, level.chapter === 'garden' ? 0 : level.par);
+        this.view.card.setPicture(level.color ?? null, LEARNING.has(level.id) ? 0 : level.par); // bows from the third picture: fewest moves is the goal
         this.view.card.lastMiss = null;
         if (level.chapter === 'night' && !this.lanternTold && !this.photoMode) {
           this.lanternTold = true;
-          this.later('Night: a lever hides its threads until you try it. First try free', 3, 'centre', 6);
+          this.later("Night: you can't see what a lever lifts until you push it. Trying costs no bows", 3, 'centre', 6);
         }
         if ((this.flow?.index ?? 0) >= LEVELS.length && !this.flow.challenge) {
           // a replay comes with a twist: say which
@@ -699,12 +706,13 @@ export class GameSystem extends createSystem({
           this.tideTold = true;
           this.later('The tide is in: the card shows two rows at a time. What is it?', 2, 'centre', 6);
         }
-        if (level.mend && !this.flow.mirror) {
+        if (this.flow?.resumedRows) this.later('Carrying on where you left off', 1.2, 'centre', 3);
+        else if (level.mend && !this.flow.mirror) {
           // a tangled cloth: say what to do once per visit, shorter after
-          this.later(this.mendTold ? 'Tangled: find the wrong row' : 'This cloth came tangled. Find the wrong row, unpick to it with the spool, weave on', 1.6, 'centre', this.mendTold ? 3 : 7);
+          this.later(this.mendTold ? 'Tangled: find the wrong row' : 'This one came tangled: one row is wrong. Undo back to it with the red spool, then carry on', 1.6, 'centre', this.mendTold ? 3 : 7);
           this.mendTold = true;
         }
-        if (level.chapter === 'home' && !this.knotsTold && !this.flow.challenge && !this.progress.best[level.id]) {
+        if (!LEARNING.has(level.id) && level.par > 0 && !this.knotsTold && !this.flow.challenge && !this.progress.best[level.id]) {
           this.knotsTold = true;
           this.later('New: bows over the card. Each lever move unties one: fewer moves, more stars', 2.5, 'centre', 6);
         }
@@ -724,7 +732,7 @@ export class GameSystem extends createSystem({
         this.view.setCushion(this.cushionOut(level));
         if (this.cushionOut(level) && !level.friend && !this.toolkitTold) {
           this.toolkitTold = true;
-          this.later('The cushion stays out now: any plush on it lifts the threads under its feet (no lever move)', 2.5, 'centre', 7);
+          this.later('Sit any plush on the cushion: it lifts its own threads, free', 2.5, 'centre', 7);
         }
         if (this.debug) this.debug.friend = '';
         this.shelf = shelfItems(level, this.progress);
@@ -1058,7 +1066,7 @@ export class GameSystem extends createSystem({
     this.view.token.visible = true;
     this.tokenPop = 0;
     this.debug.workshopUnlocked = true;
-    this.unlockNoticeIn = 4.2; // once the plush has danced and hopped to the shelf: one moment at a time
+    this.unlockNoticeIn = 0; // (no notice: the disc says what it does when a hand comes near; fewer things talking at once)
     void loadFont('Fraunces', 4000); // warm the cache before the first switch
     window.dispatchEvent(new CustomEvent('loomsong:unlocked'));
   }
@@ -1068,7 +1076,7 @@ export class GameSystem extends createSystem({
     const side = { model: this.model, controller: this.controller, flow: this.flow };
     // a call from the toy telephone didn't get through: say so, and how to try again
     if (st.state === 'error' && this.view.phone.phoneState === 'calling' && !this.practice) {
-      if (!this.startPractice('Line busy: a practice call')) this.showNotice('Line busy: poke the phone again', 7, 'centre');
+      if (!this.startPractice("Couldn't connect, so here's a practice call")) this.showNotice("Couldn't connect. Poke the telephone to try again", 7, 'centre');
     }
     // the toy telephone's tag: the code while it waits for the caller
     const hosting = st.role === 'host' && (st.state === 'hosting' || st.state === 'connected');
@@ -1096,7 +1104,7 @@ export class GameSystem extends createSystem({
           this.debug.coop = 'host+caller';
           this.view.phone.setState('connected');
           this.setCallerGap(true);
-          this.showNotice('Your caller has the picture: ask them!', 6, 'centre');
+          this.showNotice('The picture is on the phone now: read it there', 6, 'centre');
         };
         // the caller pins threads (a tap on a square) and rings Pip
         this.coopLink.onPin = (i, on) => {
@@ -1281,8 +1289,8 @@ export class GameSystem extends createSystem({
       return step === 'lever' ? `Push ${name} away` : `Pull ${name} back`; // levers slide away from you ("lift" read as pull up)
     }
     if (look && step === 'shuttle') return 'Look at Pip';
-    if (look && step === 'undo') return 'Look at the spool to undo';
-    if (look && step === 'weft') return 'Look at the spool by Pip to swap yarn';
+    if (look && step === 'undo') return 'Look at the red spool to undo a row';
+    if (look && step === 'weft') return 'Look at the yarn by Pip to change colour';
     if (step === 'friendOn') {
       // name a plush you have whose feet (its bottom row) are exactly what this picture needs
       const need = this.flow.level.friend ?? 0;
@@ -1482,7 +1490,7 @@ export class GameSystem extends createSystem({
     this.debug.banner = text;
   }
 
-  private static readonly CREDITS = ['Woven by you', 'Music by Scott Buckley', 'Every plush is yours to keep', 'See you tomorrow'];
+  private static readonly CREDITS = ['Woven by you', 'Music by Scott Buckley', 'Every plush is yours to keep', 'Keep weaving: each comes back with a twist'];
 
   private updateGrand(dt: number): void {
     if (this.grandIn > 0 && !this.grand) {
@@ -1771,6 +1779,36 @@ export class GameSystem extends createSystem({
     return buildQuilt(ch.name, panels, this.shown().font, gold);
   }
 
+  /**
+   * Where a visitor comes in from: the room scan's door (or a window, or else the nearest wall), at desk
+   * height, in loom space; null without room data. Once a session, the present flies in from there.
+   */
+  private entryPoint(out: Vector3): Vector3 | null {
+    let best: Vector3 | null = null;
+    let bestScore = -Infinity;
+    const c = this.tmp;
+    for (const e of this.queries.planes.entities) {
+      const pl = e.getValue(XRPlane, '_plane') as (XRPlane & { semanticLabel?: string }) | undefined;
+      const obj = e.object3D;
+      if (!pl || !obj || pl.orientation !== 'vertical') continue;
+      const label = pl.semanticLabel ?? '';
+      const score = /door/i.test(label) ? 3 : /window/i.test(label) ? 2 : /wall/i.test(label) ? 1 : 0.5;
+      obj.updateMatrixWorld();
+      obj.getWorldPosition(c);
+      const d = c.distanceTo(this.head);
+      if (d < 0.5 || d > 6) continue;
+      const s = score - d * 0.05;
+      if (s > bestScore) {
+        bestScore = s;
+        best = out.copy(c);
+      }
+    }
+    if (!best) return null;
+    best.y = this.view.root.position.y + 0.05; // it comes in at about desk height
+    return best.applyMatrix4(this.inv);
+  }
+  private visitorFlown = false;
+
   /** The wall straight ahead of the seat (from the room's vertical planes), or null. */
   private findWall(): { at: Vector3; n: Vector3; t: Vector3; size: number; inside: (p: Vector3) => boolean } | null {
     // straight ahead of the seat: the loom's own forward (where the player faces it), not wherever the head turned
@@ -1831,8 +1869,18 @@ export class GameSystem extends createSystem({
   /** A poked card row plays its tune (left to right, like a pass), with notes rising off the card. */
   private playCardRow(r: number): void {
     if (r === this.earRow && this.view.card.earRow === r) {
+      // poked twice in a row: show it (can't hear it, or would rather not: the patch comes off, no penalty)
+      if (this.time - this.earPokeAt < 2.5) {
+        this.view.card.earRow = -1;
+        this.earRow = -1;
+        this.view.card.refresh();
+        this.debug.earShown = true;
+        this.earPokeAt = -99;
+        return;
+      }
+      this.earPokeAt = this.time;
       if (this.earActive()) this.humEarRow();
-      return; // a covered row only ever hums, and only when it's up
+      return; // a covered row hums (and, poked again at once, shows itself)
     }
     const lv = this.flow?.level;
     const row = lv?.target[r];
@@ -1867,7 +1915,17 @@ export class GameSystem extends createSystem({
     const woven = this.progress.days?.length ?? 0;
     this.view.daily.doneLabel = woven > 1 ? `${woven} days woven` : 'Tomorrow'; // a tally, never a streak to lose
     const next = dayKey(new Date(Date.now() + 86400000));
+    const wasNew = this.view.daily.isNew;
     this.view.daily.set(offered ? (this.dailyDone ? 'done' : 'new') : 'hidden', lv.color ?? 0xe2563b, { key: next, rows: (visitorFor(next, Object.keys(this.progress.placed ?? {}), (id) => (this.progress.best[id] ?? 0) > 0 || id === lv.id) ?? dailyLevel(next)).target });
+    // a new present, the first time this visit: the visitor brings it in from the room's door or window
+    if (!wasNew && this.view.daily.isNew && !this.visitorFlown && this.placement.phase === 'placed' && !this.photoMode) {
+      const from = this.entryPoint(this.tmp2);
+      if (from) {
+        this.visitorFlown = true;
+        this.view.daily.flyIn(from);
+        this.debug.visitorFlew = true;
+      }
+    }
     const side = this.controller.bankSide;
     // a visitor brings the present to the plush it came to see, on your desk
     const likes = offered && !this.dailyDone ? VISITOR_LIKES[lv.id] : undefined;
@@ -1956,10 +2014,10 @@ export class GameSystem extends createSystem({
     this.syncDaily();
     if (this.dailyDone) {
       audio.tick();
-      this.showNotice('A new picture tomorrow', 3, 'centre');
+      this.showNotice("Today's present is opened. A new one tomorrow", 3, 'centre');
       return;
     }
-    if (!this.confirmPoke('daily', "Open today's picture? Poke it again")) return;
+    if (!this.confirmPoke('daily', "Open today's present? Poke it again")) return;
     const pick = this.todayLevel();
     // some days borrow Night's rule (once you've been to Night): the levers hide their threads until tried
     // the day's kind turns (plain, tangled, hidden levers, the tide), each once you've met it in a chapter
@@ -2145,6 +2203,8 @@ export class GameSystem extends createSystem({
   private toolkitTold = false;
   private beatTold = false;
   private tideTold = false;
+  /** After a palm placement the height arrows stay a while (game time; -1: not showing for that reason). */
+  private nudgeUntil = -1;
   /** Mystery levers tried for the first time since the last row (pulling one straight back is free too). */
   private probed = 0;
   /** The shelf plush last poked, and when (poked again while it sings: weave it again). */
@@ -2392,7 +2452,8 @@ export class GameSystem extends createSystem({
   private static readonly SET_KEYS = ['calm', 'contrast', 'ear', 'look', 'rest', 'music', 'hand', 'fit'] as const;
   private buildSettingTags(): void {
     for (let i = 0; i <= GameSystem.SET_KEYS.length; i++) {
-      const l = new Label(i === 0 ? 0.09 : 0.15, 0.026);
+      const l = new Label(i === 0 ? 0.13 : 0.2, 0.034);
+      if (i === 0) l.style = 'ribbon'; // the opener reads as a felt banner, the toggles as tags
       l.mesh.rotation.x = -0.35;
       l.mesh.visible = false;
       this.view.root.add(l.mesh);
@@ -2411,10 +2472,19 @@ export class GameSystem extends createSystem({
     this.setLabels[2].set(`High contrast: ${on(st.highContrast)}`);
     this.setLabels[3].set(`Rows by ear: ${on(st.hearRows !== false)}`);
     this.setLabels[4].set(`Look to play: ${on(!!st.lookToPlay)}`);
-    this.setLabels[5].set(`Rest to press: ${on(restPressOn(st))}`);
+    this.setLabels[5].set(`Hold still to press: ${on(restPressOn(st))}`);
     this.setLabels[6].set(`Music: ${on(st.music)}`);
-    this.setLabels[7].set(`Levers: ${st.hand === 'auto' ? 'my hand' : st.hand}`);
-    this.setLabels[8].set('Fit to my hands');
+    this.setLabels[7].set(`Lever side: ${st.hand === 'auto' ? 'my hand' : st.hand}`);
+    this.setLabels[8].set('Fit my hands now');
+    // a switched-on setting is a mustard tag (as on the 2D page); off stays paper
+    const lit = [false, calm, st.highContrast, st.hearRows !== false, !!st.lookToPlay, restPressOn(st), st.music, false, false];
+    for (let i = 1; i < this.setLabels.length; i++) {
+      const want = lit[i] ? '#f2b632' : null;
+      if (this.setLabels[i].fill !== want) {
+        this.setLabels[i].fill = want;
+        this.setLabels[i].setTheme(this.shown()); // redraw in the new colour
+      }
+    }
   }
   private pokeSetting(i: number): void {
     audio.click(true);
@@ -2462,9 +2532,10 @@ export class GameSystem extends createSystem({
       if (i === 0) v.set(x, 0.016, z);
       else {
         // two columns (the second further out), three rows: a short stack with 1.6 cm of air between tags
+        // two columns by the loom's corner, four rows: 1.2 cm of air between tags (each 3.4 cm tall)
         const col = (i - 1) % 2;
         const row = Math.floor((i - 1) / 2);
-        v.set(x - side * (0.01 + col * 0.165), 0.035 + row * 0.042, z - 0.01);
+        v.set(x - side * (0.035 + col * 0.21), 0.045 + row * 0.046, z - 0.01);
       }
       l.mesh.position.copy(v);
       c.settingSpots[i] = vis ? v : null;
@@ -2490,6 +2561,8 @@ export class GameSystem extends createSystem({
   /** The tangled-cloth notice has been given in full this visit. */
   private mendTold = false;
   private earHowAt = -1;
+  /** When the ear patch was last poked (a second poke soon after shows the row). */
+  private earPokeAt = -99;
   private knotsTold = false;
   private lanternTold = false;
   private earMisses = 0;
@@ -2561,7 +2634,7 @@ export class GameSystem extends createSystem({
     }
     if (this.earHowAt > 0 && this.time >= this.earHowAt && !this.controller.shuttle.held) {
       this.earHowAt = -1;
-      this.showNotice('Push levers: each hums its threads. Match his tune', 6, 'centre');
+      this.showNotice('Push levers to match his tune. Poke the patch twice to just show it', 7, 'centre');
     }
     if (this.time < this.earHumAt || this.controller.shuttle.held) return;
     this.earHumAt = this.time + 9;
@@ -2794,7 +2867,8 @@ export class GameSystem extends createSystem({
     // the telephone: once Garden is woven, or straight away when a call is hosted (e.g. from the 2D page)
     const calling = this.practice || coop.status.state === 'hosting' || (coop.status.state === 'connected' && coop.status.role === 'host');
     // a ?start= shortcut (judges, filming) has the telephone out at once, so the caller can be tried
-    ph.root.visible = ((this.progress.tutorialDone && this.picturesDone() >= 7) || calling || !!FILM) && !this.grand; // a few pictures into Home: one new thing at a time
+    // from the second picture: your phone (or a friend's) can be the picture card, read through passthrough
+    ph.root.visible = ((this.progress.tutorialDone && this.picturesDone() >= 1) || calling || !!FILM) && !this.grand;
     this.phoneVec.set(this.controller.bankSide * TOY_PHONE.x, TOY_PHONE.y, TOY_PHONE.z);
     c.phoneSpot = ph.root.visible && this.flow?.phase === 'play' && !this.flow.challenge ? this.phoneVec : null;
     c.plateSpot = this.flow?.phase === 'play' && !this.flow.challenge && !this.grand && !(this.coopLink instanceof CoopGuest) ? this.view.plaque.mesh.position : null;
@@ -2849,14 +2923,19 @@ export class GameSystem extends createSystem({
     this.practiceIn = -1;
     this.practiceRow = -1;
     this.practiceWon = false;
-    this.view.phone.setState('connected');
+    this.view.phone.setState('connected', '', true);
     this.setCallerGap(true);
     audio.chirp('happy');
-    this.showNotice(`${notice}. Weave the pinned threads`, 8, 'centre');
+    this.showNotice(`${notice}: lift the threads with pins`, 8, 'centre');
     this.debug.practice = true;
     return true;
   }
   private endPractice(): void {
+    try {
+      window.speechSynthesis?.cancel();
+    } catch {
+      /* no voice */
+    }
     this.practiceIn = -1;
     if (!this.practice) return;
     this.practice = false;
@@ -2876,10 +2955,13 @@ export class GameSystem extends createSystem({
         this.practiceIn = -1;
         return;
       }
+      const before = this.practiceIn;
       this.practiceIn -= dt;
+      // ten seconds ahead, say what's coming (a friend may still be typing the code)
+      if (before > 10 && this.practiceIn <= 10) this.showNotice(`Still waiting on code ${coop.status.code ?? ''}. A practice call in 10 s`, 6, 'centre');
       if (this.practiceIn <= 0) {
         this.practiceIn = -1;
-        this.startPractice('No one yet: a practice call');
+        this.startPractice('No one yet, so a practice call');
       }
       return;
     }
@@ -2902,11 +2984,12 @@ export class GameSystem extends createSystem({
     const r = this.model.rows.length;
     if (r >= lv.target.length) return;
     if (r !== this.practiceRow) {
-      // a new row (or one unpicked): the caller reads it out again, one pin at a time
+      // a new row (or one unpicked): the caller reads it out again, one pin at a time, and says it out loud
       this.practiceRow = r;
       this.view.clearPins();
       this.practiceBit = 0;
       this.practiceNext = 1.4;
+      this.say(describeRow(r, lv.target.length, lv.target[r] & 255, lv.target[r] & 256 ? 'blue' : ''));
     }
     this.practiceNext -= dt;
     if (this.practiceNext > 0) return;
@@ -2917,6 +3000,26 @@ export class GameSystem extends createSystem({
     this.view.pinThread(i, true);
     audio.pluck(i, 0.5, 0, 0.26, panOf(warpX(i)));
     this.practiceNext = 0.75;
+  }
+
+  /**
+   * The practice caller's voice: the browser's own speech, quiet, never over another line. It reads the row
+   * and reacts to what you weave, as a friend on the phone would. Silent when speech isn't there.
+   */
+  private say(text: string): void {
+    const sp = window.speechSynthesis;
+    if (!sp || !this.practice) return;
+    try {
+      sp.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.rate = 1.02;
+      u.pitch = 1.15;
+      u.volume = 0.8;
+      sp.speak(u);
+      this.debug.said = text;
+    } catch {
+      /* no voice: the pins still show it */
+    }
   }
 
   /** Hover tooltips for the secondary controls (levers and Pip have their own hints). */
@@ -3247,7 +3350,8 @@ export class GameSystem extends createSystem({
     }
     this.debug.controllers = held;
     if (this.placement.phase !== 'placed') {
-      this.hint.set(held ? 'Rest a controller on your desk, hold the trigger' : 'Lay your palm flat on your desk');
+      const lowHand = performance.now() - this.placement.rejectedAt < 1500;
+      this.hint.set(held ? 'Rest a controller on your desk, hold the trigger' : lowHand ? 'Sit at your desk, then rest your palm flat' : 'Lay your palm flat on your desk');
       return;
     }
     // controllers work too (the tip pokes, the trigger pinches): say so once, then leave them be
@@ -3307,7 +3411,7 @@ export class GameSystem extends createSystem({
     if (
       !placed &&
       ((noHands && this.sessionTime > PLACE.noHandTimeoutS) ||
-        this.sessionTime > PLACE.palmTimeoutS)
+        (this.sessionTime > PLACE.palmTimeoutS && this.placement.phase !== 'steadying')) // never mid-hold
     ) {
       this.placement.placeDefault(this.head.y);
       placed = true;
@@ -3466,13 +3570,16 @@ export class GameSystem extends createSystem({
     this.napArmed = false;
     this.markSeen();
     const fallback = this.placement.source === 'default';
-    this.controller.nudgeEnabled = fallback;
-    this.view.nudges.visible = fallback;
+    // the height arrows: always for a default height; after a palm placement too, for a little while (a laptop
+    // or a book under the hand puts the loom at the wrong height)
+    this.nudgeUntil = fallback || resume ? -1 : this.time + 25;
+    this.controller.nudgeEnabled = fallback || this.nudgeUntil > 0;
+    this.view.nudges.visible = fallback || this.nudgeUntil > 0;
     if (resume) {
       // resumed: the notice comes from tryResume
     } else if (this.coopLink) {
       const host = this.coopLink instanceof CoopHost ? this.coopLink : null;
-      this.showNotice(host ? (host.caller ? 'Your caller has the picture: ask them!' : 'You push levers; they slide Pip') : 'You slide Pip; they push levers', 6, 'centre');
+      this.showNotice(host ? (host.caller ? 'The picture is on the phone now: read it there' : 'You push levers; they slide Pip') : 'You slide Pip; they push levers', 6, 'centre');
     }
     else if (this.settings.calibrateNext) this.startCalibration(hand);
     else if (fallback) this.showNotice('Poke the arrows to reach your desk', 7, 'nudge');
@@ -3534,6 +3641,14 @@ export class GameSystem extends createSystem({
         at.z = v.z;
       }
       lift = 0.1; // above the card's top edge, clear of its knots
+    } else if (INTRO[k].part === 'settings') {
+      const sv = this.setVecs[0];
+      if (sv) {
+        at.x = sv.x;
+        at.y = sv.y;
+        at.z = sv.z;
+      }
+      lift = 0.05;
     } else if (INTRO[k].part === 'levers') {
       c.leverPos(Math.max(0, Math.min(this.hintLever, c.activeLevers - 1)), at); // the lever the first row needs
       lift = 0.07;
@@ -3566,7 +3681,7 @@ export class GameSystem extends createSystem({
     }
     if (this.unlockNoticeIn > 0 && !this.grand && !this.finale) {
       this.unlockNoticeIn -= dt;
-      if (this.unlockNoticeIn <= 0) this.later('New look! Poke the disc', 0, 'unlock', 6);
+      if (this.unlockNoticeIn <= 0) this.later('New loom style! Poke the round button to switch', 0, 'unlock', 6);
     }
     this.syncGhost(dt, step);
     const m = this.tutor.mesh;
@@ -3704,6 +3819,13 @@ export class GameSystem extends createSystem({
     this.autoUndo();
     this.repeatRow();
     this.roomTip(dt);
+    if (this.nudgeUntil > 0 && this.time > this.nudgeUntil) {
+      this.nudgeUntil = -1;
+      if (this.placement.source !== 'default') {
+        this.controller.nudgeEnabled = false;
+        this.view.nudges.visible = false;
+      }
+    }
     this.tickEar();
     // while the plush dances on its stage, the plate and token step aside
     const staged = this.view.plushes.staged;
@@ -3888,4 +4010,15 @@ function isKind(t: unknown, kind: string): boolean {
 function indexOfKind(t: unknown, kind: string): number {
   const k = t as { kind?: string; i?: number } | null;
   return k?.kind === kind ? (k.i ?? -1) : -1;
+}
+
+/** What a caller would say for a row: which threads (counted from the left), in words. */
+const PRAISE = ['Yes! That one', 'Lovely', 'Perfect', 'That matches', 'Nice one'];
+function describeRow(r: number, rows: number, mask: number, yarn: string): string {
+  const on: number[] = [];
+  for (let i = 0; i < WARPS; i++) if ((mask >> i) & 1) on.push(i + 1);
+  const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight'];
+  const which = on.length === WARPS ? 'all of them' : on.length === 0 ? 'none' : on.length === 1 ? `just number ${on[0]}` : `${on.slice(0, -1).join(', ')} and ${on[on.length - 1]}`;
+  const last = r === rows - 1 ? 'Last row! ' : '';
+  return `${last}Row ${words[r + 1] ?? r + 1}: ${on.length === WARPS || on.length === 0 ? which : `threads ${which}`}${yarn ? `, in ${yarn}` : ''}.`;
 }

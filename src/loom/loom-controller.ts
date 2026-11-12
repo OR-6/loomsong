@@ -299,6 +299,7 @@ export class LoomController {
   private frameDt = 0;
   /** Press by resting: seconds a still fingertip has rested inside the same control (slow or unsteady hands). */
   private restT: Record<Side, number> = { left: 0, right: 0 };
+  private nudgeHold: Record<Side, number> = { left: 0, right: 0 };
   private restOn: Record<Side, number> = { left: -1, right: -1 };
   private updatePoke(side: Side, h: HandInput): void {
     const r = POKE.radiusM * this.radiusMul;
@@ -308,6 +309,16 @@ export class LoomController {
       this.restT[side] = 0;
       return;
     }
+    // the height arrows repeat while a fingertip stays in them (after the first press): a desk far off is a few seconds, not 20 pokes
+    if (t.kind === 'nudge' && !this.pokeArmed[side]) {
+      this.nudgeHold[side] += this.frameDt;
+      if (this.nudgeHold[side] > 0.5) {
+        this.nudgeHold[side] = 0.2;
+        this.hooks.nudge?.(t.dir);
+      }
+      return;
+    }
+    this.nudgeHold[side] = 0;
     // a press: down onto things on the desk, or forward into the upright picture card
     const quick = h.indexVel.y < -POKE.minDownSpeed || (t.kind === 'cardRow' && h.indexVel.z < -POKE.minDownSpeed);
     // or a fingertip resting still inside the control for a moment (no speed or pointing needed)

@@ -60,7 +60,7 @@ export class Basket {
   private names: string[] = [];
   private hovered = -1;
   private side: 1 | -1 = 1;
-  private label = new Label(0.14, 0.024);
+  private label = new Label(0.17, 0.03);
   private lining: Mesh;
   private needles = new Group();
   private clock = 0;

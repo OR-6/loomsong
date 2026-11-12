@@ -5,7 +5,7 @@
  * is gone, the lid leans against the box, and tomorrow's picture peeks out as
  * a felt silhouette with a "Tomorrow" tag.
  */
-import { BoxGeometry, CanvasTexture, Color, Group, Mesh, MeshStandardMaterial, SphereGeometry, SRGBColorSpace, TorusGeometry } from '@iwsdk/core';
+import { BoxGeometry, CanvasTexture, Color, Group, Mesh, MeshStandardMaterial, SphereGeometry, SRGBColorSpace, TorusGeometry, Vector3 } from '@iwsdk/core';
 import { Label } from '../ui/label.js';
 import { cutout, disposePlush } from './plush.js';
 import type { Mask8 } from '../puzzle/tieup.js';
@@ -41,7 +41,7 @@ export class DailyBall {
   /** Seconds left of the opening: the lid pops off and the box sinks away before it hides. */
   private opening = 0;
   /** A paper tag in front: "Today" while it waits. */
-  private tag = new Label(0.07, 0.022);
+  private tag = new Label(0.1, 0.03);
 
   constructor() {
     this.root.name = 'DailyGift';
@@ -150,9 +150,43 @@ export class DailyBall {
     this.hoverOn = on;
   }
 
+  /**
+   * The visitor brings the present in from the room: it flies from `from` (loom space; a real door or window
+   * the room scan found) along a high arc to its spot on the desk, then lands with its usual bounce.
+   */
+  flyIn(from: { x: number; y: number; z: number }, secs = 2.6): void {
+    this.flyFrom.set(from.x - this.root.position.x, from.y - this.root.position.y, from.z - this.root.position.z);
+    this.flyDur = secs;
+    this.flyT = 0;
+  }
+  private flyFrom = new Vector3();
+  private flyT = -1;
+  private flyDur = 1;
+  get isNew(): boolean {
+    return this.state === 'new' && this.root.visible;
+  }
+  get flying(): boolean {
+    return this.flyT >= 0;
+  }
+
   update(dt: number): void {
     if (!this.root.visible) return;
     this.t += dt;
+    if (this.flyT >= 0) {
+      this.flyT += dt;
+      const k = Math.min(1, this.flyT / this.flyDur);
+      const e = k * k * (3 - 2 * k);
+      const arc = Math.sin(k * Math.PI) * (0.25 + this.flyFrom.length() * 0.15);
+      this.box.position.set(this.flyFrom.x * (1 - e), this.flyFrom.y * (1 - e) + arc, this.flyFrom.z * (1 - e));
+      this.box.rotation.set(0, (1 - e) * 6, 0.3 * Math.sin(k * 12) * (1 - k));
+      this.box.scale.setScalar(0.6 + 0.4 * e);
+      if (k >= 1) {
+        this.flyT = -1;
+        this.box.rotation.set(0, 0, 0);
+        this.pop = 0; // and the landing bounce
+      }
+      return;
+    }
     if (this.opening > 0) {
       this.opening -= dt;
       const k = 1 - Math.max(0, this.opening) / 0.75; // 0 → 1

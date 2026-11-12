@@ -13,6 +13,8 @@ export interface Progress {
   placed?: Record<string, [number, number]>;
   /** Where the loom stood, relative to the room's persistent anchor (resumed next session). */
   loom?: SavedLoom;
+  /** The picture on the loom when you left, and its rows so far: you carry on there next time. */
+  wip?: { level: string; rows: number[] };
   /** Days the picture of the day was woven (local-date keys, newest last). */
   days?: string[];
   /** Today's picture of the day, chosen once a day (a visitor for a plush on your desk, or the day's own). */
@@ -52,6 +54,10 @@ export function loadProgress(): Progress {
     tutorialDone: p.tutorialDone === true,
     theme: p.theme === 'workshop' ? 'workshop' : 'toy',
     lastCloth: validCloth(p.lastCloth) ? p.lastCloth : undefined,
+    wip:
+      p.wip && typeof p.wip.level === 'string' && Array.isArray(p.wip.rows) && p.wip.rows.length <= 12 && p.wip.rows.every((r) => Number.isInteger(r) && r >= 0 && r <= 511)
+        ? { level: p.wip.level, rows: [...p.wip.rows] }
+        : undefined,
     placed: validPlaced(p.placed),
     loom: validLoom(p.loom),
     lastSeen: typeof p.lastSeen === 'number' && Number.isFinite(p.lastSeen) ? p.lastSeen : undefined,

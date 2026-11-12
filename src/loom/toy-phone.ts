@@ -23,7 +23,7 @@ export type PhoneState = 'idle' | 'calling' | 'connected';
 export class ToyPhone {
   readonly root = new Group();
   private handset = new Group();
-  private tag = new Label(0.1, 0.024);
+  private tag = new Label(0.13, 0.03);
   private state: PhoneState = 'idle';
   private t = 0;
   private hoverK = 0;
@@ -83,7 +83,7 @@ export class ToyPhone {
     }
     const cord = new Mesh(new TubeGeometry(new CatmullRomCurve3(pts), 240, 0.0007, 5, false), cream);
     this.root.add(body, base, dial, this.handset, cord);
-    this.tag.set('Call a friend');
+    this.tag.set('Call a phone');
     this.tag.mesh.name = 'PhoneTag';
     this.tag.mesh.position.set(0, 0.006, 0.034);
     this.tag.mesh.rotation.x = -0.35;
@@ -97,10 +97,10 @@ export class ToyPhone {
     this.root.rotation.y = -side * 0.25; // turned toward the seat
   }
 
-  /** Idle ("Call a friend"), calling (the code to read out), or connected. */
-  setState(state: PhoneState, code = ''): void {
+  /** Idle ("Call a friend"), calling (dialling, then the code to read out), connected, or a practice call. */
+  setState(state: PhoneState, code = '', practice = false): void {
     this.state = state;
-    this.tag.set(state === 'idle' ? 'Call a friend' : state === 'calling' ? `Code ${code}` : 'Caller is here');
+    this.tag.set(state === 'idle' ? 'Call a phone' : state === 'calling' ? (code && code !== '…' ? `Code ${code}` : 'Dialling…') : practice ? 'Practice call' : 'Phone connected');
   }
 
   get phoneState(): PhoneState {

@@ -4,10 +4,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-    <meta name="description" content="A tiny toy loom on your real desk, in mixed reality. Push the levers, slide Pip the bird across, and every picture you weave sings and comes alive as a felt plush. Hands only." />
+    <meta name="description" content="A tiny toy loom on your real desk, in mixed reality. Push the levers, slide Pip the bird across, and every picture you weave sings and comes alive as a felt plush. Made for your hands; controllers work too." />
     <meta property="og:title" content="Loomsong" />
     <meta property="og:description" content="A tiny toy loom on your real desk, made for your hands. Every picture you weave sings and comes alive." />
-    <meta property="og:image" content="./site/og.jpg" />
+    <meta property="og:image" content="https://or-6.github.io/loomsong/site/og.jpg" />
+    <meta property="og:url" content="https://or-6.github.io/loomsong/" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="theme-color" content="#2b3a67" />
     <title>Loomsong</title>
@@ -16,7 +17,7 @@
       @font-face { font-family: 'Fraunces'; src: url('./fonts/Fraunces-SoftSemiBold.ttf') format('truetype'); font-display: swap; }
       :root {
         --felt: #2b3a67; --felt-deep: #223057; --wood: #e0a96c; --wood-dark: #c48a4f; --walnut: #6b3e26; --walnut-deep: #4a2a18;
-        --paper: #fbf1dc; --ink: #3b2a20; --tomato: #e8553e; --mustard: #f2b632; --teal: #11796d; --cream: #f3e6cc;
+        --paper: #fbf1dc; --ink: #3b2a20; --tomato: #c43c28; --mustard: #f2b632; --teal: #11796d; --cream: #f3e6cc;
         --display: 'Lilita One', system-ui, sans-serif;
         --serif: 'Fraunces', Georgia, serif;
       }
@@ -24,7 +25,7 @@
         font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
       #scene-container { position: fixed; inset: 0; }
       /* the walnut desk the loom sits on */
-      #landing { position: fixed; inset: 0; overflow: auto; padding: 22px 16px 40px; box-sizing: border-box;
+      #landing { position: fixed; inset: 0; overflow: auto; overflow-x: hidden; padding: 34px 16px 40px; box-sizing: border-box;
         background:
           repeating-linear-gradient(178deg, #0000 0 38px, #ffffff08 38px 40px, #0000 40px 95px, #00000014 95px 97px),
           linear-gradient(180deg, #5c3520, #4a2a18); }
@@ -88,15 +89,28 @@
 
       /* hero: the pitch, and the real loom photo */
       /* the gameplay clip is the centrepiece; the pitch is a taped card overlapping its corner */
-      #landing .hero { position: relative; display: grid; padding-bottom: 46px; }
-      #landing .hero-photo { width: min(100%, 860px); justify-self: end; margin-top: 10px; }
+      /* the pitch beside the clip, never over it */
+      #landing .hero { position: relative; display: grid; grid-template-columns: minmax(330px, 0.85fr) 1.25fr; gap: 30px; align-items: center; padding-bottom: 20px; }
+      #landing .hero-photo { width: 100%; justify-self: end; margin-top: 10px; }
       #landing .hero-photo { transform: rotate(1.6deg); }
-      #landing .pitch { position: absolute; z-index: 5; left: -6px; bottom: -14px; width: min(42%, 440px); padding: 26px 28px 24px; color: var(--ink);
+      #landing .pitch { position: relative; z-index: 5; padding: 26px 28px 24px; color: var(--ink);
         background: #fbf3e0; border-radius: 2px; transform: rotate(-1.6deg); box-shadow: 0 1px 2px #0004, 0 14px 24px -10px #000a; }
       #landing .pitch #tagline { color: var(--walnut); }
       #landing .pitch .lede { color: #4a3426; }
       #landing .pitch .note { color: #6b5a4e; }
-      #landing .pitch .nohead { background: #f1e3c6; box-shadow: none; transform: none; margin-top: 4px; }
+      #landing .pitch .nohead { background: none; box-shadow: none; transform: none; margin-top: 16px; padding: 16px 0 0; border-top: 2px dashed #6b3e2640; border-radius: 0;
+        display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; align-items: center; }
+      #landing .pitch .nohead .qr { grid-row: span 2; width: 96px; height: 96px; image-rendering: pixelated; }
+      #landing .pitch .nohead .quest { margin: 0; font: 600 16px/1.45 var(--serif); }
+      #landing .pitch .nohead .quest b { font: 400 18px var(--display); color: var(--walnut); }
+      #landing .pitch .nohead .url { font-weight: 700; color: var(--walnut); white-space: nowrap; }
+      #landing .pitch .nohead .row { align-items: center; gap: 10px 16px; }
+      #landing .caller-link { font: 600 14px var(--serif); color: var(--walnut); text-underline-offset: 3px; }
+      #copy-link { font: 400 17px var(--display); padding: 9px 18px 10px; }
+      /* the clip's sound: its rows sing */
+      #landing .hero-photo .sound { position: absolute; z-index: 3; left: 18px; bottom: 22px; height: 36px; padding: 0 14px; border: 0; border-radius: 18px;
+        font: 400 15px var(--display); color: var(--ink); background: var(--paper); box-shadow: 0 2px 0 #6b3e2666; cursor: pointer; }
+      #landing .hero-photo .sound[aria-pressed='true'] { background: var(--mustard); }
       #landing .pitch .nohead .tape { display: none; }
       #landing .mark { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
       /* the living mark: a little loom weaving on the nameplate (canvas, src/ui/weave-mark.ts) */
@@ -105,8 +119,8 @@
 
       #landing h1 { font-family: var(--display); font-weight: 400; font-size: clamp(46px, 5vw, 70px); line-height: .95; margin: 0;
         color: var(--mustard); text-shadow: 0 5px 0 var(--walnut); }
-      #landing #tagline { font-family: var(--display); font-size: clamp(21px, 2.3vw, 27px); line-height: 1.15; margin: 0 0 12px; color: var(--paper); text-wrap: balance; }
-      #landing .lede { text-wrap: pretty; font: 600 17px/1.6 var(--serif); margin: 0 0 24px; max-width: 32em; color: #e8ddc8; }
+      #landing #tagline { font-family: var(--display); font-size: clamp(26px, 3vw, 38px); line-height: 1.1; margin: 0 0 12px; color: var(--paper); text-wrap: balance; }
+      #landing .lede { text-wrap: pretty; font: 600 17px/1.5 var(--serif); margin: 0 0 24px; max-width: 32em; color: #e8ddc8; }
       #landing .note { font: 600 14px/1.5 var(--serif); margin: 12px 0 0; max-width: 34em; color: #c9c5d8; }
       /* buttons are felt patches with a running stitch, like the felt on the loom */
       #landing .patch { position: relative; border: 0; cursor: pointer; color: #fff6e8;
@@ -120,7 +134,7 @@
       #landing .nohead[hidden] { display: none; }
       #landing .nohead p { margin: 0 0 12px; font: 600 15px/1.5 var(--serif); }
       #landing .row { display: flex; gap: 8px; flex-wrap: wrap; }
-      #landing .row input { width: 6.5em; text-align: center; text-transform: uppercase; letter-spacing: .2em; font: 600 17px system-ui, sans-serif;
+      #landing .row input { width: 6.5em; text-align: center; text-transform: uppercase; letter-spacing: .15em; font: 600 18px var(--serif);
         padding: 9px 10px; border-radius: 12px; border: 2px solid var(--walnut); background: #fff; color: var(--ink); }
       #landing .row button, #coop .row button { font: 400 18px var(--display); padding: 10px 20px 11px; --patch: var(--walnut); }
       #call-join, #coop-join { --patch: var(--tomato) !important; }
@@ -180,13 +194,15 @@
       #landing .note-card .peg { left: 22%; transform: rotate(-8deg); }
       #landing .more img { aspect-ratio: 16 / 10; object-fit: cover; }
       #landing .more .label { position: absolute; z-index: 3; left: 16px; bottom: 18px; padding: 4px 12px 5px 20px; background: var(--paper); color: var(--ink);
-        font: 400 15px var(--display); box-shadow: 0 1px 2px #0004; transform: rotate(-2deg);
+        font: 400 15px var(--display); box-shadow: 0 1px 2px #0004, 0 2px 0 #6b3e2633; transform: rotate(-2deg);
         clip-path: polygon(8px 0, 100% 0, 100% 100%, 8px 100%, 0 calc(100% - 8px), 0 8px); }
       #landing .more > .photo:last-of-type img { object-position: 45% 45%; }
 
 
       #landing .drawer { display: flex; gap: clamp(20px, 4vw, 48px); align-items: center; justify-content: center; flex-wrap: wrap; }
       #landing .prep { display: flex; flex-direction: column; gap: 14px; align-items: center; }
+      #landing .set-note { max-width: 40em; margin: 4px 0 0; text-align: center; font: 600 13.5px/1.55 var(--serif); color: #d8d2e4; }
+      #landing .set-note b { color: var(--paper); }
       #share-card { margin: 0; display: flex; align-items: center; gap: 18px; }
       #share-card .pegged { position: relative; display: block; transform: rotate(-2deg); }
       #share-card figcaption b { display: block; font: 400 22px var(--display); color: var(--mustard); margin-bottom: 8px; }
@@ -197,12 +213,18 @@
 
       /* settings: paper luggage tags with a yarn loop, like the hints in the game */
       #landing h2.before { position: relative; margin: 0 0 6px; padding: 10px 22px 9px; font: 400 21px var(--display); color: var(--walnut);
-        background: #fff3d0c8; color: var(--walnut); border-radius: 0; box-shadow: 0 1px 1px #0002; transform: rotate(-2.5deg); padding: 6px 22px 7px; }
+        background: var(--paper); color: var(--walnut); border-radius: 0; box-shadow: 0 1px 1px #0002; transform: rotate(-2.5deg); padding: 6px 22px 7px; display: inline-block; }
+      #landing details.prep > summary { list-style: none; cursor: pointer; display: flex; justify-content: center; }
+      #landing details.prep > summary::-webkit-details-marker { display: none; }
+      #landing details.prep > summary h2::after { content: ' ▾'; font-size: 16px; }
+      #landing details.prep:not([open]) > summary h2::after { content: ' ▸'; }
+      #landing details.prep[open] { display: flex; flex-direction: column; gap: 14px; align-items: center; }
       #settings { display: flex; flex-wrap: wrap; gap: 16px 30px; justify-content: center; align-items: center; padding-left: 20px; }
       #landing .tagwrap { position: relative; display: inline-flex; }
-      #landing .tagwrap:nth-child(1) { transform: rotate(-2deg); }
-      #landing .tagwrap:nth-child(2) { transform: rotate(1.5deg); }
-      #landing .tagwrap:nth-child(3) { transform: rotate(-1deg); }
+      #landing .tagwrap:nth-child(4n + 1) { transform: rotate(-2deg); }
+      #landing .tagwrap:nth-child(4n + 2) { transform: rotate(1.5deg); }
+      #landing .tagwrap:nth-child(4n + 3) { transform: rotate(-1deg); }
+      #landing .tagwrap:nth-child(4n) { transform: rotate(2deg); }
       /* a loop of red yarn through the punched hole */
       #landing .string { position: absolute; z-index: 2; left: -21px; top: 50%; width: 40px; height: 26px; margin-top: -13px; pointer-events: none; }
       #landing .tag::after { content: 'off'; margin-left: 10px; font: 400 14px var(--display); color: #4a3426; }
@@ -216,7 +238,7 @@
       /* the tag shape clips outlines, so focus is drawn inside it */
       #landing .tag:focus-visible { outline: none; box-shadow: inset 0 0 0 3px var(--tomato); }
       #hand-pick { display: flex; gap: 6px; align-items: center; cursor: default; transform: rotate(1deg); }
-      #hand-pick .lbl { margin-right: 4px; }
+      #hand-pick .lbl { margin-right: 4px; white-space: nowrap; }
       /* choices written on the tag; the chosen one is circled in yarn */
       #hand-pick button { font: 600 15px var(--serif); padding: 3px 9px; border: 2px solid transparent; border-radius: 999px; background: none; color: var(--ink); cursor: pointer; }
       #hand-pick button[aria-checked='true'] { border-color: var(--tomato); }
@@ -234,10 +256,14 @@
       #coop .row button, #coop-code { height: 44px; padding-top: 0; padding-bottom: 0; }
       #coop .or { font: 600 14px var(--serif); color: #6b5a4e; }
 
-      #coop-code { width: 6.5em; text-align: center; text-transform: uppercase; letter-spacing: .2em; font: 600 17px system-ui, sans-serif;
+      #coop-code { width: 6.5em; text-align: center; text-transform: uppercase; letter-spacing: .15em; font: 600 18px var(--serif);
         padding: 9px 10px; border-radius: 12px; border: 2px solid var(--walnut); background: #fff; color: var(--ink); }
       #coop-status { font-weight: 700; color: var(--walnut); margin: 0 !important; }
       #coop-status:empty { display: none; }
+      #coop ol.how { margin: 0 0 12px; padding-left: 22px; font: 600 15px/1.55 var(--serif); }
+      #coop ol.how li { margin: 2px 0; }
+      #landing .xr-fail { margin: 10px 0 0; font: 600 15px/1.4 var(--serif); color: var(--tomato); }
+      #landing .note .short { color: var(--mustard); text-underline-offset: 3px; white-space: nowrap; }
       #coop .fine { font: 600 13px/1.5 var(--serif); color: #6b5a4e; margin: 6px 0 0; }
 
       #landing .foot { display: flex; justify-content: center; margin-top: -6px; }
@@ -248,9 +274,14 @@
       #landing button:focus-visible, #landing input:focus-visible, #landing summary:focus-visible { outline: 3px solid var(--mustard); outline-offset: 3px; }
       @media (min-width: 1200px) { #landing .steps li { font-size: 16px; } }
       @media (max-width: 860px) {
-        #landing .hero { padding-bottom: 0; }
+        /* phones: the game first (the clip), then the pitch */
+        #landing .hero { padding-bottom: 0; display: flex; flex-direction: column; }
+        #landing .hero-photo { order: -1; }
+        #landing .s3 .hang { margin-left: 16px; }
         #landing .hero-photo { width: 100%; transform: rotate(1deg); margin-top: 6px; }
-        #landing .pitch { position: relative; width: auto; margin: -34px 8px 0; transform: rotate(-1deg); }
+        #landing .pitch { position: relative; width: auto; margin: -20px 8px 0; transform: rotate(-1deg); }
+        #landing .pitch .nohead { grid-template-columns: 1fr; }
+        #landing .pitch .nohead .qr { display: none; }
         #landing .steps { flex-direction: column; gap: 34px; }
         #landing .steps li { margin: 16px auto 0 !important; max-width: 480px; width: 100%; }
         #landing .yarn { display: none; }
@@ -270,9 +301,10 @@
         #landing .plate::before { left: 9px; } #landing .plate::after { right: 9px; }
         #landing .weave-mark { transform: scale(.62); transform-origin: left center; width: 94px; margin-right: -4px; }
         #landing .more { grid-template-columns: 1fr; }
-        #settings { display: grid; grid-template-columns: 1fr 1fr; }
-        #hand-pick { grid-column: 1 / -1; justify-self: center; }
-        #landing .tag { justify-content: center; }
+        #settings { display: grid; grid-template-columns: 1fr; gap: 10px; padding-left: 24px; justify-items: start; }
+        #hand-pick { justify-self: start; }
+        #landing .tag, #hand-pick, #hand-pick button { font-size: 14px; }
+        #landing .lede { font-size: 16px; }
         #coop { grid-template-columns: 1fr; padding: 22px 18px; }
         #coop .phone { max-width: 170px; margin: -40px auto 0; }
         #coop .row { display: grid; grid-template-columns: 1fr auto; }

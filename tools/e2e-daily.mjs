@@ -40,5 +40,5 @@ check('the present is opened until tomorrow', w.visible && !w.bow);
 await poke(cal, w.ball);
 await wait(400);
 w = run('tools/daily-where.mjs');
-check('poking it again only says tomorrow', w.daily === '' && w.notice === 'A new picture tomorrow', w.notice);
+check('poking it again only says tomorrow', w.daily === '' && w.notice === "Today's present is opened. A new one tomorrow", w.notice);
 done('daily picture');

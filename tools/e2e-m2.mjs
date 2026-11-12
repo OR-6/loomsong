@@ -28,7 +28,7 @@ const cal0 = await calibrate();
 const y0 = s.debug.loomOrigin[1];
 await poke(cal0, state().targets.nudgeUp);
 s = state();
-check('poke ▲ raises the loom 1 cm', Math.abs(s.debug.loomOrigin[1] - (y0 + 0.01)) < 0.002, `${y0} → ${s.debug.loomOrigin[1]}`);
+check('poke ▲ raises the loom 2 cm', Math.abs(s.debug.loomOrigin[1] - (y0 + 0.02)) < 0.003, `${y0} → ${s.debug.loomOrigin[1]}`);
 shot('m2-01-fallback', s.debug.loomOrigin);
 
 // ---------- B. generated level 4 ----------

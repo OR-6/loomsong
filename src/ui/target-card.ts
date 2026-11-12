@@ -169,27 +169,37 @@ export class TargetCard {
       }
     }
     else if (this.par > 0) {
-      // Yarn knots: par (solid) + 2 grace (lighter); spent knots go hollow.
+      // Yarn bows: par (solid) + 2 grace (lighter), in one row on the left of the title line; spent bows fade.
+      // A long budget is one bow and a count instead of a row of specks.
       const total = this.par + 2;
-      // long budgets wrap onto two rows instead of shrinking into specks
-      const lines = total > 8 ? 2 : 1;
-      const perRow = Math.ceil(total / lines);
-      const gap = Math.min(0.021, (WARPS * cell) / perRow);
-      const r = lines === 2 ? Math.min(0.0064, gap * 0.42) : Math.min(0.0085, gap * 0.42);
-      for (let i = 0; i < total; i++) {
-        const line = Math.floor(i / perRow);
-        const j = i - line * perRow;
-        const inRow = line === lines - 1 ? total - line * perRow : perRow;
-        const x0 = c.width / 2 - ((inRow - 1) * px(gap)) / 2;
-        const y = px(pad + titleH / 2 + (lines === 2 ? (line - 0.5) * 0.0134 : 0));
-        const spent = i >= total - this.used;
-        const last = false; // (a red ring on the last knot read as failure: running out only costs stars)
-        drawKnot(g, x0 + j * px(gap), y, px(r), i < this.par ? lift : grace, spent, highContrast, last);
+      const left = total - this.used;
+      const rowW = WARPS * cell;
+      const y = px(pad + titleH / 2);
+      if (total <= 8) {
+        const gap = Math.min(0.021, rowW / total);
+        const r = Math.min(0.0085, gap * 0.42);
+        const x0 = c.width / 2 - ((total - 1) * px(gap)) / 2; // centred over the picture
+        for (let i = 0; i < total; i++) {
+          const spent = i >= left;
+          g.save();
+          if (spent) g.globalAlpha = 0.3;
+          drawKnot(g, x0 + i * px(gap), y, px(r), i < this.par ? lift : grace, false, highContrast, false);
+          g.restore();
+        }
+      } else {
+        const r = 0.0085;
+        const bx = c.width / 2 - px(r * 2.2);
+        g.save();
+        if (left <= 0) g.globalAlpha = 0.3;
+        drawKnot(g, bx, y, px(r), left > 2 ? lift : grace, false, highContrast, false);
+        g.restore();
+        g.font = `400 ${Math.round(px(0.016))}px ${th.font}`;
+        g.textAlign = 'left';
+        g.fillStyle = th.ink;
+        g.fillText(`× ${Math.max(0, left)}`, bx + px(r * 1.6), y + px(0.001));
+        g.textAlign = 'center';
       }
-      // a live star meter beside the knots: the stars you'd get right now (knots buy stars)
-      const live = this.used <= this.par ? 3 : this.used <= this.par + 2 ? 2 : 1;
-      const sx = px(pad + markW + WARPS * cell + markW / 2);
-      for (let i = 0; i < 3; i++) drawStar(g, sx, px(pad + titleH / 2 + (i - 1) * 0.0088), px(0.0052), i < live);
+      // (one score on the card: the bows. Stars come only at the win, from the bows kept)
     }
     void title;
 
@@ -242,7 +252,7 @@ export class TargetCard {
         } else if (tide) {
           g.fillStyle = highContrast ? '#9a9a9a' : (i + r) % 2 === 0 ? '#9fc4dc' : '#8fb8d3'; // under the tide: it goes out as you weave up to it
         } else if (hidden) {
-          g.fillStyle = (i + r) % 2 === 0 ? '#e6dcc6' : '#ddd1b8'; // a blank, checked swatch: ask your caller
+          g.fillStyle = '#cbbd9f'; // a hatched swatch (drawn below): hidden, never to be mistaken for an empty square
         } else if (r >= target.length) {
           g.fillStyle = '#d8ccb8'; // extra row beyond target
         } else if (highContrast) {
@@ -266,8 +276,24 @@ export class TargetCard {
           g.rotate((j2 - 0.5) * 0.05);
           roundRect(g, -sz / 2, -sz / 2, sz, sz, px(cell) * (0.07 + 0.11 * j2));
           g.fill();
-          g.fillStyle = `rgba(${j < 0.5 ? '255,255,255' : '60,40,20'},${0.04 + 0.04 * j})`;
-          g.fill();
+          if (lifted) {
+            // the tone wobble belongs to paint: empty squares stay one even cream, so a hidden one stands apart
+            g.fillStyle = `rgba(${j < 0.5 ? '255,255,255' : '60,40,20'},${0.04 + 0.04 * j})`;
+            g.fill();
+          }
+          if (hidden && !ear) {
+            g.save();
+            g.clip();
+            g.strokeStyle = tide ? '#6f9cbb' : '#a8977a';
+            g.lineWidth = Math.max(1.5, px(cell) * 0.06);
+            for (let k = -sz; k < sz; k += px(cell) * 0.24) {
+              g.beginPath();
+              g.moveTo(k - sz / 2, sz / 2);
+              g.lineTo(k + sz / 2, -sz / 2);
+              g.stroke();
+            }
+            g.restore();
+          }
           if (lifted) {
             // the paint pools a little at the edge, as gouache does
             g.strokeStyle = 'rgba(40,25,15,0.16)';

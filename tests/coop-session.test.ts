@@ -42,7 +42,7 @@ describe('co-op when the connection service is down', () => {
     expect(coop.status.state).toBe('hosting');
     await vi.advanceTimersByTimeAsync(13000);
     expect(coop.status.state).toBe('error');
-    expect(coop.status.message).toMatch(/co-op server/);
+    expect(coop.status.message).toMatch(/connection service/);
   });
 
   it('a network hiccup gets one quiet retry before giving up', async () => {

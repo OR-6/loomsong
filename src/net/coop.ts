@@ -65,7 +65,7 @@ class CoopSession {
       if (live()) listeners.forEach((cb) => cb(d));
     });
     conn.on('close', () => {
-      if (live()) this.closed('Your partner left');
+      if (live()) this.closed('The other side hung up');
     });
     conn.on('error', () => {
       if (live()) this.closed('Connection lost');
@@ -91,7 +91,7 @@ class CoopSession {
       // the public connection service can be slow or down: never sit on "Connecting…" for ever
       let opened = false;
       window.setTimeout(() => {
-        if (!opened && gen === this.gen) this.fail('Could not reach the co-op server');
+        if (!opened && gen === this.gen) this.fail("Can't reach the connection service. Try again in a minute");
       }, OPEN_TIMEOUT_MS);
       peer.on('open', () => {
         opened = true;
@@ -112,10 +112,10 @@ class CoopSession {
         if (type === 'unavailable-id' && tries > 0) void this.host(tries - 1);
         // a network hiccup: one more go after a moment, then say so
         else if (NETWORK_ERRORS.has(type ?? '') && tries > 1) window.setTimeout(() => gen === this.gen && void this.host(1), 1500);
-        else this.fail('Could not reach the co-op server');
+        else this.fail("Can't reach the connection service. Try again in a minute");
       });
     } catch {
-      this.set({ state: 'error', message: 'Co-op is unavailable here' });
+      this.set({ state: 'error', message: "Calling a friend doesn't work in this browser" });
     }
   }
 
@@ -123,7 +123,7 @@ class CoopSession {
   async join(raw: string, as: 'guest' | 'caller' = 'guest'): Promise<void> {
     const code = normaliseCode(raw);
     if (!code) {
-      this.set({ state: 'error', message: 'Codes are 4 letters' });
+      this.set({ state: 'error', message: "Type the 4 letters on your friend's toy telephone" });
       return;
     }
     this.leave(true);
@@ -149,10 +149,10 @@ class CoopSession {
       peer.on('error', (e) => {
         if (gen !== this.gen) return;
         const type = (e as { type?: string }).type;
-        this.fail(type === 'peer-unavailable' ? 'No loom with that code' : 'Could not reach the co-op server');
+        this.fail(type === 'peer-unavailable' ? "That isn't a loom code. Check the telephone's tag" : "Can't reach the connection service. Try again in a minute");
       });
     } catch {
-      this.set({ state: 'error', message: 'Co-op is unavailable here' });
+      this.set({ state: 'error', message: "Calling a friend doesn't work in this browser" });
     }
   }
 

@@ -57,25 +57,27 @@ export function mountCaller(link: Transport, code: string, onLeave: () => void):
       #caller{position:fixed;inset:0;z-index:50;color:#3b2a20;font:600 16px/1.3 ${theme.font};
         background:repeating-linear-gradient(92deg,#0000 0 22px,#ffffff0d 22px 24px,#0000 24px 61px,#00000010 61px 62px),
           linear-gradient(180deg,#e2b47c,#c98e55);
-        display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px 16px 22px;overflow:auto}
+        display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px 16px 22px;overflow:auto}
       #caller header{display:flex;align-items:center;gap:10px}
       #caller h1{margin:0;font-size:24px;font-weight:400;color:#3b2a20}
-      #caller p.lead{margin:0;text-align:center;max-width:24em;font:600 15px/1.35 system-ui,sans-serif;color:#4a3426}
-      #caller .card{width:min(88vw,360px);height:auto;border-radius:10px;box-shadow:0 8px 0 #8a5a33,0 12px 24px #0004;background:#fff;
+      #caller p.lead{margin:0;text-align:center;max-width:24em;font:600 15px/1.45 'Fraunces',Georgia,serif;color:#4a3426}
+      #caller .card{width:min(92vw,420px);height:auto;border-radius:10px;box-shadow:0 8px 0 #8a5a33,0 12px 24px #0004;background:#fff;
         cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
       #caller .tools{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
-      #caller .patch{appearance:none;border:2px dashed #fff6e488;outline:3px solid #b8452d;outline-offset:-1px;background:#d9533c;color:#fff6e4;
-        font:400 18px ${theme.font};padding:10px 18px;border-radius:14px;box-shadow:0 5px 0 #8f3322;cursor:pointer;min-height:48px}
-      #caller .patch.soft{background:#fff6e4;color:#3b2a20;outline-color:#c9a57a;border-color:#c9a57a88;box-shadow:0 5px 0 #b48a5c}
+      #caller .patch{position:relative;appearance:none;border:0;background:#c43c28;color:#fff6e4;
+        font:400 18px ${theme.font};padding:10px 20px;border-radius:14px;box-shadow:0 4px 0 #8f3322;cursor:pointer;min-height:48px}
+      #caller .patch::after{content:'';position:absolute;inset:5px;border:2px dashed #fff3e0a6;border-radius:9px;pointer-events:none}
+      #caller .patch.soft{background:#fff6e4;color:#3b2a20;box-shadow:0 4px 0 #b48a5c}
+      #caller .patch.soft::after{border-color:#c9a57a99}
       #caller .patch:active{transform:translateY(3px);box-shadow:0 2px 0 #8f3322}
       #caller .patch:disabled{opacity:.45}
-      #caller .status{background:#fff6e4;color:#3b2a20;border-radius:999px;padding:8px 16px;font-size:16px;box-shadow:0 3px 0 #0002;text-align:center}
+      #caller .status{color:#3b2a20;font:600 16px/1.4 'Fraunces',Georgia,serif;text-align:center;max-width:24em}
       #caller [hidden]{display:none !important}
       #caller .album{display:flex;flex-direction:column;align-items:center;gap:6px}
       #caller .album h2{margin:0;font:400 16px ${theme.font};color:#4a3426}
       #caller .album .strip{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:min(92vw,380px)}
       #caller .album canvas{width:54px;height:36px;border-radius:3px;box-shadow:0 2px 0 #0003;cursor:pointer}
-      #caller .leave{appearance:none;border:0;background:none;color:#4a3426;text-decoration:underline;font:600 14px system-ui,sans-serif}
+      #caller .leave{appearance:none;border:0;background:none;color:#4a3426;text-decoration:underline;font:600 14px 'Fraunces',Georgia,serif}
       #caller .post{position:fixed;inset:0;background:#2b1a10f2;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);z-index:5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:16px}
       #caller .post[hidden]{display:none}
       #caller .post canvas{width:min(92vw,520px);height:auto;border-radius:6px;box-shadow:0 14px 40px #0008;transform:rotate(-2deg);
@@ -94,11 +96,11 @@ export function mountCaller(link: Transport, code: string, onLeave: () => void):
       </svg>
       <h1>You're the caller</h1>
     </header>
-    <p class="lead">Only you can see the picture. Describe the yellow row to your weaver. Tap up to two squares a row to pin them on their loom; the rest you say. You'll hear each row as it's woven.</p>
+    <p class="lead">Only you can see the picture. Describe the outlined row to your weaver: tap up to two of its squares to pin them on their loom, and say the rest. You'll hear each row as it's woven.</p>
     <div class="cardwrap"></div>
     <div class="tools">
-      <button type="button" class="patch ring">Ring Pip</button>
-      <button type="button" class="patch soft clear" disabled>Take pins out</button>
+      <button type="button" class="patch ring">Wave hello</button>
+      <button type="button" class="patch soft clear" disabled>Remove pins</button>
     </div>
     <div class="status" role="status" aria-live="polite">Connecting to loom ${code}…</div>
     <div class="album" hidden><h2>Postcards from the loom</h2><div class="strip"></div></div>
@@ -271,7 +273,11 @@ export function mountCaller(link: Transport, code: string, onLeave: () => void):
     pending = null;
     apply(s);
   }, 100);
-  mounted = { el, stop: () => window.clearInterval(timer) };
+  // connected but nothing to show yet (the weaver hasn't started, or is between pictures): say so, not "connecting"
+  const waitT = window.setTimeout(() => {
+    if (!last) statusEl.textContent = 'Connected. Waiting for your weaver to start a picture';
+  }, 10000);
+  mounted = { el, stop: () => (window.clearInterval(timer), window.clearTimeout(waitT)) };
 }
 
 /**
@@ -292,7 +298,7 @@ function drawPostcard(p: Postcard, w: number, h: number, font: string, small = f
   const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
   g.fillStyle = 'rgba(120,80,40,0.07)';
   for (let k = 0; k < 900 * s * s + 40; k++) g.fillRect(rnd() * w, rnd() * h, 2 * s + 0.5, 2 * s + 0.5);
-  g.strokeStyle = '#d9533c';
+  g.strokeStyle = '#c43c28';
   g.lineWidth = 10 * s;
   g.strokeRect(14 * s, 14 * s, w - 28 * s, h - 28 * s);
   // the picture, stitched: a square per cell on a felt patch
@@ -331,11 +337,11 @@ function drawPostcard(p: Postcard, w: number, h: number, font: string, small = f
   g.fillStyle = '#3b2a20';
   g.font = `400 ${46 * s}px ${font}`;
   g.fillText(lv.name, mx + 36 * s, 210 * s);
-  g.font = `600 ${26 * s}px system-ui, sans-serif`;
+  g.font = `600 ${30 * s}px Fraunces, Georgia, serif`;
   g.fillStyle = '#5a4030';
   g.fillText('Woven together', mx + 36 * s, 256 * s);
   g.fillText('You called it, they wove it.', mx + 36 * s, 296 * s);
-  g.fillStyle = '#d9533c';
+  g.fillStyle = '#c43c28';
   g.font = `400 ${36 * s}px ${font}`;
   g.fillText('★'.repeat(p.stars) + '☆'.repeat(Math.max(0, 3 - p.stars)), mx + 36 * s, 352 * s);
   // address lines
@@ -347,8 +353,8 @@ function drawPostcard(p: Postcard, w: number, h: number, font: string, small = f
     g.lineTo(w - 60 * s, (430 + k * 58) * s);
     g.stroke();
   }
-  g.fillStyle = '#8a6a50';
-  g.font = `600 ${22 * s}px system-ui, sans-serif`;
+  g.fillStyle = '#5a4030';
+  g.font = `600 ${28 * s}px Fraunces, Georgia, serif`;
   const [yy, mm, dd] = p.day.split('-').map(Number);
   const when = new Date(yy, (mm || 1) - 1, dd || 1).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   g.fillText(when, mx + 36 * s, (430 + 2 * 58 - 12) * s);
@@ -409,6 +415,27 @@ function drawPostcard(p: Postcard, w: number, h: number, font: string, small = f
     g.stroke();
   }
   return c;
+}
+
+/**
+ * The call ended (the weaver hung up, or the line dropped): the caller's screen stays, with its postcards,
+ * and offers to join again or go back, instead of vanishing.
+ */
+export function callerEnded(message: string, onRejoin: () => void, onBack: () => void): boolean {
+  if (!mounted) return false;
+  const el = mounted.el;
+  mounted.stop();
+  const status = el.querySelector<HTMLElement>('.status');
+  if (status) status.textContent = message;
+  const tools = el.querySelector<HTMLElement>('.tools');
+  if (tools && !tools.dataset.ended) {
+    tools.dataset.ended = '1';
+    tools.innerHTML = '<button type="button" class="patch rejoin">Join again</button><button type="button" class="patch soft back">Back</button>';
+    tools.querySelector('.rejoin')!.addEventListener('click', onRejoin);
+    tools.querySelector('.back')!.addEventListener('click', onBack);
+  }
+  el.querySelector<HTMLElement>('.leave')?.setAttribute('hidden', '');
+  return true;
 }
 
 export function unmountCaller(): void {

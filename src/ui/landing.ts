@@ -13,7 +13,7 @@ import { clothDataUrl } from './cloth-image.js';
 import { clothFromHash, shareUrl } from '../net/share.js';
 import { loadSettings, restPressOn, saveSettings, type HandPref } from '../persistence/settings.js';
 import { normaliseCode, coop, type CoopStatus } from '../net/coop.js';
-import { mountCaller, shouldCall, unmountCaller } from './caller.js';
+import { callerEnded, mountCaller, shouldCall, unmountCaller } from './caller.js';
 
 export function mountLanding(world: World): void {
   const el = document.createElement('div');
@@ -31,21 +31,23 @@ export function mountLanding(world: World): void {
           <div class="pitch">
             <i class="tape" aria-hidden="true"></i>
 
-            <p id="tagline">A tiny loom on your real desk, made for your hands.</p>
-            <p class="lede">Push the levers away, slide Pip across, and each row you weave sings. Finish a picture and it comes alive as a little felt toy that stays on your desk.</p>
+            <p id="tagline">A puzzle game for Meta Quest, woven on your real desk.</p>
+            <p class="lede">Every row plays a tune. Every picture comes alive as a felt plush that stays where you put it.</p>
             <div class="go">
               <button id="enter-xr" class="patch" type="button">Enter mixed reality</button>
-              <p class="note">Sit at a desk with hand tracking on. Prefer controllers? They work too: the trigger pinches.</p>
+              <p class="xr-fail" role="alert" hidden>Mixed reality didn't start. Allow the permission it asks for, then press Enter again.</p>
+              <p class="note">Sit at a desk with hand tracking on. Prefer controllers? They work too: the trigger pinches. <a class="short" href="?start=friends">Short on time? Start at picture 4</a></p>
             </div>
             <div class="nohead" id="xr-unsupported" hidden>
-              <i class="tape" aria-hidden="true"></i>
-              <p>This browser can't open mixed reality. Open this page in your headset's browser, or join a friend's loom as their caller:</p>
-              <div class="row"><input id="call-code" maxlength="4" placeholder="CODE" aria-label="Friend's room code" autocomplete="off" /><button type="button" id="call-join" class="patch">Join as caller</button></div>
+              <img class="qr" src="${sitePhoto('qr.svg')}" alt="" width="96" height="96" />
+              <p class="quest"><b>Play on Meta Quest:</b> open <span class="url">or-6.github.io/loomsong</span> in the headset's browser.</p>
+              <div class="row"><button type="button" id="copy-link" class="patch">Copy link</button><a class="caller-link" href="#coop">Have a friend's code? Be their caller</a></div>
             </div>
 
           </div>
           <figure class="photo hero-photo">
             <i class="peg" aria-hidden="true"></i>
+            <button type="button" class="sound" aria-pressed="false">Sound on</button>
             <video class="clip" muted loop playsinline preload="metadata" poster="${sitePhoto('loom-clip-poster.jpg')}" width="960" height="540"
               aria-label="Gameplay: the levers lift, Pip flies across to weave the last rows of a duck, and the finished duck pops off the loom as a felt plush">
               <source src="${sitePhoto('loom-clip.mp4')}" type="video/mp4" />
@@ -70,6 +72,22 @@ export function mountLanding(world: World): void {
           </ol>
         </section>
 
+        <section id="coop" aria-labelledby="coop-title">
+          <figure class="photo phone"><i class="peg"></i><img loading="lazy" src="${sitePhoto('caller-phone.jpg')}" alt="The caller's phone: the picture card with a pin on one square, and a Ring Pip button" width="520" height="787" /></figure>
+          <div class="coop-text">
+            <h2 id="coop-title">Your phone is the picture card.</h2>
+            <ol class="how"><li>In the headset, poke the toy telephone on your desk twice (it's there from the second picture).</li><li>On your phone, open this page and type the 4-letter code on its tag.</li><li>Prop the phone by the loom and read the picture through passthrough, or hand it to a friend and talk it through.</li></ol>
+            <div class="row">
+              <button type="button" id="coop-host" class="patch" hidden>Host a loom</button>
+              <input id="coop-code" maxlength="4" placeholder="CODE" aria-label="Your friend's 4-letter code" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+              <button type="button" id="coop-join" class="patch">Join</button>
+              <button type="button" id="coop-leave" hidden>Leave</button>
+            </div>
+            <p id="coop-status" role="status"></p>
+            <p class="fine">Your devices link directly, with no accounts. Sound doesn't travel between them, so sit together or call each other.</p>
+          </div>
+        </section>
+
         <section class="more" data-yarn aria-label="What else is on the desk">
           <svg class="yarn small-yarn" viewBox="0 0 1000 60" preserveAspectRatio="none" aria-hidden="true">
             <defs><pattern id="ply-teal" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(55)"><rect width="6" height="6" fill="#178a7b"/><rect width="2.8" height="6" fill="#4fc2b1"/></pattern></defs>
@@ -77,7 +95,7 @@ export function mountLanding(world: World): void {
             <path data-line d="M-10 30 Q 300 4 520 22 T 1010 10" fill="none" stroke="url(#ply-teal)" stroke-width="4.5" stroke-linecap="round"/>
           </svg>
           <figure class="photo small" data-hang><i class="peg"></i><span class="label">Your shelf, your desk</span><img loading="lazy" src="${sitePhoto('shelf.jpg')}" alt="Finished plushes on the shelf and on the desk, beside the wrapped present of the day" width="800" height="500" /></figure>
-          <div class="note-card"><i class="tape"></i><b>Four chapters, and visitors</b><p>Garden teaches your hands, Home combines levers, Night hides what they lift, and the Sea hides them too while you weave in two colours. In Home, one row per picture is hummed by Pip: find it by ear. Some pictures need a friend: sit a plush on the felt cushion and it lifts the threads under its feet. Carry your plushes anywhere on your desk and they stay; leave one out and a visitor comes for it.</p></div>
+          <div class="note-card"><i class="tape"></i><b>Four chapters, and visitors</b><p>From a sunny Garden to the Sea at night, 18 pictures, each a new puzzle. Leave a plush out on your desk and someone comes to visit it.</p></div>
           <figure class="photo small" data-hang><i class="peg"></i><span class="label">Your plushes help</span><img loading="lazy" src="${sitePhoto('plush-friend.jpg')}" alt="The Sprout plush sits on a felt cushion in front of the loom and lifts the two middle threads" width="800" height="500" /></figure>
         </section>
 
@@ -86,25 +104,25 @@ export function mountLanding(world: World): void {
           <span class="pegged"><i class="tape"></i><img id="cloth-img" alt="Your last woven cloth" /></span>
           <figcaption>
             <b>Your last picture</b>
-            <button type="button" id="share-btn" class="patch">Share this cloth</button>
+            <button type="button" id="share-btn" class="patch">Share this picture</button>
             <span id="share-note" role="status"></span>
           </figcaption>
         </figure>
 
-        <div class="prep">
-        <h2 class="before">Before you start</h2>
+        <details class="prep" open>
+        <summary><h2 class="before">Headset settings</h2></summary>
         <div id="settings" aria-label="Settings">
-          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="hc" role="switch" aria-checked="false">High contrast</button></span>
-          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="music" role="switch" aria-checked="true">Music</button></span>
-          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="calm" role="switch" aria-checked="false">Calm motion</button></span>
-          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="look" role="switch" aria-checked="false" title="No hands needed: look at any control for a moment to press it">Look to play</button></span>
-          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="ear" role="switch" aria-checked="true" title="One row per picture is hummed by Pip instead of shown. Off: every row shows on the card">Rows by ear</button></span>
-          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="rest" role="switch" aria-checked="false" title="Hold a fingertip still on a lever, Pip or the spool for a moment to press it (for slow or unsteady hands)">Rest to press</button></span>
-          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="fit" aria-pressed="false">Fit to my hands</button></span>
-          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="fresh" aria-pressed="false" title="Next time, rest your palm on the desk to set the loom somewhere new">Move the loom</button></span>
-          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#e8553e" stroke-width="2.6" stroke-linecap="round"/></svg><div role="radiogroup" aria-label="Lever side" id="hand-pick">
-            <span class="lbl">Lever box</span>
-            <button type="button" data-hand="auto" role="radio" title="On the side of the hand you place the loom with">auto</button>
+          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#c43c28" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="hc" role="switch" aria-checked="false">High contrast</button></span>
+          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#c43c28" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="music" role="switch" aria-checked="true">Music</button></span>
+          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#c43c28" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="calm" role="switch" aria-checked="false">Calm motion</button></span>
+          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#c43c28" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="look" role="switch" aria-checked="false" title="No hands needed: look at any control for a moment to press it">Look to play</button></span>
+          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#c43c28" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="ear" role="switch" aria-checked="true" title="One row per picture is hummed by Pip instead of shown. Off: every row shows on the card">Rows by ear</button></span>
+          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#c43c28" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="rest" role="switch" aria-checked="false" title="Hold a fingertip still on a lever, Pip or the spool for a moment to press it (for slow or unsteady hands)">Hold still to press</button></span>
+          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#c43c28" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="fit" aria-pressed="false">Fit my hands next time</button></span>
+          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#c43c28" stroke-width="2.6" stroke-linecap="round"/></svg><button type="button" class="tag" id="fresh" aria-pressed="false" title="Next time, rest your palm on the desk to set the loom somewhere new">Place the loom fresh next time</button></span>
+          <span class="tagwrap"><svg class="string" viewBox="0 0 40 26" aria-hidden="true"><path d="M33 13 C 24 2, 6 2, 3 11 C 1 19, 14 25, 24 19 C 28 17, 31 15, 33 13" fill="none" stroke="#c43c28" stroke-width="2.6" stroke-linecap="round"/></svg><div role="radiogroup" aria-label="Lever side" id="hand-pick">
+            <span class="lbl">Lever side</span>
+            <button type="button" data-hand="auto" role="radio" title="On the side of the hand you place the loom with">my hand</button>
             <button type="button" data-hand="left" role="radio">left</button>
             <button type="button" data-hand="right" role="radio">right</button>
           </div></span>
@@ -114,24 +132,10 @@ export function mountLanding(world: World): void {
             <button type="button" data-theme="workshop" role="radio">Workshop</button>
           </div>
         </div>
-        </div>
+        <p class="set-note">These save in this browser. In the headset, poke the felt <b>Settings</b> tag by the loom.<br /><b>Look to play</b>: look at a control for a moment to press it. <b>Rows by ear</b>: Pip hums one row instead of showing it. <b>Hold still to press</b>: rest a fingertip on a control to press it.</p>
+        </details>
         </div>
 
-        <section id="coop" aria-labelledby="coop-title">
-          <figure class="photo phone"><i class="peg"></i><img loading="lazy" src="${sitePhoto('caller-phone.jpg')}" alt="The caller's phone: the picture card with a pin on one square, and a Ring Pip button" width="520" height="787" /></figure>
-          <div class="coop-text">
-            <h2 id="coop-title">No headset? Be the caller on your phone.</h2>
-            <p>The weaver pokes the toy telephone on their desk twice in the headset and reads out the code. Open this page on your phone and join. Only you can see the picture, and only they can see which threads each lever lifts, so you have to talk it through. Tap up to two squares a row to pin their threads on their loom (the rest you say out loud), or ring Pip to make him wave. Every picture you finish together leaves a postcard on your phone.</p>
-            <div class="row">
-              <button type="button" id="coop-host" class="patch" hidden>Host a loom</button>
-              <input id="coop-code" maxlength="4" placeholder="CODE" aria-label="Room code" autocomplete="off" />
-              <button type="button" id="coop-join" class="patch">Join</button>
-              <button type="button" id="coop-leave" hidden>Leave</button>
-            </div>
-            <p id="coop-status" role="status"></p>
-            <p class="fine">Your devices link directly, with no accounts. Sound doesn't travel between them, so sit together or call each other.</p>
-          </div>
-        </section>
 
         <footer class="foot">
           <p class="slip"><i class="tape" aria-hidden="true"></i>Made for mixed reality, November 2026, with IWSDK. Music by Scott Buckley (CC BY 4.0); every other sound is CC0: <a href="${import.meta.env.BASE_URL}audio/CREDITS.md">see the credits</a>.</p>
@@ -149,30 +153,51 @@ export function mountLanding(world: World): void {
     void clip.play().catch(() => {});
   } else clip.controls = true;
   const btn = el.querySelector<HTMLButtonElement>('#enter-xr')!;
+  const xrFail = el.querySelector<HTMLElement>('.xr-fail')!;
   btn.addEventListener('click', () => {
     audio.resume(); // user gesture: unlock audio early
+    xrFail.hidden = true;
     world.launchXR();
+    // the request can be refused (a permission denied, hand tracking off): say so, instead of nothing happening
+    const w = world as unknown as { session?: unknown; sessionRequestPending?: boolean };
+    const t0 = performance.now();
+    const watch = window.setInterval(() => {
+      if (w.session) return window.clearInterval(watch);
+      if (!w.sessionRequestPending && performance.now() - t0 > 600) {
+        window.clearInterval(watch);
+        xrFail.hidden = false;
+      }
+    }, 250);
   });
   // No headset here (a laptop or phone: desktop browsers know WebXR even with nothing plugged in,
   // so ask whether immersive AR can actually run): the main action becomes joining as the caller.
   const noHeadset = () => {
     el.querySelector<HTMLElement>('.go')!.hidden = true;
     el.querySelector<HTMLElement>('#xr-unsupported')!.hidden = false;
+    el.querySelector<HTMLDetailsElement>('details.prep')!.open = false; // headset settings: folded away on a laptop or phone
   };
   if (!world.xrEnabled) noHeadset();
   else void shouldCall().then((call) => call && noHeadset());
-  const callCode = el.querySelector<HTMLInputElement>('#call-code')!;
-  const callJoin = () => (audio.resume(), void coop.join(callCode.value, 'caller'));
-  el.querySelector('#call-join')!.addEventListener('click', callJoin);
-  callCode.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') callJoin();
+  // the address to type into the headset, copied in one tap
+  const copyBtn = el.querySelector<HTMLButtonElement>('#copy-link')!;
+  copyBtn.addEventListener('click', () => {
+    const url = location.origin + location.pathname;
+    void navigator.clipboard?.writeText(url).then(
+      () => (copyBtn.textContent = 'Copied'),
+      () => (copyBtn.textContent = url),
+    );
+  });
+  // the clip plays muted; its point is that the rows sing
+  const soundBtn = el.querySelector<HTMLButtonElement>('.hero-photo .sound')!;
+  soundBtn.addEventListener('click', () => {
+    clip.muted = !clip.muted;
+    if (!clip.muted) void clip.play().catch(() => {});
+    soundBtn.setAttribute('aria-pressed', String(!clip.muted));
+    soundBtn.textContent = clip.muted ? 'Sound on' : 'Sound off';
   });
   // a join link (?join=ABCD): the code is filled in; a tap on Join and you're the caller
   const joinCode = normaliseCode(new URLSearchParams(location.search).get('join') ?? '');
-  if (joinCode) {
-    callCode.value = joinCode;
-    el.querySelector<HTMLInputElement>('#coop-code')!.value = joinCode;
-  }
+  if (joinCode) el.querySelector<HTMLInputElement>('#coop-code')!.value = joinCode;
   const pick = el.querySelector<HTMLElement>('#style-pick')!;
   const sync = () => {
     const p = loadProgress();
@@ -192,7 +217,7 @@ export function mountLanding(world: World): void {
 
   // Shared cloth arriving by link.
   if (clothFromHash(location.hash)) {
-    el.querySelector<HTMLElement>('#tagline')!.textContent = 'Someone sent you a cloth. Weave it.';
+    el.querySelector<HTMLElement>('#tagline')!.textContent = world.xrEnabled ? 'Someone sent you a picture to weave.' : "Someone sent you a picture to weave. Open this link in your Quest's browser.";
   }
 
   // Share card: the last finished cloth.
@@ -242,11 +267,11 @@ export function mountLanding(world: World): void {
       joining: st.message ?? 'Connecting…',
       connected:
         st.role === 'host'
-          ? `Connected (${st.code}). Enter XR.`
+          ? 'Connected. Put on your headset.'
           : st.role === 'caller'
             ? `Connected (${st.code}). You're the caller.`
-            : `Connected (${st.code}). You slide Pip. Enter XR.`,
-      error: st.message ?? 'Something went wrong',
+            : 'Connected. Put on your headset: you slide Pip.',
+      error: st.message ?? "That didn't work. Try again",
       closed: st.message ?? 'Disconnected',
     };
     status.textContent = msg[st.state];
@@ -257,10 +282,21 @@ export function mountLanding(world: World): void {
   };
   window.addEventListener('loomsong:coop', (e) => showCoop((e as CustomEvent<CoopStatus>).detail));
   // the phone caller's own screen
+  let lastCallCode = '';
   window.addEventListener('loomsong:coop', (e) => {
     const st = (e as CustomEvent<CoopStatus>).detail;
-    if (st.role === 'caller' && st.state === 'connected' && coop.transport) mountCaller(coop.transport, st.code ?? '', () => coop.leave());
-    else if (st.state !== 'connected') unmountCaller();
+    if (st.role === 'caller' && st.state === 'connected' && coop.transport) {
+      unmountCaller(); // a fresh screen for a fresh call (a rejoin replaces the ended one)
+      mountCaller(coop.transport, st.code ?? '', () => coop.leave());
+      lastCallCode = st.code ?? '';
+    } else if (st.state === 'joining') return;
+    else if (st.state !== 'connected') {
+      // a call that ended keeps its screen: join again, or back to the page
+      const ended = lastCallCode && (st.state === 'error' || st.state === 'closed')
+        ? callerEnded(st.state === 'error' ? st.message ?? 'The call dropped' : 'Your weaver hung up', () => void coop.join(lastCallCode, 'caller'), () => (lastCallCode = '', unmountCaller()))
+        : false;
+      if (!ended) unmountCaller();
+    }
   });
 
   // Accessibility settings.
@@ -282,13 +318,9 @@ export function mountLanding(world: World): void {
     ear.setAttribute('aria-checked', String(st.hearRows !== false));
     rest.setAttribute('aria-checked', String(restPressOn(st)));
     fit.setAttribute('aria-pressed', String(st.calibrateNext));
-    fit.textContent = st.calibrateNext
-      ? 'Fitting on next entry'
-      : st.calibration
-        ? 'Refit my hands'
-        : 'Fit to my hands';
+    fit.textContent = st.calibrateNext ? 'Fit my hands next time' : st.calibration ? 'Refit my hands next time' : 'Fit my hands next time';
     fresh.setAttribute('aria-pressed', String(st.placeFresh));
-    fresh.textContent = st.placeFresh ? 'New spot next time' : 'Move the loom';
+    fresh.textContent = 'Place the loom fresh next time';
     for (const b of handPick.querySelectorAll<HTMLButtonElement>('button')) {
       b.setAttribute('aria-checked', String(b.dataset.hand === st.hand));
     }
