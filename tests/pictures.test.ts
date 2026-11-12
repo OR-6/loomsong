@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CHAPTERS, DAILY, PICTURES } from '../src/puzzle/pictures.gen';
-import { DAILY_LEVELS, LEVELS, dailyLevel, dayKey, levelAt, pictureById, streakOf } from '../src/puzzle/catalog';
+import { DAILY_LEVELS, LEVELS, dailyLevel, dayKey, levelAt, mendLevel, pictureById, streakOf } from '../src/puzzle/catalog';
 import { computePar, rowReachable } from '../src/puzzle/par';
 import { WARPS } from '../src/config';
 
@@ -85,5 +85,18 @@ describe('picture levels', () => {
   it('no two levels share a lever set', () => {
     const sets = PICTURES.map((p) => [...p.tieUp].sort((a, b) => a - b).join(','));
     expect(new Set(sets).size).toBe(sets.length);
+  });
+  it('tangled cloths: woven part-way with exactly one wrong row (not the top), weavable, par is the reweave', () => {
+    const mended = LEVELS.filter((l) => l.mend);
+    expect(mended.map((l) => l.id).sort()).toEqual(['octopus', 'owl']);
+    for (const l of [...mended, ...DAILY_LEVELS.map((d) => mendLevel(d, 4, 1))]) {
+      const m = l.mend!;
+      const wrong = m.map((r, i) => (r !== l.target[i] ? i : -1)).filter((i) => i >= 0);
+      expect(wrong.length, l.id).toBe(1);
+      expect(wrong[0], l.id).toBeLessThan(m.length - 1);
+      expect(m[wrong[0]] & 256, l.id).toBe(l.target[wrong[0]] & 256); // only the threads are wrong, not the yarn
+      expect(rowReachable(l.tieUp, m[wrong[0]]), l.id).toBe(true);
+      expect(l.par, l.id).toBe(computePar(l.tieUp, l.target.slice(wrong[0]), !!l.mystery));
+    }
   });
 });

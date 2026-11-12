@@ -5,8 +5,29 @@
 import type { Level } from './levels.js';
 import { CHAPTERS, DAILY, PICTURES } from './pictures.gen.js';
 import { difficultyFor, generateLevel, rng } from './generator.js';
+import { computePar } from './par.js';
 
 export { CHAPTERS };
+
+/**
+ * Mend the cloth: `level` arrives with `woven` rows already on the loom, row `wrong` of them wrong (the
+ * threads of a neighbouring row, its yarn kept). Find it, unpick back to it, weave on. Par counts the
+ * reweave only (unpicking is free).
+ */
+export function mendLevel(level: Level, woven: number, wrong: number): Level {
+  const t = level.target;
+  woven = Math.max(2, Math.min(woven, t.length - 1));
+  wrong = Math.max(0, Math.min(wrong, woven - 2)); // never the top row: there's always one to unpick past
+  let bad = -1;
+  for (const k of [wrong + 1, wrong - 1, wrong + 2, wrong + 3]) if (k >= 0 && k < t.length && (t[k] & 255) !== (t[wrong] & 255)) { bad = t[k] & 255; break; }
+  if (bad < 0) bad = (t[wrong] & 255) ^ level.tieUp[0] || level.tieUp[0];
+  const rows = t.slice(0, woven);
+  rows[wrong] = bad | (t[wrong] & 256);
+  return { ...level, mend: rows, par: computePar(level.tieUp, t.slice(wrong), !!level.mystery) };
+}
+
+/** Chapter pictures that arrive tangled (woven, wrong): one mid-chapter twist each in Night and the Sea. */
+const MENDED: Readonly<Record<string, [number, number]>> = { owl: [4, 1], octopus: [4, 1] };
 
 export const LEVELS: Level[] = PICTURES.map((p) => ({
   id: p.id,
@@ -20,7 +41,7 @@ export const LEVELS: Level[] = PICTURES.map((p) => ({
   mystery: p.mystery,
   weft: p.weft,
   friend: p.friend,
-}));
+})).map((l) => (MENDED[l.id] ? mendLevel(l, MENDED[l.id][0], MENDED[l.id][1]) : l));
 
 /**
  * The grand finale's picture: once every chapter is woven, the loom weaves a
@@ -83,6 +104,11 @@ function dayNumber(key: string): number {
 /** Every third day the picture of the day hides its levers' threads, Night's rule (for players who know it). */
 export function hiddenLeverDay(key: string): boolean {
   return ((dayNumber(key) % 3) + 3) % 3 === 2;
+}
+
+/** Every third day (the day before a hidden-lever day) the picture of the day arrives tangled: mend it. */
+export function mendDay(key: string): boolean {
+  return ((dayNumber(key) % 3) + 3) % 3 === 1;
 }
 
 /** The day's picture: the same for everyone that day; the whole set comes round before any repeats. */

@@ -25,4 +25,6 @@ export interface Level {
   weft?: number;
   /** A friend picture: the threads a plush on the cushion must lift (its bottom row); not a lever. */
   friend?: number;
+  /** Mend the cloth: it arrives already woven this far, one row of it wrong; unpick back to it and weave on. */
+  mend?: Mask8[];
 }

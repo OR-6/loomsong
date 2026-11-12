@@ -32,7 +32,7 @@ import { Label } from '../ui/label.js';
 import { audio } from '../audio/synth.js';
 import { keyFor } from '../audio/soundtrack.js';
 import { LevelFlow, TIMING, type HintStep } from './level-flow.js';
-import { CHAPTERS, DAILY_LEVELS, LEVELS, THANKS_LEVEL, VISITOR_LIKES, chapterStates, dailyLevel, dayKey, hiddenLeverDay, levelAt, pictureById, visitorFor } from '../puzzle/catalog.js';
+import { CHAPTERS, DAILY_LEVELS, LEVELS, THANKS_LEVEL, VISITOR_LIKES, chapterStates, dailyLevel, dayKey, hiddenLeverDay, levelAt, mendDay, mendLevel, pictureById, visitorFor } from '../puzzle/catalog.js';
 import { computePar } from '../puzzle/par.js';
 import type { Level } from '../puzzle/levels.js';
 import { PLUSH, ROW_BEAT, SPOTS, type DeskItem, type ShelfItem } from '../loom/plush.js';
@@ -136,7 +136,7 @@ const HINT_TEXT: Record<HintStep, string> = {
   unlatch: 'Slide it back',
   weft: "Poke the spool by Pip to swap yarn",
   shuttle: 'Slide Pip across, or poke it',
-  undo: 'Slide Pip back, or poke the spool',
+  undo: 'Poke the spool to unpick',
   card: 'Match the next row',
   knots: 'Each lever move unties a bow',
   combo: '', // the aha is a gold ribbon over the card, not a tag
@@ -654,7 +654,11 @@ export class GameSystem extends createSystem({
         if (level.chapter === 'night' && !this.lanternTold && !this.photoMode) {
           this.lanternTold = true;
           this.later('Night: a lever hides its threads until you try it. First try free', 3, 'centre', 6);
-          this.later('Your hand is a lantern', 9);
+        }
+        if (level.mend && !this.flow.mirror) {
+          // a tangled cloth: say what to do once per visit, shorter after
+          this.later(this.mendTold ? 'Tangled: find the wrong row' : 'This cloth came tangled. Find the wrong row, unpick to it with the spool, weave on', 1.6, 'centre', this.mendTold ? 3 : 7);
+          this.mendTold = true;
         }
         if (level.chapter === 'home' && !this.knotsTold && !this.flow.challenge && !this.progress.best[level.id]) {
           this.knotsTold = true;
@@ -739,11 +743,7 @@ export class GameSystem extends createSystem({
           const showEnd = Math.max(songEnd, 0.95 + PLUSH.minDance) + 0.8 + 0.75;
           this.flow.extraBetween = Math.max(0, showEnd + 0.3 - (songEnd + TIMING.afterPlayback));
         }
-        // the very first gold bow: say what it's for, once the plush has landed
-        const golds = Object.entries(this.progress.best).filter(([id, b]) => b >= 3 && pictureById(id)?.chapter !== 'garden').length;
-        if (stars >= 3 && lv.chapter !== 'garden' && golds === 1) {
-          this.later('Fewest moves: your plush gets gold', 4.6);
-        }
+        // (a gold bow says what it's for by itself: the bows notice in Home already told you fewer moves earn it)
         // a friend helped: it sings along with the new plush, and gets a thank-you
         if (this.seated >= 0) {
           const fid = this.view.plushes.idAt(this.seated);
@@ -759,13 +759,10 @@ export class GameSystem extends createSystem({
           const fp = likes ? this.progress.placed?.[likes] : undefined;
           const vp = this.progress.placed?.[this.flow.level.id];
           const friendName = fp && vp && Math.hypot(fp[0] - vp[0], fp[1] - vp[1]) < 0.12 ? pictureById(likes!)?.name : undefined;
-          const nextLike = Object.entries(VISITOR_LIKES).find(([v, f]) => v !== this.flow.level.id && !this.progress.best[v] && this.progress.best[f])?.[1];
-          const hintFor = nextLike ? pictureById(nextLike)?.name : undefined;
-          this.later(friendName
-            ? `${this.flow.level.name} stays with your ${friendName}`
-            : hintFor
-              ? `Leave your ${hintFor} out tonight`
-              : 'Leave a plush out tonight', 4.6);
+          // the first time only, how visitors work; never a nightly chore after that
+          const firstDay = (this.progress.days?.length ?? 0) <= 1;
+          if (friendName) this.later(`${this.flow.level.name} stays with your ${friendName}`, 4.6);
+          else if (firstDay) this.later('Plushes left out on your desk get visitors', 4.6);
           this.syncDaily();
         }
         this.controller.releaseAll();
@@ -1886,7 +1883,9 @@ export class GameSystem extends createSystem({
     const pick = this.todayLevel();
     // some days borrow Night's rule (once you've been to Night): the levers hide their threads until tried
     const hidden = hiddenLeverDay(this.today) && (this.progress.best['moon'] ?? 0) > 0;
-    const lv = hidden ? { ...pick, mystery: true, par: computePar(pick.tieUp, pick.target, true) } : pick;
+    // other days it comes tangled (once you've mended one in Night): unpick to the wrong row and weave on
+    const tangled = !hidden && mendDay(this.today) && (this.progress.best['owl'] ?? 0) > 0;
+    const lv = hidden ? { ...pick, mystery: true, par: computePar(pick.tieUp, pick.target, true) } : tangled ? mendLevel(pick, Math.min(4, pick.target.length - 2), 1) : pick;
     audio.restyle();
     // the present opens: the lid pops off with a little burst
     this.view.daily.open();
@@ -1894,7 +1893,7 @@ export class GameSystem extends createSystem({
     this.view.fx.confetti(this.giftAt[0], 0.04, this.giftAt[1], 28, 0.45);
     audio.swapYarn();
     this.flow.startChallenge(lv, this.today);
-    this.showNotice(hidden ? "Today's picture: its levers hide their threads" : "Today's picture", 3, 'centre'); // its name is the surprise when it comes alive
+    this.showNotice(hidden ? "Today's picture: its levers hide their threads" : tangled ? "Today's picture came tangled" : "Today's picture", 3, 'centre'); // its name is the surprise when it comes alive
   }
 
   /** Where a just-woven picture's plush goes: its shelf slot, or the desk (already placed there, or a picture of the day). */
@@ -2357,6 +2356,8 @@ export class GameSystem extends createSystem({
   private earRow = -1;
   private earHumAt = -1;
   private earTold = false;
+  /** The tangled-cloth notice has been given in full this visit. */
+  private mendTold = false;
   private earHowAt = -1;
   private knotsTold = false;
   private lanternTold = false;
@@ -2368,7 +2369,7 @@ export class GameSystem extends createSystem({
     const ch = level.chapter;
     const daily = level.id.startsWith('day-');
     const firstOfHome = ch === 'home' && CHAPTERS.find((c) => c.id === 'home')?.levels[0] === level.id; // Home's first picture brings the knots: one new thing at a time
-    if (!(ch === 'home' || daily) || firstOfHome || level.friend || level.mystery || this.coopLink || this.practice || this.settings.hearRows === false || (this.flow?.challenge && !this.flow.daily)) return -1;
+    if (!(ch === 'home' || daily) || firstOfHome || level.friend || level.mystery || level.mend || this.coopLink || this.practice || this.settings.hearRows === false || (this.flow?.challenge && !this.flow.daily)) return -1;
     if (daily && !this.progress.best['house']) return -1; // the first row by ear is House's, where it is explained
     const t = level.target;
     let best = -1;

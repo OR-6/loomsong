@@ -125,6 +125,8 @@ export class LevelFlow {
   private load(level: Level): void {
     this.level = level;
     this.model.reset([...this.level.tieUp]);
+    // a tangled cloth arrives already woven (Pip on the side its last row left him)
+    if (this.level.mend) this.model.syncRows(this.level.mend, (this.level.mend.length % 2) as 0 | 1);
     this.phase = 'play';
     this.lastStars = 0;
     this.hooks.load(this.level, this.index);

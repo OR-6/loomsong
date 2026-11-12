@@ -7,6 +7,7 @@ export default async function run({ page, frame }) {
     c.releaseAll();
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     const lv = g.flow.level;
+    while (g.model.rows.some((r, i) => r !== lv.target[i])) g.model.undo(); // a tangled cloth: unpick to the wrong row first
     const n = lv.tieUp.length;
     const S = 1 << n;
     const shed = (s) => { let m = 0; for (let k = 0; k < n; k++) if (s & (1 << k)) m |= lv.tieUp[k]; return m; };
