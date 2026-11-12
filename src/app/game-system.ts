@@ -154,6 +154,8 @@ export interface GameDebug {
   friend?: string;
   /** The last chapter quilt that sang because it was looked at (debug/E2E). */
   quiltSong?: string;
+  /** The last control pressed by looking at it (debug/E2E). */
+  lookPressed?: string;
   /** Times Pip was stroked (debug/E2E). */
   pipPetted?: number;
   /** Times Pip waved because the player looked at it (debug/E2E). */
@@ -1027,10 +1029,17 @@ export class GameSystem extends createSystem({
   /** The tag's words: levers by number and colour ("Lift lever 1 (red)"); in the tutorial the card hint states the goal once. */
   private hintText(step: HintStep): string {
     if (step === 'card' && this.flow?.tutorial) return 'Weave each row like the card';
+    const look = !!this.settings.lookToPlay;
     if (step === 'lever' || step === 'unlatch') {
       const name = this.leverName(this.hintLever);
+      if (look) return `Look at ${name}`;
       return step === 'lever' ? `Lift ${name}` : `Put ${name} back`;
     }
+    if (look && step === 'shuttle') return 'Look at Pip';
+    if (look && step === 'undo') return 'Look at the spool to undo';
+    if (look && step === 'weft') return 'Look at the yarn balls';
+    if (look && step === 'friendOn') return 'Look at a plush to seat it';
+    if (look && step === 'friendOff') return 'Look at the plush to lift it off';
     return HINT_TEXT[step];
   }
 
@@ -1063,7 +1072,9 @@ export class GameSystem extends createSystem({
       if (busyNow || this.flow.phase !== 'play' || Object.keys(this.progress.placed ?? {}).length > 0) this.carryDemo = 0;
     }
     ghost.show(
-      this.carryDemo > 0 && this.carryGesture
+      this.settings.lookToPlay
+        ? null // no hands to show: the felt dot on what you look at is the guide
+        : this.carryDemo > 0 && this.carryGesture
         ? this.carryGesture
         : this.notice
         ? null
@@ -1767,6 +1778,91 @@ export class GameSystem extends createSystem({
     this.debug.pipPetted = (this.debug.pipPetted ?? 0) + 1;
   }
 
+  /**
+   * Look to play (accessibility): no hands needed. Look at a lever, Pip, the undo spool, the yarn swap
+   * or (with the cushion out) a plush for a moment and it is pressed; a felt dot grows on it as you look.
+   */
+  private lookKey = '';
+  private lookT = 0;
+  /** Pressed and still being looked at: look away before it can be pressed again. */
+  private lookSpent = false;
+  private lookTold = false;
+  private lookO = new Vector3();
+  private lookD = new Vector3();
+  private lookC = new Vector3();
+  private lookP = { x: 0, y: 0, z: 0 };
+  private lookToPlay(dt: number): void {
+    const c = this.controller;
+    if (this.flow.phase !== 'play' || !c.enabled || c.shuttle.held || c.autoThrow) {
+      this.lookT = 0;
+      this.view.setGazeDot(0, 0, 0, 0);
+      return;
+    }
+    // the head's ray, in the loom's space
+    this.player.head.getWorldQuaternion(this.gazeQ);
+    this.lookO.copy(this.head).applyMatrix4(this.inv);
+    this.lookD.set(0, 0, -1).applyQuaternion(this.gazeQ).add(this.head).applyMatrix4(this.inv).sub(this.lookO).normalize();
+    let best = '';
+    let bestCos = 0.9972; // within about 4 degrees
+    let bx = 0;
+    let by = 0;
+    let bz = 0;
+    const consider = (key: string, x: number, y: number, z: number) => {
+      this.lookC.set(x, y, z).sub(this.lookO);
+      const d = this.lookC.length();
+      const cos = d > 0.05 ? this.lookC.dot(this.lookD) / d : 0;
+      if (cos > bestCos) {
+        bestCos = cos;
+        best = key;
+        bx = x;
+        by = y;
+        bz = z;
+      }
+    };
+    for (let k = 0; k < c.activeLevers; k++) {
+      c.leverPos(k, this.lookP);
+      consider(`lever${k}`, this.lookP.x, this.lookP.y, this.lookP.z);
+    }
+    const sx = c.shuttleX();
+    consider('pip', sx, shuttleY(sx), SHUTTLE.z);
+    if (this.model.rows.length) {
+      c.bobbinPos(this.lookP);
+      consider('undo', this.lookP.x, this.lookP.y, this.lookP.z);
+    }
+    if (c.swapSpot) consider('swap', c.swapSpot.x, c.swapSpot.y, c.swapSpot.z);
+    if (this.flow.level.friend) {
+      for (let i = 0; i < SPOTS; i++) {
+        const p = c.plushSpots[i];
+        if (p) consider(`plush${i}`, p.x, p.y, p.z);
+      }
+    }
+    if (best !== this.lookKey) {
+      this.lookKey = best;
+      this.lookT = 0;
+      this.lookSpent = false;
+    }
+    if (!best || this.lookSpent) {
+      this.view.setGazeDot(0, 0, 0, 0);
+      return;
+    }
+    if (!this.lookTold) {
+      this.lookTold = true;
+      this.showNotice('Look to play: look at a lever or Pip for a moment to press it', 6, 'centre');
+    }
+    this.lookT += dt;
+    const DWELL = 1.1;
+    this.view.setGazeDot(bx, by, bz, Math.max(0, Math.min(1, this.lookT / DWELL)));
+    if (this.lookT < DWELL) return;
+    this.lookSpent = true; // once per look: glance away to press it again
+    audio.tick();
+    if (best.startsWith('lever')) c.toggleLever(Number(best.slice(5)));
+    else if (best === 'pip') c.throwShuttle();
+    else if (best === 'undo') c.doUndo();
+    else if (best === 'swap') c.hooks.swap?.();
+    else if (best.startsWith('plush')) c.hooks.plush?.(Number(best.slice(5)));
+    this.debug.lookPressed = best;
+  }
+
   /** The spot a plush is in now (-1: none). */
   private spotOf(id: string): number {
     for (let i = 0; i < SPOTS; i++) if (this.view.plushes.idAt(i) === id) return i;
@@ -2157,6 +2253,8 @@ export class GameSystem extends createSystem({
     this.gazeQuilts(dt);
     this.gazePip(dt);
     this.strokePip(dt);
+    if (this.settings.lookToPlay) this.lookToPlay(dt);
+    else if (this.view.gazeDot.visible) this.view.gazeDot.visible = false;
     // Pip wakes when a hand comes near the loom's controls (or after a while on its own)
     if (this.view.pipAsleep) {
       this.asleepFor += dt;

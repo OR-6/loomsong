@@ -14,6 +14,8 @@ export interface Settings {
   calibrateNext: boolean;
   /** Set the table afresh on the next XR entry (instead of the loom coming back where it was). */
   placeFresh: boolean;
+  /** Look to play: look at a control for a moment to press it (no hands needed). */
+  lookToPlay?: boolean;
   /** Calm motion; undefined: follow the system's reduced-motion preference. */
   calmMotion?: boolean;
   calibration?: CalResult;
@@ -31,6 +33,7 @@ export function loadSettings(): Settings {
     calibrateNext: s.calibrateNext === true,
     placeFresh: s.placeFresh === true,
     calmMotion: typeof s.calmMotion === 'boolean' ? s.calmMotion : undefined,
+    lookToPlay: s.lookToPlay === true,
     calibration: validCal(s.calibration) ? s.calibration : undefined,
   };
 }

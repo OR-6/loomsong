@@ -1322,6 +1322,23 @@ export class LoomView {
     return this.mood === 'none' && Math.abs(this.shuttleVel) < 0.05 && this.pipGrabT < 0 && this.pipWakeT < 0;
   }
 
+  /** Look to play: a felt dot that grows on the control you're looking at (0: hidden). */
+  readonly gazeDot = (() => {
+    const m = new Mesh(new SphereGeometry(0.009, 14, 10), new MeshStandardMaterial({ color: 0xf2b632, roughness: 1, map: feltTexture(), emissive: 0x6b4a10, depthTest: false, transparent: true }));
+    m.renderOrder = 998;
+    m.visible = false;
+    m.name = 'GazeDot';
+    return m;
+  })();
+  setGazeDot(x: number, y: number, z: number, progress: number): void {
+    const d = this.gazeDot;
+    if (!d.parent) this.root.add(d);
+    d.visible = progress > 0.02;
+    d.position.set(x, y + 0.03, z);
+    d.scale.setScalar(0.35 + 0.65 * progress);
+    (d.material as MeshStandardMaterial).opacity = 0.5 + 0.5 * progress;
+  }
+
   /** Stroked: Pip closes its eyes for a moment, fluffs up and bobs happily. */
   private petT = -1;
   petPip(): void {
