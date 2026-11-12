@@ -181,8 +181,8 @@ export const PICTURES: PictureLevel[] = [
     ],
     "tieUp": [
       24,
+      231,
       102,
-      129,
       36
     ],
     "target": [
@@ -213,7 +213,7 @@ export const PICTURES: PictureLevel[] = [
     "tieUp": [
       195,
       60,
-      66,
+      90,
       24
     ],
     "target": [
@@ -274,9 +274,9 @@ export const PICTURES: PictureLevel[] = [
     ],
     "tieUp": [
       28,
-      127,
-      219,
-      62
+      62,
+      91,
+      195
     ],
     "target": [
       28,
@@ -286,7 +286,7 @@ export const PICTURES: PictureLevel[] = [
       255,
       219
     ],
-    "par": 7,
+    "par": 6,
     "rootMidi": 60
   },
   {
@@ -304,7 +304,7 @@ export const PICTURES: PictureLevel[] = [
       "..###..."
     ],
     "tieUp": [
-      24,
+      28,
       1,
       2,
       4
@@ -336,9 +336,9 @@ export const PICTURES: PictureLevel[] = [
     ],
     "tieUp": [
       224,
+      102,
       60,
-      66,
-      24
+      90
     ],
     "target": [
       224,
@@ -348,7 +348,7 @@ export const PICTURES: PictureLevel[] = [
       126,
       60
     ],
-    "par": 8,
+    "par": 7,
     "rootMidi": 67
   },
   {
@@ -367,9 +367,9 @@ export const PICTURES: PictureLevel[] = [
     ],
     "tieUp": [
       60,
-      129,
-      66,
-      36
+      231,
+      165,
+      66
     ],
     "target": [
       60,
@@ -379,7 +379,7 @@ export const PICTURES: PictureLevel[] = [
       126,
       66
     ],
-    "par": 11,
+    "par": 9,
     "rootMidi": 64
   },
   {
@@ -460,8 +460,9 @@ export const PICTURES: PictureLevel[] = [
     ],
     "tieUp": [
       28,
-      247,
-      190
+      231,
+      182,
+      14
     ],
     "target": [
       284,
@@ -470,7 +471,7 @@ export const PICTURES: PictureLevel[] = [
       446,
       28
     ],
-    "par": 9,
+    "par": 7,
     "rootMidi": 60
   },
   {
@@ -488,10 +489,10 @@ export const PICTURES: PictureLevel[] = [
       "#.#..#.#"
     ],
     "tieUp": [
-      126,
+      124,
       129,
-      36,
-      1
+      6,
+      36
     ],
     "target": [
       165,
@@ -501,7 +502,7 @@ export const PICTURES: PictureLevel[] = [
       165,
       129
     ],
-    "par": 9,
+    "par": 11,
     "rootMidi": 65
   },
   {
@@ -521,8 +522,9 @@ export const PICTURES: PictureLevel[] = [
     ],
     "tieUp": [
       85,
-      90,
-      60
+      102,
+      60,
+      90
     ],
     "target": [
       341,
@@ -551,10 +553,10 @@ export const PICTURES: PictureLevel[] = [
       "~######~"
     ],
     "tieUp": [
-      102,
+      118,
+      24,
       48,
-      8,
-      16
+      8
     ],
     "target": [
       382,
@@ -564,7 +566,7 @@ export const PICTURES: PictureLevel[] = [
       24,
       8
     ],
-    "par": 9,
+    "par": 7,
     "rootMidi": 64
   },
   {
@@ -619,7 +621,7 @@ export const DAILY: PictureLevel[] = [
     "tieUp": [
       231,
       102,
-      36,
+      60,
       24
     ],
     "target": [
@@ -647,8 +649,8 @@ export const DAILY: PictureLevel[] = [
       "..####.."
     ],
     "tieUp": [
-      255,
       118,
+      195,
       60,
       24
     ],
@@ -677,9 +679,9 @@ export const DAILY: PictureLevel[] = [
       "...##..."
     ],
     "tieUp": [
+      195,
+      102,
       60,
-      129,
-      66,
       24
     ],
     "target": [
@@ -690,7 +692,7 @@ export const DAILY: PictureLevel[] = [
       60,
       24
     ],
-    "par": 9,
+    "par": 7,
     "rootMidi": 65
   },
   {
@@ -708,8 +710,8 @@ export const DAILY: PictureLevel[] = [
       ".######."
     ],
     "tieUp": [
-      66,
-      12,
+      102,
+      52,
       48,
       8
     ],
@@ -721,7 +723,7 @@ export const DAILY: PictureLevel[] = [
       8,
       48
     ],
-    "par": 9,
+    "par": 7,
     "rootMidi": 67
   },
   {
@@ -737,9 +739,10 @@ export const DAILY: PictureLevel[] = [
       ".##....."
     ],
     "tieUp": [
-      249,
+      120,
       169,
-      6
+      6,
+      8
     ],
     "target": [
       6,
@@ -765,9 +768,9 @@ export const DAILY: PictureLevel[] = [
       "..##.##."
     ],
     "tieUp": [
-      62,
       108,
-      28,
+      42,
+      12,
       20
     ],
     "target": [
@@ -797,9 +800,9 @@ export const DAILY: PictureLevel[] = [
     ],
     "tieUp": [
       102,
-      60,
-      129,
-      24
+      153,
+      56,
+      12
     ],
     "target": [
       153,
@@ -809,7 +812,7 @@ export const DAILY: PictureLevel[] = [
       60,
       153
     ],
-    "par": 8,
+    "par": 9,
     "rootMidi": 62
   },
   {
@@ -825,10 +828,10 @@ export const DAILY: PictureLevel[] = [
       "########"
     ],
     "tieUp": [
-      63,
+      254,
       195,
-      129,
-      24
+      153,
+      3
     ],
     "target": [
       255,
@@ -836,7 +839,7 @@ export const DAILY: PictureLevel[] = [
       219,
       153
     ],
-    "par": 6,
+    "par": 5,
     "rootMidi": 60
   },
   {
@@ -854,10 +857,10 @@ export const DAILY: PictureLevel[] = [
       "##....##"
     ],
     "tieUp": [
+      231,
+      195,
       102,
-      30,
-      129,
-      66
+      30
     ],
     "target": [
       195,
@@ -867,7 +870,7 @@ export const DAILY: PictureLevel[] = [
       231,
       195
     ],
-    "par": 8,
+    "par": 7,
     "rootMidi": 65
   },
   {
@@ -885,10 +888,10 @@ export const DAILY: PictureLevel[] = [
       "..####.."
     ],
     "tieUp": [
-      66,
+      102,
+      28,
       36,
-      24,
-      8
+      24
     ],
     "target": [
       60,
@@ -918,7 +921,7 @@ export const DAILY: PictureLevel[] = [
     "tieUp": [
       231,
       60,
-      66,
+      90,
       24
     ],
     "target": [
@@ -946,9 +949,9 @@ export const DAILY: PictureLevel[] = [
       ".######."
     ],
     "tieUp": [
-      124,
+      102,
+      90,
       129,
-      66,
       36
     ],
     "target": [
@@ -958,7 +961,7 @@ export const DAILY: PictureLevel[] = [
       165,
       102
     ],
-    "par": 12,
+    "par": 10,
     "rootMidi": 69
   },
   {
@@ -975,10 +978,10 @@ export const DAILY: PictureLevel[] = [
       ".######."
     ],
     "tieUp": [
+      195,
+      102,
       30,
-      129,
-      66,
-      36
+      165
     ],
     "target": [
       126,
@@ -987,7 +990,7 @@ export const DAILY: PictureLevel[] = [
       126,
       195
     ],
-    "par": 12,
+    "par": 11,
     "rootMidi": 62
   },
   {
@@ -1005,10 +1008,10 @@ export const DAILY: PictureLevel[] = [
       ".#.##.#."
     ],
     "tieUp": [
-      66,
+      90,
+      28,
       36,
-      24,
-      16
+      24
     ],
     "target": [
       90,
@@ -1036,8 +1039,8 @@ export const DAILY: PictureLevel[] = [
       ".######."
     ],
     "tieUp": [
-      102,
-      36,
+      118,
+      52,
       24,
       8
     ],
@@ -1098,8 +1101,8 @@ export const DAILY: PictureLevel[] = [
       "..####.."
     ],
     "tieUp": [
-      129,
-      66,
+      90,
+      153,
       36,
       24
     ],
@@ -1129,9 +1132,9 @@ export const DAILY: PictureLevel[] = [
       "...##..."
     ],
     "tieUp": [
-      195,
-      102,
+      231,
       60,
+      66,
       24
     ],
     "target": [
@@ -1160,10 +1163,10 @@ export const DAILY: PictureLevel[] = [
       ".######."
     ],
     "tieUp": [
+      62,
       195,
-      66,
-      36,
-      24
+      90,
+      36
     ],
     "target": [
       126,
@@ -1173,7 +1176,7 @@ export const DAILY: PictureLevel[] = [
       126,
       36
     ],
-    "par": 11,
+    "par": 9,
     "rootMidi": 62
   },
   {
@@ -1191,9 +1194,9 @@ export const DAILY: PictureLevel[] = [
       ".#.#.#.."
     ],
     "tieUp": [
-      126,
-      165,
+      124,
       60,
+      165,
       42
     ],
     "target": [
@@ -1204,7 +1207,7 @@ export const DAILY: PictureLevel[] = [
       126,
       60
     ],
-    "par": 7,
+    "par": 9,
     "rootMidi": 60
   },
   {
@@ -1222,8 +1225,8 @@ export const DAILY: PictureLevel[] = [
       ".##..##."
     ],
     "tieUp": [
+      195,
       102,
-      129,
       66,
       24
     ],

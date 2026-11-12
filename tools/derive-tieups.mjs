@@ -133,12 +133,48 @@ const choicesOf = (rows, tie) => {
 const usedSets = new Set();
 const sig = (tie) => [...tie].sort((a, b) => a - b).join(',');
 
-function partsTieUp(rows) {
+/** Moves a row-by-row player makes (cheapest change for each row from the levers as they are, nothing planned). */
+function greedy(tie, target) {
+  const S = 1 << tie.length;
+  const sh = (s) => tie.reduce((m, t, k) => ((s >> k) & 1 ? m | t : m), 0);
+  let state = 0;
+  let total = 0;
+  for (const row of target) {
+    let best = -1;
+    for (let s = 0; s < S; s++) if (sh(s) === row && (best < 0 || pc(state ^ s) < pc(state ^ best))) best = s;
+    if (best < 0) return Infinity;
+    total += pc(state ^ best);
+    state = best;
+  }
+  return total;
+}
+/** Pairs of levers that share threads (then a row can be made more than one way). */
+function overlaps(tie) {
+  let n = 0;
+  for (let a = 0; a < tie.length; a++) for (let b = a + 1; b < tie.length; b++) if (tie[a] & tie[b]) n++;
+  return n;
+}
+/** Planning: how many moves greedy loses against par (in the order the rows are woven). */
+function planning(tie, rowsInOrder) {
+  const g = greedy(tie, rowsInOrder);
+  return Number.isFinite(g) ? g - par(tie, rowsInOrder) : 0;
+}
+
+function partsTieUp(rows, ordered = rows) {
   const D = [...new Set(rows)];
   const cand = new Set();
   for (let a = 0; a < 8; a++) for (let b = a; b < 8; b++) {
     const run = ((1 << (b - a + 1)) - 1) << a;
     for (const m of [run, run | mirror(run)]) if (D.some((r) => (m & ~r) === 0)) cand.add(m);
+  }
+  if (EXTRA_CANDS) {
+    // the picture's own rows, and the parts two rows share or don't: overlapping levers, rows made more than one way
+    for (const r of D) if (r) cand.add(r);
+    for (const a of D) for (const b of D) {
+      if (a === b) continue;
+      if (a & b) cand.add(a & b);
+      if (a & ~b & 255) cand.add(a & ~b & 255);
+    }
   }
   const C = [...cand];
   let found = null;
@@ -148,7 +184,7 @@ function partsTieUp(rows) {
     const rec = (s) => {
       if (pick.length === L) {
         if (!canMake(D, pick)) return;
-        const score = combosOf(D, pick) * 10 + choicesOf(D, pick) * 6 - pick.reduce((n, m) => n + runs(m), 0) - (usedSets.has(sig(pick)) ? 100 : 0);
+        const score = combosOf(D, pick) * 10 + choicesOf(D, pick) * 6 - pick.reduce((n, m) => n + runs(m), 0) - (usedSets.has(sig(pick)) ? 100 : 0) + PLAN_W * planning(pick, ordered) + OVERLAP_W * overlaps(pick);
         if (score > bestScore) { bestScore = score; best = [...pick]; }
         return;
       }
@@ -157,7 +193,7 @@ function partsTieUp(rows) {
     rec(0);
     if (best) {
       // keep looking up to 4 levers; take the best-scoring set overall
-      const score = (t) => combosOf(D, t) * 10 + choicesOf(D, t) * 6 - (usedSets.has(sig(t)) ? 100 : 0) - t.length * 2;
+      const score = (t) => combosOf(D, t) * 10 + choicesOf(D, t) * 6 - (usedSets.has(sig(t)) ? 100 : 0) - t.length * 2 + PLAN_W * planning(t, ordered) + OVERLAP_W * overlaps(t);
       if (!found || score(best) > score(found)) found = best;
     }
   }
@@ -177,6 +213,9 @@ function par(tie, target) {
 }
 
 const ROOTS = [62, 60, 65, 67, 64, 69];
+let PLAN_W = 0;
+let OVERLAP_W = 0;
+let EXTRA_CANDS = false;
 const out = [];
 let i = 0;
 for (const ch of CHAPTERS) {
@@ -184,7 +223,11 @@ for (const ch of CHAPTERS) {
     const target = p.rows.map(rowVal).reverse(); // weave bottom row first
     const warps = target.map((r) => r & 255);
     const rule = p.rule ?? ch.rule;
-    const tie = p.tie ? [...p.tie] : rule === 'parts' ? partsTieUp(warps) ?? bestTieUp(warps) : bestTieUp(warps);
+    // past Garden: favour lever sets where planning ahead pays (row-by-row play misses par) and levers overlap
+    PLAN_W = ch.id === 'garden' ? 0 : 40;
+    OVERLAP_W = ch.id === 'garden' ? 0 : 4;
+    EXTRA_CANDS = ch.id !== 'garden';
+    const tie = p.tie ? [...p.tie] : rule === 'parts' ? partsTieUp(warps, warps) ?? bestTieUp(warps) : bestTieUp(warps);
     if (tie) usedSets.add(sig(tie));
     if (!tie) { console.error('NOT WEAVABLE:', p.id); process.exitCode = 1; continue; }
     // Order levers so the first row's lever comes first (tutorial clarity).
@@ -195,7 +238,7 @@ for (const ch of CHAPTERS) {
     if (p.friend && !canMake([...new Set(leverRows)].filter((r) => r), tie)) { console.error('FRIEND LEVEL NOT WEAVABLE:', p.id); process.exitCode = 1; }
     const pr = par(tie, leverRows);
     const combos = warps.filter((r) => !tie.includes(r)).length;
-    console.log(`${ch.id.padEnd(7)} ${p.id.padEnd(10)} levers ${tie.length} rows ${target.length} combos ${combos} choices ${choicesOf(warps, tie)} par ${pr}  [${tie.map((m) => m.toString(2).padStart(8, '0').split('').reverse().join('').replace(/0/g, '.').replace(/1/g, '#')).join(' ')}]`);
+    console.log(`${ch.id.padEnd(7)} ${p.id.padEnd(10)} levers ${tie.length} rows ${target.length} combos ${combos} choices ${choicesOf(warps, tie)} par ${pr} greedy ${greedy(tie, leverRows)}  [${tie.map((m) => m.toString(2).padStart(8, '0').split('').reverse().join('').replace(/0/g, '.').replace(/1/g, '#')).join(' ')}]`);
     out.push({ id: p.id, name: p.name, chapter: ch.id, mystery: !!ch.mystery, color: p.color, ...(p.weft ? { weft: p.weft } : {}), ...(p.friend ? { friend: p.friend } : {}), picture: p.rows, tieUp: tie, target, par: pr, rootMidi: ROOTS[i++ % ROOTS.length] });
   }
 }
@@ -203,7 +246,10 @@ const daily = [];
 for (const p of DAILY) {
   const target = p.rows.map(rowVal).reverse();
   const warps = target.map((r) => r & 255);
-  const tie = partsTieUp(warps) ?? bestTieUp(warps);
+  PLAN_W = 40;
+  OVERLAP_W = 4;
+  EXTRA_CANDS = true;
+  const tie = partsTieUp(warps, warps) ?? bestTieUp(warps);
   if (!tie) { console.error('NOT WEAVABLE:', p.id); process.exitCode = 1; continue; }
   usedSets.add(sig(tie));
   tie.sort((a, b) => pc(b) - pc(a));
