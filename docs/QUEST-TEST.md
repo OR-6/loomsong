@@ -37,8 +37,8 @@ The `?debug=1` part shows a small tag behind the picture card with three numbers
    - Send: do you see any white hand outlines (there should be none, only your real hands)? Does anything on the loom, the card or the shelf flicker or vanish for a moment? With `?debug=1`, does the tag behind the card ever end in "err"? (It counts errors; one thrown mid-frame makes everything drawn after it vanish for that frame.)
 14. Poke the wooden name plate in front of the loom, then poke it again. Turn a little or move along the desk and rest your hand flat.
    - Send: did the loom fold away and come back in front of you, with the same picture?
-15. Pick up a controller for a moment.
-   - Send: did a tag ask you to put the controllers down? When you did, did your hands work again?
+15. Pick up the controllers and keep playing with them: the trigger pinches, the tip pokes. (To set the loom down with one, rest it on the table and hold the trigger.)
+   - Send: could you push a lever, slide Pip and carry a plush with the trigger? Did poking with the tip work? When you put them down, did your hands work again?
 
 ## Also send
 

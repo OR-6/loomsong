@@ -35,7 +35,7 @@ export function mountLanding(world: World): void {
             <p class="lede">Push the levers away, slide Pip across, and each row you weave sings. Finish a picture and it comes alive as a little felt toy that stays on your desk.</p>
             <div class="go">
               <button id="enter-xr" class="patch" type="button">Enter mixed reality</button>
-              <p class="note">Sit at a desk with your controllers down and hand tracking on.</p>
+              <p class="note">Sit at a desk with hand tracking on. Prefer controllers? They work too: the trigger pinches.</p>
             </div>
             <div class="nohead" id="xr-unsupported" hidden>
               <i class="tape" aria-hidden="true"></i>

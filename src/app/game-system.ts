@@ -2581,20 +2581,17 @@ export class GameSystem extends createSystem({
     }
     this.debug.controllers = held;
     if (this.placement.phase !== 'placed') {
-      this.hint.set(held ? 'Put the controllers down' : 'Rest your hand here');
+      this.hint.set(held ? 'Rest it on the table, hold the trigger' : 'Rest your hand here');
       return;
     }
-    if (!held) {
-      this.padsNoticeIn = 0;
-      return;
+    // controllers work too (the tip pokes, the trigger pinches): say so once, then leave them be
+    if (held && !this.padsTold) {
+      this.padsTold = true;
+      this.showNotice('Controllers work too: trigger to pinch, tip to poke', 6, 'centre');
     }
-    this.padsNoticeIn -= dt;
-    if (this.padsNoticeIn <= 0) {
-      this.padsNoticeIn = 12;
-      this.showNotice('Put the controllers down: play with your hands', 6, 'centre');
-    }
+    void dt;
   }
-  private padsNoticeIn = 0;
+  private padsTold = false;
 
   private updatePlacement(dt: number) {
     if (FIXED_DESK !== null && Number.isFinite(Number(FIXED_DESK))) {

@@ -32,7 +32,14 @@ export class HandState {
   readonly filter = new OneEuro3(PINCH.oneEuro);
   /** Seconds this hand has been tracked continuously. */
   trackedFor = 0;
+  /** This side is a controller, not a tracked hand (its tip pokes, its trigger pinches). */
+  controller = false;
 }
+
+/** How far ahead of a controller's ray origin its "fingertip" sits (m). */
+const CONTROLLER_TIP = 0.045;
+/** A released trigger reads as a wide-open pinch (beyond the release threshold even at the largest fit). */
+const CONTROLLER_OPEN = 0.09;
 
 export const hands: Record<Side, HandState> = {
   left: new HandState(),
@@ -68,6 +75,7 @@ export class HandTrackerSystem extends createSystem({}) {
   private q = new Quaternion();
   private up = new Vector3();
   private seen: Record<Side, boolean> = { left: false, right: false };
+  private fwd = new Vector3();
   private dropout: Record<Side, number> = { left: 0, right: 0 };
 
   update(delta: number) {
@@ -86,7 +94,9 @@ export class HandTrackerSystem extends createSystem({}) {
 
     if (frame && session && ref && frame.getJointPose) {
       for (const src of session.inputSources) {
-        if (!src.hand || (src.handedness !== 'left' && src.handedness !== 'right')) {
+        if (src.handedness !== 'left' && src.handedness !== 'right') continue;
+        if (!src.hand) {
+          if (src.gamepad) this.readController(src, frame, ref, delta);
           continue;
         }
         const side = src.handedness;
@@ -111,6 +121,7 @@ export class HandTrackerSystem extends createSystem({}) {
         if (!tp || !ip || !wp || !mp) continue;
         this.seen[side] = true;
         const h = hands[side];
+        h.controller = false;
         this.tmpThumb.set(
           tp.transform.position.x,
           tp.transform.position.y,
@@ -160,6 +171,7 @@ export class HandTrackerSystem extends createSystem({}) {
 
     for (const side of ['left', 'right'] as const) {
       const h = hands[side];
+      if (!this.seen[side]) h.controller = false;
       h.pinch.scale = calibration.scale;
       if (this.seen[side]) {
         const wasTracked = h.tracked;
@@ -179,5 +191,39 @@ export class HandTrackerSystem extends createSystem({}) {
         h.edge = h.pinch.update(null, delta);
       }
     }
+  }
+
+  /**
+   * A controller in hand plays like a hand: a point just ahead of it is the fingertip (pokes) and
+   * the pinch point, the trigger closes the "pinch" (through the same hysteresis), and holding the
+   * trigger with it resting on the desk counts as a flat palm (to set the loom down).
+   */
+  private readController(src: XRInputSource, frame: XRFrame, ref: XRReferenceSpace, delta: number) {
+    const side = src.handedness as Side;
+    if (this.seen[side]) return; // a tracked hand on that side wins
+    const rp = frame.getPose(src.targetRaySpace, ref);
+    if (!rp || !src.gamepad) return;
+    this.seen[side] = true;
+    const h = hands[side];
+    h.controller = true;
+    const p = rp.transform.position;
+    const o = rp.transform.orientation;
+    this.q.set(o.x, o.y, o.z, o.w);
+    this.fwd.set(0, 0, -1).applyQuaternion(this.q);
+    this.tmpIndex.set(p.x, p.y, p.z).addScaledVector(this.fwd, CONTROLLER_TIP);
+    const trigger = src.gamepad.buttons[0]?.value ?? 0;
+    h.pinchDist = CONTROLLER_OPEN - (CONTROLLER_OPEN - 0.004) * trigger;
+    h.rawPinch.copy(this.tmpIndex);
+    this.prevIndex.copy(h.indexTip);
+    h.indexTip.copy(this.tmpIndex);
+    if (h.tracked && delta > 0) {
+      this.rawVel.subVectors(h.indexTip, this.prevIndex).divideScalar(delta);
+      h.indexVel.lerp(this.rawVel, 0.35);
+    } else {
+      h.indexVel.set(0, 0, 0);
+    }
+    h.palm.copy(this.tmpIndex);
+    h.palmRadius = 0.004;
+    h.upDot = trigger > 0.6 ? 1 : 0;
   }
 }
