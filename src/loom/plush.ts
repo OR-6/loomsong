@@ -430,6 +430,10 @@ export class Plushes {
   private hero: Group | null = null;
   private heroSlot = -1;
   private heroId = '';
+  /** 0 bounce, 1 twirl, 2 sway, 3 hop with a somersault. */
+  private danceStyle = 0;
+  private danceYaw = 0;
+  private danceX = 0;
   private heroColor = 0;
   private phase: ShowPhase = 'none';
   private t = 0;
@@ -1083,6 +1087,12 @@ export class Plushes {
         this.phase = 'dance';
         this.t = 0;
         this.bounce = 0;
+        // each plush has its own dance (the same one every time: its character), the bounce with calm motion
+        let hsh = 0;
+        for (let i = 0; i < this.heroId.length; i++) hsh = (hsh * 31 + this.heroId.charCodeAt(i)) >>> 0;
+        this.danceStyle = motion.calm ? 0 : hsh % 4;
+        this.danceYaw = h.rotation.y;
+        this.danceX = h.position.x;
         this.onLand?.(h.position);
       }
     } else if (this.phase === 'dance') {
@@ -1093,6 +1103,25 @@ export class Plushes {
       const land = this.bounce > 0.85 ? (this.bounce - 0.85) / 0.15 : 0;
       h.scale.set(PLUSH.hero * (1 + 0.08 * land), PLUSH.hero * (1 - 0.12 * land + 0.05 * b), PLUSH.hero);
       h.rotation.z += (this.tilt * 0.14 - h.rotation.z) * Math.min(1, dt * 10);
+      const dk = Math.min(1, this.t / PLUSH.minDance);
+      if (this.danceStyle === 1) {
+        // a slow twirl, all the way round, back to facing you
+        h.rotation.y = this.danceYaw + Math.PI * 2 * ease(dk);
+      } else if (this.danceStyle === 2) {
+        // side to side, leaning into each step
+        const sw = Math.sin(this.t * 5.2);
+        h.position.x = this.danceX + 0.014 * sw;
+        h.rotation.z = 0.22 * sw;
+      } else if (this.danceStyle === 3) {
+        // halfway through: a big hop with a forward somersault
+        const fk = Math.min(1, Math.max(0, (this.t - 0.7) / 0.6));
+        if (fk > 0 && fk < 1) {
+          h.position.y += 0.035 * Math.sin(Math.PI * fk);
+          h.rotation.x = -0.3 - Math.PI * 2 * ease(fk);
+        } else if (h.rotation.x < -Math.PI) {
+          h.rotation.x += Math.PI * 2; // the same angle: no unwinding after the somersault
+        }
+      }
       if (this.finishPending && this.t >= PLUSH.minDance) {
         this.finishPending = false;
         this.phase = 'bow';
@@ -1101,6 +1130,10 @@ export class Plushes {
     } else if (this.phase === 'bow') {
       // a little bow to the player: lean in, squash, back up
       const k = Math.min(1, this.t / 0.8);
+      if (k < 0.05) {
+        h.position.x = this.danceX;
+        h.rotation.y = this.danceYaw;
+      }
       const b = Math.sin(Math.PI * k);
       h.rotation.x = -0.3 + 0.8 * b;
       h.rotation.z *= 0.85;
