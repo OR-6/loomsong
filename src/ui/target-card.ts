@@ -84,6 +84,17 @@ export class TargetCard {
     if (this.last) this.draw(...this.last);
   }
 
+  /** The rows as woven (the card marks a wrong row's squares against them). */
+  woven: readonly number[] = [];
+  /** A wrong row the loom just unpicked: its marks stay on that row until you touch a lever. */
+  lastMiss: { r: number; woven: number } | null = null;
+  /** Forget the last wrong row's marks (a lever moved). */
+  clearMiss(): void {
+    if (!this.lastMiss) return;
+    this.lastMiss = null;
+    if (this.last) this.draw(...this.last);
+  }
+
   draw(
     title: string,
     target: readonly Mask8[],
@@ -259,18 +270,35 @@ export class TargetCard {
       }
       const cy = px(y + cell / 2);
       if (st === 'match') drawTick(g, px(gridX + WARPS * cell + markW / 2), cy, px(0.0075));
-      if (st === 'miss') {
-        drawCross(g, px(gridX + WARPS * cell + markW / 2), cy, px(0.007));
-        // hatch the row so a miss reads without colour
+      const lastMiss = st === 'todo' && this.lastMiss && this.lastMiss.r === r ? this.lastMiss.woven : undefined;
+      if (st === 'miss' || lastMiss !== undefined) {
+        if (st === 'miss') drawCross(g, px(gridX + WARPS * cell + markW / 2), cy, px(0.007));
+        // say exactly what was wrong, square by square (by shape, not only colour): a ring round a
+        // square that needed its thread lifted, a cross on one that got a thread it shouldn't have
+        const woven = st === 'miss' ? this.woven[r] : lastMiss;
         g.save();
-        g.strokeStyle = 'rgba(30,20,10,0.85)';
-        g.lineWidth = px(0.0006);
-        g.beginPath();
-        for (let x = 0; x < WARPS * cell; x += 0.003) {
-          g.moveTo(px(gridX + x), px(y + cell));
-          g.lineTo(px(gridX + x + cell * 0.6), px(y));
+        g.lineWidth = px(0.0011);
+        g.lineCap = 'round';
+        for (let i = 0; i < WARPS; i++) {
+          const need = isLifted(row, i);
+          const got = woven !== undefined && isLifted(woven, i);
+          if (need === got) continue;
+          const cx = px(gridX + i * cell + cell / 2);
+          g.strokeStyle = highContrast ? '#ff2a00' : '#d23a22';
+          if (need) {
+            g.beginPath();
+            g.arc(cx, cy, px(cell * 0.46), 0, Math.PI * 2);
+            g.stroke();
+          } else {
+            const d = px(cell * 0.28);
+            g.beginPath();
+            g.moveTo(cx - d, cy - d);
+            g.lineTo(cx + d, cy + d);
+            g.moveTo(cx + d, cy - d);
+            g.lineTo(cx - d, cy + d);
+            g.stroke();
+          }
         }
-        g.stroke();
         g.restore();
       }
       if (r === nextRow && stars === 0) drawPin(g, px(pad + markW / 2), cy, px(0.0075));

@@ -366,6 +366,7 @@ export class GameSystem extends createSystem({
         this.debug.strums = (this.debug.strums ?? 0) + 1;
       },
       leverClick: (k, latched) => {
+        this.view.card.clearMiss(); // you're fixing it: the last wrong row's marks go
         if (this.quietLevers) return;
         audio.click(latched);
         this.view.latchPop(k, latched);
@@ -540,6 +541,7 @@ export class GameSystem extends createSystem({
         // a wrong row unweaves itself after Pip's droop, in the tutorial too (on a headset, a first
         // player spent 20 s fighting the spool after one wrong row): the spool is there to go back further
         this.autoUndoRow = !good ? e.index : -1;
+        this.view.card.lastMiss = good ? null : { r: e.index, woven: e.row };
         this.autoUndoAt = this.time + 2.2; // long enough to see which squares were wrong
         audio.chirp(good ? 'happy' : 'sad');
         audio.verdict(good);
@@ -573,6 +575,7 @@ export class GameSystem extends createSystem({
         this.view.card.weft = level.weft ?? null;
         this.view.setWeftColor(level.weft ?? null);
         this.view.card.setPicture(level.color ?? null, level.par);
+        this.view.card.lastMiss = null;
         // a picture you haven't woven yet keeps its name until it comes alive: "?" on the plate, the name on the win
         this.nameHidden = !!level.chapter && level.id !== 'thanks' && !((this.progress.best[level.id] ?? 0) > 0);
         const plate = this.nameHidden ? surprisePlate(level.chapter, level.id) : level.name;
@@ -610,6 +613,7 @@ export class GameSystem extends createSystem({
       },
       status: (level, statuses, stars) => {
         // the loom's own thank-you isn't scored
+        this.view.card.woven = this.model.rows;
         this.view.card.draw(level.name, level.target, statuses, level.id === 'thanks' ? 0 : stars, this.settings.highContrast);
         this.view.placeCard();
       },
