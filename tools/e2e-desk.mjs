@@ -32,8 +32,12 @@ check('the loom is not a place for it', w.lastDrop === 'back' && w.ids[d] === id
 // a reload keeps it on the desk
 await freshSession({ clear: false });
 await setTable();
-await wait(600);
+// the shelf and desk are rebuilt with the first picture: wait for them rather than a fixed time
 w = run('tools/desk-where.mjs');
+for (let i = 0; i < 20 && !w.ids.some(Boolean); i++) {
+  await wait(300);
+  w = run('tools/desk-where.mjs');
+}
 check('after a reload it is still on the desk', w.ids.includes(id) && w.ids.indexOf(id) >= 5, JSON.stringify(w.ids));
 
 // the wind-up key plays it with the shelf

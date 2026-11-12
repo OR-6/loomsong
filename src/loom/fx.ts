@@ -141,7 +141,9 @@ export class Fx {
       this.root.add(m);
     }
     for (let i = 0; i < PUFFS; i++) this.hide(this.puffs, i);
-    for (let i = 0; i < BITS; i++) this.hide(this.bitMeshes[i % 3], Math.floor(i / 3));
+    // every instance of every piece mesh starts hidden (170 pieces over three meshes of 57: the last mesh's
+    // spare instance used to keep its identity matrix and sat as a white felt heart in the middle of the loom)
+    for (const m of this.bitMeshes) for (let i = 0; i < m.count; i++) this.hide(m, i);
     const ringGeo = new RingGeometry(0.8, 1, 32);
     ringGeo.rotateX(-Math.PI / 2);
     for (let i = 0; i < RINGS; i++) {

@@ -13,10 +13,12 @@ export default async function run({ page, frame }) {
     if (action === 'seed') {
       for (let w = 0; w < 100 && g.flow.phase !== 'play'; w++) await sleep(100);
       g.controller.releaseAll();
-      const lantern = (window.__friendLevel ?? '') === 'lantern';
-      for (const id of ['sprout', 'tulip', 'duck', ...(lantern ? ['table', 'cup', 'heart', 'house', 'star', 'moon', 'ghost', 'owl', 'cat'] : [])]) g.progress.best[id] = 2;
+      const lv = window.__friendLevel ?? 'table';
+      const before = { table: ['sprout', 'tulip', 'duck'], lantern: ['sprout', 'tulip', 'duck', 'table', 'cup', 'heart', 'house', 'star', 'moon', 'ghost', 'owl', 'cat'],
+        jellyfish: ['sprout', 'tulip', 'duck', 'table', 'cup', 'heart', 'house', 'star', 'moon', 'ghost', 'owl', 'cat', 'lantern', 'fish', 'crab', 'octopus', 'boat'] }[lv];
+      for (const id of before) g.progress.best[id] = 2;
       g.progress.tutorialDone = true;
-      g.flow.start(lantern ? 12 : 3); // the Lantern (Night), or the Table (Garden's fourth)
+      g.flow.start({ table: 3, lantern: 12, jellyfish: 17 }[lv]); // Garden's, Night's and the Sea's friend pictures
       await sleep(700);
     }
     if (action === 'row') {

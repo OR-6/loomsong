@@ -6,6 +6,8 @@ import { mkdirSync } from 'node:fs';
 import { cli, run, xr, wait, freshSession, setTable, HAND } from './e2e-lib.mjs';
 
 const OUT = process.argv[2] ?? 'public/site';
+/** The Devpost gallery (3:2), kept out of the site. */
+const GALLERY = process.env.GALLERY ?? 'artifacts/gallery';
 const TMP = `${OUT}/.raw`;
 mkdirSync(TMP, { recursive: true });
 let O = null;
@@ -32,6 +34,11 @@ const shoot = async (name, p, t, fov, settle = 700) => {
   cli('browser', 'screenshot', '--output-file', `${TMP}/${name}.png`);
   console.log('shot', name);
 };
+/** A 3:2 gallery still (1500x1000) from a raw frame: the middle 1080x720. */
+const gallery = (name, out) => {
+  mkdirSync(GALLERY, { recursive: true });
+  execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-i', `${TMP}/${name}.png`, '-vf', 'crop=1080:720:100:0,scale=1500:1000:flags=lanczos', '-q:v', '2', `${GALLERY}/${out}`]);
+};
 /** Crop the middle `cw`x`ch` of a raw frame and scale to `w`x`h` as a JPEG. */
 const save = (name, out, w, h, cw = 1280, ch = 720, dy = 0) => {
   const x = Math.round((1280 - cw) / 2);
@@ -50,6 +57,7 @@ evalJs(`const g = window.__loom.game; const c = g.controller; const sleep = (ms)
 await shoot('levers', [0.3, 0.33, 0.33], [0.11, 0.03, -0.01], 50, 300);
 evalJs(`const g = window.__loom.game; g.tutor.mesh.visible = true; return 1;`);
 save('levers', 'levers-close.jpg', 800, 600, 960, 720);
+gallery('levers', '03-levers.jpg');
 
 // 2. the ghost hand shows how to pinch Pip (the shuttle step)
 // Pip follows the ghost hand's demo slide for a moment (capture only), so the hand pinches Pip mid-slide;
@@ -67,12 +75,14 @@ await wait(1500);
 hands();
 await shoot('hero', [0.14, 0.3, 0.56], [0.03, 0.02, 0.06], 56, 1200);
 save('hero', 'hero-34.jpg', 1100, 618);
+gallery('hero', '01-loom-on-your-desk.jpg');
 save('hero', 'og.jpg', 1200, 630, 1280, 672);
 save('hero', 'loom-clip-poster.jpg', 960, 540);
 
 // 4. the shelf and the desk: plushes where you put them, the present beside the basket
 await shoot('shelf', [-0.12, 0.22, 0.44], [-0.27, 0.03, 0.1], 52);
 save('shelf', 'shelf.jpg', 800, 500, 1152, 720);
+gallery('shelf', '05-shelf-and-desk.jpg');
 
 // 5. the Duck comes alive and dances
 evalJs(`const g = window.__loom.game; g.controller.releaseAll(); g.flow.start(2); await new Promise((r) => setTimeout(r, 600)); return 1;`);
@@ -80,6 +90,7 @@ run('tools/solve-nowait.mjs');
 await wait(2600);
 await shoot('dance', [0, 0.26, 0.56], [0, 0.1, 0.1], 52, 200);
 save('dance', 'plush-dance.jpg', 800, 600, 960, 720);
+gallery('dance', '02-picture-comes-alive.jpg');
 await wait(9000);
 
 // 6. Sea: a boat on two colours of yarn
@@ -89,6 +100,7 @@ evalJs(`const g = window.__loom.game; const lv = g.flow.level; const c = g.contr
 hands();
 await shoot('sea', [0.02, 0.32, 0.34], [0, 0.04, -0.04], 52);
 save('sea', 'sea-boat.jpg', 800, 500, 1152, 720);
+gallery('sea', '07-sea-two-colours.jpg');
 
 // 7. your plushes help: the Sprout on the felt cushion lifts the middle threads for the Table
 const F = (action) => JSON.parse(execFileSync('npx', ['@iwsdk/cli', 'browser', 'run', 'tools/friend-state.mjs'], { encoding: 'utf8', env: { ...process.env, FRIEND_ACTION: action, FRIEND_LEVEL: 'table', FRIEND_ID: 'sprout' } })).data.result;
@@ -101,6 +113,15 @@ hands();
 await wait(600);
 await shoot('friend', [0.1, 0.26, 0.5], [0.06, 0.03, 0.06], 50);
 save('friend', 'plush-friend.jpg', 800, 500, 1152, 720);
+gallery('friend', '04-plushes-help.jpg');
+// 8. the picture card up close: hand-stamped squares, the move knots as yarn bows
+await shoot('card', [0.0, 0.2, 0.2], [0.0, 0.15, -0.23], 34);
+gallery('card', '06-picture-card.jpg');
+// 9. call a friend: the toy telephone with its code (the line shown as open, for the photo)
+evalJs(`const g = window.__loom.game; g.view.phone.setState('calling', 'KDXW'); return 1;`);
+await shoot('phone', [0.2, 0.2, 0.42], [0.33, 0.02, 0.17], 40);
+gallery('phone', '08-call-a-friend.jpg');
+evalJs(`const g = window.__loom.game; g.view.phone.setState('idle'); return 1;`);
 
 xr('set-device-state', { state: { fov: 90 } });
 process.env.PHOTO = '0';

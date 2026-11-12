@@ -440,27 +440,39 @@ export function drawArrow(g: CanvasRenderingContext2D, x: number, y: number, s: 
 
 function drawKnot(g: CanvasRenderingContext2D, x: number, y: number, r: number, color: string, spent: boolean, hc: boolean) {
   g.save();
-  g.beginPath();
-  g.arc(x, y, r, 0, Math.PI * 2);
-  g.lineWidth = r * (hc ? 0.5 : 0.35);
-  g.strokeStyle = '#3b2a20';
+  g.lineCap = 'round';
+  g.lineJoin = 'round';
   if (!spent) {
-    g.fillStyle = color;
-    g.fill();
-    // a little twist line so it reads as yarn, not a dot
-    g.stroke();
+    // a little bow of yarn: two loops, the knot, two tails; each lever move unties one
+    const yarn = (w: number, c: string) => {
+      g.lineWidth = w;
+      g.strokeStyle = c;
+      g.beginPath();
+      g.ellipse(x - r * 0.55, y - r * 0.12, r * 0.55, r * 0.36, -0.35, 0, Math.PI * 2);
+      g.moveTo(x + r * 1.1, y - r * 0.12);
+      g.ellipse(x + r * 0.55, y - r * 0.12, r * 0.55, r * 0.36, 0.35, 0, Math.PI * 2);
+      g.moveTo(x - r * 0.08, y + r * 0.1);
+      g.quadraticCurveTo(x - r * 0.35, y + r * 0.55, x - r * 0.62, y + r * 0.95);
+      g.moveTo(x + r * 0.08, y + r * 0.1);
+      g.quadraticCurveTo(x + r * 0.35, y + r * 0.55, x + r * 0.62, y + r * 0.95);
+      g.stroke();
+    };
+    yarn(r * (hc ? 0.62 : 0.5), '#3b2a20'); // an ink edge
+    yarn(r * (hc ? 0.4 : 0.32), hc ? '#000000' : color);
+    g.fillStyle = hc ? '#000000' : color;
+    g.strokeStyle = '#3b2a20';
+    g.lineWidth = r * 0.12;
     g.beginPath();
-    g.moveTo(x - r * 0.6, y + r * 0.4);
-    g.quadraticCurveTo(x, y - r * 0.5, x + r * 0.6, y + r * 0.4);
-    g.strokeStyle = 'rgba(255,255,255,0.7)';
-    g.lineWidth = r * 0.25;
+    g.arc(x, y - r * 0.05, r * 0.24, 0, Math.PI * 2);
+    g.fill();
     g.stroke();
   } else {
-    // spent: an empty, solid pale slot (not a dashed outline that reads as overlap)
-    g.fillStyle = '#e4dccb';
-    g.fill();
-    g.lineWidth = r * 0.18;
-    g.strokeStyle = 'rgba(59,42,32,0.35)';
+    // untied: a loose strand lying where the bow was
+    g.lineWidth = r * 0.26;
+    g.strokeStyle = 'rgba(59,42,32,0.3)';
+    g.beginPath();
+    g.moveTo(x - r * 0.95, y + r * 0.2);
+    g.bezierCurveTo(x - r * 0.4, y - r * 0.5, x + r * 0.1, y + r * 0.6, x + r * 0.95, y - r * 0.1);
     g.stroke();
   }
   g.restore();

@@ -38,6 +38,9 @@ const CHAPTERS = [
     { id: 'crab', name: 'Crab', color: 0xd85a30, rows: ['#......#', '#.#..#.#', '.######.', '########', '.######.', '#.#..#.#'] },
     { id: 'octopus', name: 'Octopus', color: 0xd4537e, weft: 0x6cc0f0, rows: ['~~####~~', '~######~', '~#~##~#~', '~######~', '#~#~#~#~', '#~#~#~#~'] },
     { id: 'boat', name: 'Boat', color: 0xe2563b, weft: 0x6cc0f0, rows: ['...#....', '...##...', '...###..', '...#....', '~######~', '~######~'] },
+    // the Sea's friend picture: only the Crab's feet reach the outermost threads, so its rim and frills need the
+    // Crab on the cushion (the Fish, Octopus and Boat feet don't fit); the dome and tentacles need it off
+    { id: 'jellyfish', name: 'Jellyfish', color: 0xc77dd6, rows: ['..####..', '.######.', '########', '#.#..#.#', '.#.##.#.', '..#..#..'], tie: [0b00100100, 0b00011000, 0b01000010], friend: 0b10100101 },
   ] },
 ];
 
@@ -63,7 +66,7 @@ const DAILY = [
   { id: 'anchor', name: 'Anchor', color: 0x3d5a80, rows: ['...##...', '..#..#..', '...##...', '#..##..#', '.#.##.#.', '..####..'] },
   { id: 'acorn', name: 'Acorn', color: 0xa86a32, rows: ['...##...', '.######.', '########', '.######.', '..####..', '...##...'] },
   { id: 'ladybug', name: 'Ladybug', color: 0xc7303a, rows: ['..#..#..', '.######.', '##.##.##', '########', '##.##.##', '.######.'] },
-  { id: 'jelly', name: 'Jellyfish', color: 0xc77dd6, rows: ['..####..', '.######.', '########', '#.#..#.#', '#.#..#.#', '.#.#.#..'] },
+  { id: 'jelly', name: 'Squid', color: 0xc77dd6, rows: ['..####..', '.######.', '########', '#.#..#.#', '#.#..#.#', '.#.#.#..'] },
   { id: 'robot', name: 'Robot', color: 0x2a9d8f, rows: ['...##...', '.######.', '.#.##.#.', '.######.', '########', '.##..##.'] },
 ];
 

@@ -48,4 +48,20 @@ for (let r = 0; r < 6 && s.phase === 'play'; r++) {
   s = F('row', 'lantern', 'owl');
 }
 check('on and off the cushion, the Lantern weaves right', !s.statuses.includes('x') && s.phase !== 'play', `${s.statuses} ${s.phase}`);
+// the Jellyfish (Sea): only the Crab's feet reach the outermost threads
+s = F('seed', 'jellyfish', 'octopus');
+check('the Jellyfish is up with a cushion', s.level === 'jellyfish' && s.cushion === true, JSON.stringify(s));
+for (let r = 0; r < 2 && s.hint !== 'friendOn'; r++) s = F('row', 'jellyfish');
+check('its frills ask for a friend', s.hint === 'friendOn', JSON.stringify(s));
+s = F('poke', 'jellyfish', 'octopus');
+check("the Octopus's feet don't reach: try other feet", s.friend === 'octopus' && s.hint === 'friendSwap', JSON.stringify(s));
+F('poke', 'jellyfish', 'octopus');
+s = F('poke', 'jellyfish', 'crab');
+check('the Crab fits', s.friend === 'crab' && s.hint !== 'friendSwap', JSON.stringify(s));
+for (let r = 0; r < 6 && s.phase === 'play'; r++) {
+  s = F('state', 'jellyfish', 'crab');
+  if (s.hint === 'friendOff' || s.hint === 'friendOn') F('poke', 'jellyfish', 'crab');
+  s = F('row', 'jellyfish', 'crab');
+}
+check('the Jellyfish weaves right with the Crab on and off', !s.statuses.includes('x') && s.phase !== 'play', `${s.statuses} ${s.phase}`);
 done('friend');

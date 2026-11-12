@@ -1639,7 +1639,7 @@ export class GameSystem extends createSystem({
     this.view.daily.hover(isKind(c.hover.left, 'daily') || isKind(c.hover.right, 'daily'));
     // the toy telephone: once the first picture is done (never in the first minutes), not during the finale
     const ph = this.view.phone;
-    ph.root.visible = this.progress.tutorialDone && !this.grand && !this.photoMode;
+    ph.root.visible = this.progress.tutorialDone && !this.grand;
     this.phoneVec.set(this.controller.bankSide * TOY_PHONE.x, TOY_PHONE.y, TOY_PHONE.z);
     c.phoneSpot = ph.root.visible && this.flow?.phase === 'play' && !this.flow.challenge ? this.phoneVec : null;
     ph.hover(isKind(c.hover.left, 'phone') || isKind(c.hover.right, 'phone'));

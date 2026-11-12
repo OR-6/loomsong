@@ -84,18 +84,39 @@ export function buildQuilt(title: string, panels: readonly QuiltPanel[], font = 
         }
       }
     } else if (k > panels.length) {
-      // a spare patch: a plain square with a quilted diamond
-      x.strokeStyle = 'rgba(70,45,25,0.45)';
-      x.lineWidth = 3;
-      x.setLineDash([9, 6]);
+      // a spare patch: Pip, the loom's bird, appliquéd in felt (the quilter's mark)
+      const cx = px + patchW / 2;
+      const cy = py + patchH / 2 + patchH * 0.06;
+      const u = Math.min(patchW, patchH) / 100;
+      x.lineWidth = 2.5;
+      x.setLineDash([6, 5]);
+      x.strokeStyle = 'rgba(70,45,25,0.55)';
+      x.fillStyle = '#f7c948';
       x.beginPath();
-      x.moveTo(px + patchW / 2, py + 24);
-      x.lineTo(px + patchW - 24, py + patchH / 2);
-      x.lineTo(px + patchW / 2, py + patchH - 24);
-      x.lineTo(px + 24, py + patchH / 2);
-      x.closePath();
+      x.ellipse(cx - 6 * u, cy + 6 * u, 26 * u, 19 * u, 0, 0, Math.PI * 2); // body
+      x.fill();
+      x.stroke();
+      x.beginPath();
+      x.arc(cx + 14 * u, cy - 12 * u, 15 * u, 0, Math.PI * 2); // head
+      x.fill();
+      x.stroke();
+      x.fillStyle = '#f2a83a';
+      x.beginPath();
+      x.ellipse(cx - 12 * u, cy + 6 * u, 13 * u, 8 * u, -0.3, 0, Math.PI * 2); // wing
+      x.fill();
       x.stroke();
       x.setLineDash([]);
+      x.fillStyle = '#f08a3c';
+      x.beginPath();
+      x.moveTo(cx + 27 * u, cy - 15 * u);
+      x.lineTo(cx + 38 * u, cy - 11 * u);
+      x.lineTo(cx + 27 * u, cy - 7 * u);
+      x.closePath();
+      x.fill(); // beak
+      x.fillStyle = '#2b2320';
+      x.beginPath();
+      x.arc(cx + 18 * u, cy - 15 * u, 2.6 * u, 0, Math.PI * 2);
+      x.fill(); // a button eye
     } else {
       // the name patch: big embroidered letters with a stitched outline
       const size = Math.min(patchH * 0.42, (patchW * 1.6) / Math.max(4, title.length));

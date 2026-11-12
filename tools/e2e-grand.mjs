@@ -46,5 +46,5 @@ s = await until((x) => x.grand === 'medley sea', 40);
 check('chapter by chapter, up to the Sea', s.grand === 'medley sea', JSON.stringify(s));
 s = await until((x) => x.grand === 'done', 60);
 check('then play goes on with the next pattern, hands back', s.grand === 'done' && !s.challenge && s.phase === 'play' && s.allow.levers === true, JSON.stringify(s));
-check('the shelf stays up after the end (the last chapter)', s.shelf === 'Sea 4/4', s.shelf);
+check('the shelf stays up after the end (the last chapter)', s.shelf === 'Sea 5/5', s.shelf);
 done('grand finale');
