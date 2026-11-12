@@ -94,7 +94,7 @@ export function mountCaller(link: Transport, code: string, onLeave: () => void):
       </svg>
       <h1>You're the caller</h1>
     </header>
-    <p class="lead">Only you can see the picture. Read the yellow row to your weaver, and tap a square to put a pin on their loom. You'll hear each row as it's woven.</p>
+    <p class="lead">Only you can see the picture. Describe the yellow row to your weaver. Tap up to two squares a row to pin them on their loom; the rest you say. You'll hear each row as it's woven.</p>
     <div class="cardwrap"></div>
     <div class="tools">
       <button type="button" class="patch ring">Ring Pip</button>
@@ -229,7 +229,7 @@ export function mountCaller(link: Transport, code: string, onLeave: () => void):
       card.paper = lv.chapter === 'night' ? '#b9beea' : null;
       card.sparkles = lv.chapter === 'night';
       card.weft = lv.weft ?? null;
-      card.setPicture(lv.color ?? null, lv.par);
+      card.setPicture(lv.color ?? null, lv.chapter === 'garden' ? 0 : lv.par); // as in the headset: Garden's card counts no knots
     }
     // the headset takes pins out once their row is woven: so does the phone, and it plays the new row
     if (s.r.length !== rowsDone) {
