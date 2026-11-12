@@ -32,7 +32,7 @@ import { Label } from '../ui/label.js';
 import { audio } from '../audio/synth.js';
 import { keyFor } from '../audio/soundtrack.js';
 import { LevelFlow, TIMING, type HintStep } from './level-flow.js';
-import { CHAPTERS, DAILY_LEVELS, LEVELS, THANKS_LEVEL, VISITOR_LIKES, chapterStates, dailyLevel, dayKey, hiddenLeverDay, levelAt, mendDay, mendLevel, pictureById, visitorFor } from '../puzzle/catalog.js';
+import { CHAPTERS, DAILY_LEVELS, LEVELS, THANKS_LEVEL, VISITOR_LIKES, chapterStates, dailyLevel, dayKey, dayKind, levelAt, withTwist, pictureById, visitorFor } from '../puzzle/catalog.js';
 import { computePar } from '../puzzle/par.js';
 import type { Level } from '../puzzle/levels.js';
 import { PLUSH, ROW_BEAT, SPOTS, type DeskItem, type ShelfItem } from '../loom/plush.js';
@@ -86,7 +86,7 @@ const FILM = ((s: string | null) => (s ? (START_ALIASES[s] ?? s) : null))(params
 const KNOB_NAMES: Record<number, string> = { 0xe8553e: 'red', 0x1fb3a0: 'teal', 0xf2b632: 'yellow', 0x7b5bb8: 'purple' };
 
 /** Seconds either side of a music beat that count as "on the beat". */
-const BEAT_WINDOW = 0.12;
+const BEAT_WINDOW = 0.15; // a little forgiving: a bow rides on it
 
 /**
  * A picture's plate before it comes alive: where you are ("Garden · 2 of 4"), not its name (that's the
@@ -190,6 +190,8 @@ export interface GameDebug {
   coop: string;
   /** The ghost hand showed carrying a plush to the desk (debug/E2E). */
   carryDemo?: boolean;
+  winSkips?: number;
+  weaveAgain?: string;
   /** Plushes that said hello to a neighbour set down beside them (debug/E2E). */
   hello?: number;
   /** Wrong rows the loom unpicked by itself (debug/E2E). */
@@ -259,7 +261,7 @@ export class GameSystem extends createSystem({
   hideHints = false;
   private hintsHidden = false;
   /** The wall the quilts hang on this session: a point straight ahead at the hanging height, its normal and its along-wall direction. */
-  private wall: { at: Vector3; n: Vector3; t: Vector3; size: number } | null = null;
+  private wall: { at: Vector3; n: Vector3; t: Vector3; size: number; inside: (p: Vector3) => boolean } | null = null;
   private wallSearchIn = 0;
   /** A just-finished chapter's quilt flies from the shelf to the wall once its finale has played. */
   private quiltFly: { id: string; t: number; from: Vector3; to: Vector3; q0: Quaternion; q1: Quaternion; g: Group } | null = null;
@@ -438,7 +440,7 @@ export class GameSystem extends createSystem({
       nudge: (dir) => this.nudgeDesk(dir),
       plush: (i) => {
         // with the cushion out a poke seats a plush (or sends the seated one home): no carrying needed
-        if (this.flow.level?.friend && this.flow.phase === 'play') {
+        if (this.cushionOut(this.flow.level) && this.flow.phase === 'play') {
           const id = this.view.plushes.idAt(i);
           if (i === this.seated) this.sendFriendHome();
           else if (id) {
@@ -460,6 +462,20 @@ export class GameSystem extends createSystem({
           this.deskArmedUntil = this.time + 6;
           this.showNotice('Look again to set it on your desk', 3, 'centre');
         }
+        // poked again while it sings: weave that picture again (for its gold bow, or just to hear it come alive)
+        if (sid && i < PLUSH.slots && this.plushPokeI === i && this.time - this.plushPokeAt < 3) {
+          const lvIdx = LEVELS.findIndex((l) => l.id === sid);
+          if (lvIdx >= 0 && this.flow.phase === 'play' && !this.coopLink && !this.grand && !this.practice) {
+            if (this.confirmPoke(`again${i}`, `Weave ${LEVELS[lvIdx].name} again? Poke it again`)) {
+              this.flow.start(lvIdx);
+              this.debug.weaveAgain = sid;
+            }
+            this.plushPokeAt = this.time;
+            return;
+          }
+        }
+        this.plushPokeI = i;
+        this.plushPokeAt = this.time;
         this.singPlush(i);
       },
       carry: (i, p) => {
@@ -583,12 +599,20 @@ export class GameSystem extends createSystem({
         if (e.latched && this.view.revealLever(e.lever)) {
           audio.reveal();
           this.model.leverFlips = Math.max(0, this.model.leverFlips - 1);
-        }
+          this.probed |= 1 << e.lever;
+        } else if (!e.latched && this.probed & (1 << e.lever)) {
+          // tried and put straight back (no row woven in between): looking costs nothing either way
+          this.probed &= ~(1 << e.lever);
+          this.model.leverFlips = Math.max(0, this.model.leverFlips - 1);
+        } else this.probed &= ~(1 << e.lever);
         this.view.card.setUsed(this.model.leverFlips);
       }
       if (e.type === 'weft') this.view.setWeftNow(e.weft);
       if (e.type === 'friend') this.view.setShed(e.shed); // a seated plush lifts the threads under its feet
-      if (e.type === 'row' || e.type === 'undo' || e.type === 'sync') this.view.setRows(this.model.rows);
+      if (e.type === 'row' || e.type === 'undo' || e.type === 'sync') {
+        this.view.setRows(this.model.rows);
+        this.probed = 0; // a row woven (or unpicked): tries since then are moves again
+      }
       // Pip reacts to each row: a happy hop and wink, or a droop.
       if (e.type === 'row' && this.flow?.level) {
         const good = e.row === this.flow.level.target[e.index];
@@ -624,6 +648,16 @@ export class GameSystem extends createSystem({
           audio.onBeat();
           this.view.fx.confetti(0, 0.012, this.view.fellZNow, 26, 0.45, true);
           this.debug.onBeat = (this.debug.onBeat ?? 0) + 1;
+          // the song pays: a right row on the beat ties a spent bow back on (from Home on, where bows count)
+          if (this.flow.level.par > 0 && this.flow.level.chapter !== 'garden' && this.model.leverFlips > 0) {
+            this.model.leverFlips--;
+            this.view.card.setUsed(this.model.leverFlips);
+            this.flow.refresh();
+            if (!this.beatTold) {
+              this.beatTold = true;
+              this.showNotice('On the beat: a bow ties itself back on', 3, 'centre');
+            }
+          }
         }
       }
     });
@@ -641,7 +675,8 @@ export class GameSystem extends createSystem({
         // Picture colour on the warps; mystery chapters hide the lever ties
         // until each lever has been tried once.
         this.view.nightCloth = level.chapter === 'night';
-        this.view.setPicture(level.color ?? null, level.tieUp, level.tieUp.map(() => !!level.mystery));
+        this.view.setPicture(level.color ?? null, level.tieUp, level.tieUp.map((_, k) => !!level.mystery && k >= (level.hideFrom ?? 0)));
+        this.probed = 0;
         this.view.setTarget(level.target);
         this.view.card.paper = level.chapter === 'night' ? '#b9beea' : null; // Sea stays cream so its blue water rows read
         this.view.card.sparkles = false;
@@ -654,6 +689,15 @@ export class GameSystem extends createSystem({
         if (level.chapter === 'night' && !this.lanternTold && !this.photoMode) {
           this.lanternTold = true;
           this.later('Night: a lever hides its threads until you try it. First try free', 3, 'centre', 6);
+        }
+        if ((this.flow?.index ?? 0) >= LEVELS.length && !this.flow.challenge) {
+          // a replay comes with a twist: say which
+          const how = level.mend ? 'tangled' : level.tide && level.chapter !== 'sea' ? 'the tide is in' : level.mystery && level.chapter !== 'night' && level.chapter !== 'sea' ? 'its levers hidden' : '';
+          if (how) this.later(`${level.name} again, ${how}`, 1.4, 'centre', 4);
+        }
+        if (level.chapter === 'sea' && !this.tideTold && !level.mend) {
+          this.tideTold = true;
+          this.later('The tide is in: the card shows two rows at a time. What is it?', 2, 'centre', 6);
         }
         if (level.mend && !this.flow.mirror) {
           // a tangled cloth: say what to do once per visit, shorter after
@@ -677,7 +721,11 @@ export class GameSystem extends createSystem({
         // a new picture: any friend goes home (the shelf and desk are rebuilt below); the cushion shows if this one needs a friend
         this.seated = -1;
         this.view.setFriend(0, 0xffffff);
-        this.view.setCushion(!!level.friend);
+        this.view.setCushion(this.cushionOut(level));
+        if (this.cushionOut(level) && !level.friend && !this.toolkitTold) {
+          this.toolkitTold = true;
+          this.later('The cushion stays out now: any plush on it lifts the threads under its feet (no lever move)', 2.5, 'centre', 7);
+        }
         if (this.debug) this.debug.friend = '';
         this.shelf = shelfItems(level, this.progress);
         this.view.plushes.setShelf(this.shelf, shelfChapter(level, this.progress)?.name ?? '');
@@ -707,6 +755,8 @@ export class GameSystem extends createSystem({
       status: (level, statuses, stars) => {
         // the loom's own thank-you isn't scored
         this.view.card.woven = this.model.rows;
+        // the Sea: the tide covers the card above the next two rows, and goes out as you weave up to them
+        this.view.card.tideFrom = (level.chapter === 'sea' || level.tide) && !level.mend && this.flow?.phase === 'play' ? this.model.rows.length + 2 : -1;
         this.view.card.draw(level.name, level.target, statuses, level.id === 'thanks' ? 0 : stars, this.settings.highContrast);
         this.view.placeCard();
       },
@@ -730,7 +780,7 @@ export class GameSystem extends createSystem({
         audio.chirp('cheer');
         // It comes alive: the woven picture pops out as a plush.
         const lv = this.flow.level;
-        const songEnd = TIMING.winPause + lv.target.length * TIMING.rowTime;
+        const songEnd = TIMING.winPause + lv.target.length * this.flow.rowTime();
         if (this.grand) {
           // the thank-you heart stays on the loom: after its song, every plush sings in turn
           this.grand.won = this.grand.t;
@@ -774,7 +824,7 @@ export class GameSystem extends createSystem({
         this.model.leverFlips = flips;
         audio.arpeggio();
         // the win song plays alone: music rests until the plush is on the shelf
-        audio.holdMusic(TIMING.winPause + lv.target.length * TIMING.rowTime + TIMING.afterPlayback);
+        audio.holdMusic(TIMING.winPause + lv.target.length * this.flow.rowTime() + TIMING.afterPlayback);
         this.view.pulseWarp();
         if (this.debug) this.debug.stars = stars;
         if (!this.controller.tokenEnabled && workshopUnlocked(this.progress)) this.revealWorkshop();
@@ -1699,22 +1749,38 @@ export class GameSystem extends createSystem({
     const right = this.tmp2.set(1, 0, 0).applyQuaternion(this.view.root.getWorldQuaternion(this.tmpQ));
     const shelfSide = -this.controller.bankSide * Math.sign(right.dot(w.t) || 1);
     void n;
-    const side = k % 2 === 0 ? shelfSide : -shelfSide; // the first by the shelf, the next across, and so on
-    const j = Math.floor(k / 2);
-    return out.copy(w.at).addScaledVector(w.t, side * (QUILT_W * w.size * 0.5 + 0.25 * w.size + j * (QUILT_W + 0.08) * w.size));
+    // slots either side of the card (the first by the shelf, the next across, then further out); quilt k takes
+    // the k-th slot that is on the wall itself (a narrow wall keeps them close; none would hang in the air)
+    let found = 0;
+    for (let s = 0; s < 8; s++) {
+      const side = s % 2 === 0 ? shelfSide : -shelfSide;
+      const j = Math.floor(s / 2);
+      out.copy(w.at).addScaledVector(w.t, side * (QUILT_W * w.size * 0.5 + 0.25 * w.size + j * (QUILT_W + 0.08) * w.size));
+      if (!w.inside(out)) continue;
+      if (found++ === k) return out;
+    }
+    const side = k % 2 === 0 ? shelfSide : -shelfSide;
+    return out.copy(w.at).addScaledVector(w.t, side * (QUILT_W * w.size * 0.5 + 0.25 * w.size + Math.floor(k / 2) * (QUILT_W + 0.08) * w.size));
   }
 
   private makeQuilt(id: string): Group | null {
     const ch = CHAPTERS.find((c) => c.id === id);
     if (!ch) return null;
     const panels = ch.levels.map((l) => LEVELS.find((x) => x.id === l)).filter((l): l is Level => !!l).map((l) => ({ rows: l.target.map((r) => r & 255), color: l.color ?? 0xe2563b }));
-    return buildQuilt(ch.name, panels, this.shown().font);
+    const gold = ch.levels.every((id) => (this.progress.best[id] ?? 0) >= 3);
+    return buildQuilt(ch.name, panels, this.shown().font, gold);
   }
 
   /** The wall straight ahead of the seat (from the room's vertical planes), or null. */
-  private findWall(): { at: Vector3; n: Vector3; t: Vector3; size: number } | null {
-    this.forwardFlat(this.fwd);
-    let best: { at: Vector3; n: Vector3; t: Vector3; size: number } | null = null;
+  private findWall(): { at: Vector3; n: Vector3; t: Vector3; size: number; inside: (p: Vector3) => boolean } | null {
+    // straight ahead of the seat: the loom's own forward (where the player faces it), not wherever the head turned
+    if (this.placement.phase === 'placed') {
+      this.fwd.set(0, 0, -1).applyQuaternion(this.view.root.getWorldQuaternion(this.tmpQ));
+      this.fwd.y = 0;
+      if (this.fwd.lengthSq() < 1e-6) this.forwardFlat(this.fwd);
+      else this.fwd.normalize();
+    } else this.forwardFlat(this.fwd);
+    let best: { at: Vector3; n: Vector3; t: Vector3; size: number; inside: (p: Vector3) => boolean } | null = null;
     let bestT = Infinity;
     const c = new Vector3();
     const n = new Vector3();
@@ -1745,7 +1811,19 @@ export class GameSystem extends createSystem({
       bestT = t;
       at.addScaledVector(n, 0.012); // just off the wall
       // bigger on a far wall, so it reads from the seat (about 14° across)
-      best = { at, n: n.clone(), t: new Vector3(0, 1, 0).cross(n).normalize(), size: Math.min(2.6, Math.max(1.1, (t * 0.33) / QUILT_W)) };
+      const wallInv = inv.clone();
+      const poly = pl.polygon;
+      const probe = new Vector3();
+      best = {
+        at,
+        n: n.clone(),
+        t: new Vector3(0, 1, 0).cross(n).normalize(),
+        size: Math.min(2.6, Math.max(1.1, (t * 0.33) / QUILT_W)),
+        inside: (p) => {
+          probe.copy(p).applyMatrix4(wallInv);
+          return insidePolygon(poly, probe.x, probe.z, 0.1);
+        },
+      };
     }
     return best;
   }
@@ -1786,6 +1864,8 @@ export class GameSystem extends createSystem({
     const lv = offered ? this.todayLevel() : dailyLevel(this.today);
     const visiting = VISITOR_LIKES[lv.id] && this.progress.placed?.[VISITOR_LIKES[lv.id]];
     this.view.daily.newLabel = visiting ? 'A visitor!' : 'Today'; // the present says who brought it
+    const woven = this.progress.days?.length ?? 0;
+    this.view.daily.doneLabel = woven > 1 ? `${woven} days woven` : 'Tomorrow'; // a tally, never a streak to lose
     const next = dayKey(new Date(Date.now() + 86400000));
     this.view.daily.set(offered ? (this.dailyDone ? 'done' : 'new') : 'hidden', lv.color ?? 0xe2563b, { key: next, rows: (visitorFor(next, Object.keys(this.progress.placed ?? {}), (id) => (this.progress.best[id] ?? 0) > 0 || id === lv.id) ?? dailyLevel(next)).target });
     const side = this.controller.bankSide;
@@ -1882,10 +1962,13 @@ export class GameSystem extends createSystem({
     if (!this.confirmPoke('daily', "Open today's picture? Poke it again")) return;
     const pick = this.todayLevel();
     // some days borrow Night's rule (once you've been to Night): the levers hide their threads until tried
-    const hidden = hiddenLeverDay(this.today) && (this.progress.best['moon'] ?? 0) > 0;
-    // other days it comes tangled (once you've mended one in Night): unpick to the wrong row and weave on
-    const tangled = !hidden && mendDay(this.today) && (this.progress.best['owl'] ?? 0) > 0;
-    const lv = hidden ? { ...pick, mystery: true, par: computePar(pick.tieUp, pick.target, true) } : tangled ? mendLevel(pick, Math.min(4, pick.target.length - 2), 1) : pick;
+    // the day's kind turns (plain, tangled, hidden levers, the tide), each once you've met it in a chapter
+    const met: Record<string, string> = { tangled: 'owl', hidden: 'moon', tide: 'fish' };
+    const want = dayKind(this.today);
+    const kind = want !== 'plain' && (this.progress.best[met[want]] ?? 0) > 0 ? want : 'plain';
+    const lv = withTwist(pick, kind);
+    const hidden = kind === 'hidden';
+    const tangled = kind === 'tangled';
     audio.restyle();
     // the present opens: the lid pops off with a little burst
     this.view.daily.open();
@@ -1893,7 +1976,7 @@ export class GameSystem extends createSystem({
     this.view.fx.confetti(this.giftAt[0], 0.04, this.giftAt[1], 28, 0.45);
     audio.swapYarn();
     this.flow.startChallenge(lv, this.today);
-    this.showNotice(hidden ? "Today's picture: its levers hide their threads" : tangled ? "Today's picture came tangled" : "Today's picture", 3, 'centre'); // its name is the surprise when it comes alive
+    this.showNotice(hidden ? "Today's picture: its levers hide their threads" : tangled ? "Today's picture came tangled" : kind === 'tide' ? "Today's picture: the tide is in" : "Today's picture", 3, 'centre'); // its name is the surprise when it comes alive
   }
 
   /** Where a just-woven picture's plush goes: its shelf slot, or the desk (already placed there, or a picture of the day). */
@@ -1978,7 +2061,7 @@ export class GameSystem extends createSystem({
   private previewFriend(): void {
     let key = 0;
     let color = 0;
-    if (this.flow.level?.friend && this.seated < 0 && this.flow.phase === 'play') {
+    if (this.cushionOut(this.flow.level) && this.seated < 0 && this.flow.phase === 'play') {
       const ci = this.view.plushes.carried;
       const side = this.controller.bankSide;
       if (ci >= 0 && this.view.plushes.plushCentre(ci, this.tmp2) && Math.hypot(this.tmp2.x - side * FRIEND_SEAT.x, this.tmp2.z - FRIEND_SEAT.z) < FRIEND_SEAT.r + 0.05) {
@@ -2026,12 +2109,47 @@ export class GameSystem extends createSystem({
     this.debug.pipNoticed = (this.debug.pipNoticed ?? 0) + 1;
   }
 
+  /**
+   * A win's show can be cut short: once the plush has popped out, a pinch (or a controller's trigger)
+   * anywhere skips the rest of the song and the dance; the plush lands on its shelf at once. Never during
+   * the grand finale, while a partner steers, or before the plush is out.
+   */
+  private tickWinSkip(): void {
+    const f = this.flow;
+    if (f.phase === 'play' || this.grand || this.coopLink || this.photoMode || f.challenge && !f.daily) return;
+    const P = this.view.plushes;
+    if (f.phase === 'won' && !P.staged) return; // let it pop first: that's the payoff
+    if (hands.left.edge !== 'start' && hands.right.edge !== 'start') return;
+    P.settle();
+    if (f.skip()) this.debug.winSkips = (this.debug.winSkips ?? 0) + 1;
+  }
+
   /** A wrong row waiting to unweave itself (-1: none), and when. */
   private autoUndoRow = -1;
   private autoUndoAt = 0;
   private get restPress(): boolean {
     return restPressOn(this.settings);
   }
+  /**
+   * Your plushes are tools: once Night is woven, the friend's cushion stays out for every picture (the Sea,
+   * the pictures of the day, replays). Any plush seated on it lifts the threads under its feet, no lever move,
+   * so the plushes you've made are a toolkit: the right feet at the right row save moves (and earn gold).
+   */
+  private cushionOut(level: Level | undefined): boolean {
+    if (!level) return false;
+    if (level.friend) return true;
+    if (!level.chapter || level.chapter === 'garden' || level.chapter === 'home' || level.chapter === 'night' || level.id === 'thanks' || level.mend) return false;
+    if (this.coopLink || this.practice) return false;
+    return (CHAPTERS.find((c) => c.id === 'night')?.levels ?? []).every((id) => (this.progress.best[id] ?? 0) > 0);
+  }
+  private toolkitTold = false;
+  private beatTold = false;
+  private tideTold = false;
+  /** Mystery levers tried for the first time since the last row (pulling one straight back is free too). */
+  private probed = 0;
+  /** The shelf plush last poked, and when (poked again while it sings: weave it again). */
+  private plushPokeI = -1;
+  private plushPokeAt = -99;
   /** Look to play: the shelf plush a second look sets on the desk, and until when (its own, apart from confirm pokes). */
   private deskArmed = -1;
   private deskArmedUntil = 0;
@@ -2271,7 +2389,7 @@ export class GameSystem extends createSystem({
   private setOpen = false;
   private setIdle = 0;
   private setVecs: Vector3[] = [];
-  private static readonly SET_KEYS = ['calm', 'contrast', 'ear', 'look', 'rest', 'music'] as const;
+  private static readonly SET_KEYS = ['calm', 'contrast', 'ear', 'look', 'rest', 'music', 'hand', 'fit'] as const;
   private buildSettingTags(): void {
     for (let i = 0; i <= GameSystem.SET_KEYS.length; i++) {
       const l = new Label(i === 0 ? 0.09 : 0.15, 0.026);
@@ -2295,6 +2413,8 @@ export class GameSystem extends createSystem({
     this.setLabels[4].set(`Look to play: ${on(!!st.lookToPlay)}`);
     this.setLabels[5].set(`Rest to press: ${on(restPressOn(st))}`);
     this.setLabels[6].set(`Music: ${on(st.music)}`);
+    this.setLabels[7].set(`Levers: ${st.hand === 'auto' ? 'my hand' : st.hand}`);
+    this.setLabels[8].set('Fit to my hands');
   }
   private pokeSetting(i: number): void {
     audio.click(true);
@@ -2310,6 +2430,17 @@ export class GameSystem extends createSystem({
     else if (key === 'ear') st.hearRows = st.hearRows === false;
     else if (key === 'rest') st.restPress = !restPressOn(st);
     else if (key === 'music') st.music = !st.music;
+    else if (key === 'hand') {
+      // which side the lever box stands: your hand (as placed), left, right; moves now
+      st.hand = st.hand === 'auto' ? 'left' : st.hand === 'left' ? 'right' : 'auto';
+      if (st.hand !== 'auto') this.setBankSide(st.hand === 'left' ? -1 : 1);
+    } else if (key === 'fit') {
+      // three pinches and a short hold, right here (the settings fold away for it)
+      this.setOpen = false;
+      this.settings = st;
+      this.startCalibration(this.controller.bankSide === -1 ? 'left' : 'right');
+      return;
+    }
     else st.lookToPlay = !st.lookToPlay;
     saveSettings(st);
     window.dispatchEvent(new CustomEvent('loomsong:settings')); // the same path as the 2D page: everything restyles
@@ -2469,7 +2600,7 @@ export class GameSystem extends createSystem({
     const c = this.controller;
     const lv = this.flow.level;
     const r = this.model.rows.length;
-    const stillSame = this.flow.phase === 'play' && !this.flow.tutorial && r > 0 && r < lv.target.length && lv.target[r] === lv.target[r - 1]; // the first picture: you do every pass yourself
+    const stillSame = this.flow.phase === 'play' && r > 0 && r < lv.target.length && lv.target[r] === lv.target[r - 1]; // the first picture too: its second row repeats the first, so it's where you meet it (announced first)
     // the shed (plus a seated friend) and Pip's yarn must already make it
     const ready = stillSame && (this.model.shed & 255) === (lv.target[r] & 255) && ((lv.target[r] & 256) !== 0 ? 1 : 0) === this.model.weft;
     if (!ready || c.mirror || this.coopLink instanceof CoopGuest || !c.allow.shuttle) {
@@ -2563,7 +2694,7 @@ export class GameSystem extends createSystem({
     }
     const side = this.controller.bankSide;
     // a friend picture's cushion: a plush set down on it sits there and lifts the threads under its feet
-    if (this.flow.level.friend && this.flow.phase === 'play' && p.y < 0.15 && Math.hypot(p.x - side * FRIEND_SEAT.x, p.z - FRIEND_SEAT.z) < FRIEND_SEAT.r + 0.03) {
+    if (this.cushionOut(this.flow.level) && this.flow.phase === 'play' && p.y < 0.15 && Math.hypot(p.x - side * FRIEND_SEAT.x, p.z - FRIEND_SEAT.z) < FRIEND_SEAT.r + 0.03) {
       this.seatFriend(i, id);
       return;
     }
@@ -2580,7 +2711,7 @@ export class GameSystem extends createSystem({
     }
     const nearShelf = Math.abs(p.x + side * PLUSH.shelfX) < 0.15 && Math.abs(p.z - PLUSH.shelfZ) < 0.06;
     const inLoom = Math.abs(p.x) < LOOM.frameHalfWidth + 0.03 && p.z > LOOM.backBeamZ - 0.03 && p.z < LOOM.frontBeamZ + 0.02;
-    const inBank = Math.abs(p.x - side * 0.23) < 0.11 && Math.abs(p.z) < 0.1; // the lever bank
+    const inBank = Math.abs(p.x - side * 0.25) < 0.11 && Math.abs(p.z) < 0.1; // the lever bank
     const inBasket = Math.hypot(p.x + side * BASKET.x, p.z - BASKET.z) < 0.085; // the chapter basket
     const onPlaque = Math.abs(p.x) < 0.11 && p.z > 0.09 && p.z < 0.2; // the level plaque
     const tooHigh = p.y > 0.2;
@@ -2881,7 +3012,7 @@ export class GameSystem extends createSystem({
           Object.assign(at, spot);
           const name = pictureById(id)?.name ?? '';
           // on a friend picture a poke seats the plush (or sends the seated one home), so say that
-          const friendPic = !!this.flow?.level?.friend && this.flow.phase === 'play';
+          const friendPic = !!this.flow?.level && this.cushionOut(this.flow.level) && this.flow.phase === 'play';
           text = friendPic ? (i === this.seated ? `${name}: poke to go home` : `${name}: poke to sit on the cushion`) : i < PLUSH.slots ? `${name}: poke to sing, pinch to carry` : `${name}: poke to sing`;
           lift = 0.045;
         }
@@ -3017,6 +3148,7 @@ export class GameSystem extends createSystem({
     this.controller.restPress = this.restPress;
     this.controller.update(this.handInputs, dt);
     this.flow.update(dt);
+    this.tickWinSkip();
     this.coopLink?.tick(dt);
     this.tickPractice(dt);
     // a caller's pins mark one row's threads: they come out once that row is woven, or the picture changes
@@ -3269,6 +3401,17 @@ export class GameSystem extends createSystem({
       source: this.placement.source ?? 'palm',
     };
     saveProgress(this.progress);
+  }
+
+  /** Move the lever box to the other side of the loom, now (the in-headset Levers setting). */
+  private setBankSide(side: 1 | -1): void {
+    if (this.controller.bankSide === side) return;
+    this.controller.releaseAll();
+    this.controller.bankSide = side;
+    this.debug.bankSide = side;
+    this.view.setSide(side);
+    this.giftDirty = true;
+    this.loomSaved = false;
   }
 
   /** Place the loom ~PLACE.forward ahead, centred with the lever bank. */

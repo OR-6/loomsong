@@ -52,7 +52,7 @@ export const SHUTTLE = {
 /** Lever bank beside the loom (mirrored for left-handed play). */
 export const LEVER = {
   /** x of the first lever, measured outward from the loom centre. */
-  firstX: 0.215,
+  firstX: 0.235, // 2 cm clear of Pip's perch (he used to park against the bank, where a poke threw him)
   spacing: 0.046,
   /** Rest (unlatched) z — nearest the user. Latched = rest - travel. */
   restZ: 0.075,

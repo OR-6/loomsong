@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CHAPTERS, DAILY, PICTURES } from '../src/puzzle/pictures.gen';
-import { DAILY_LEVELS, LEVELS, dailyLevel, dayKey, levelAt, mendLevel, pictureById, streakOf } from '../src/puzzle/catalog';
+import { DAILY_LEVELS, LEVELS, dailyLevel, dayKey, dayKind, levelAt, mendLevel, pictureById, streakOf } from '../src/puzzle/catalog';
 import { computePar, rowReachable } from '../src/puzzle/par';
 import { WARPS } from '../src/config';
 
@@ -96,7 +96,39 @@ describe('picture levels', () => {
       expect(wrong[0], l.id).toBeLessThan(m.length - 1);
       expect(m[wrong[0]] & 256, l.id).toBe(l.target[wrong[0]] & 256); // only the threads are wrong, not the yarn
       expect(rowReachable(l.tieUp, m[wrong[0]]), l.id).toBe(true);
-      expect(l.par, l.id).toBe(computePar(l.tieUp, l.target.slice(wrong[0]), !!l.mystery));
+      expect(l.par, l.id).toBe(computePar(l.tieUp, l.target.slice(wrong[0]), !!l.mystery, l.hideFrom ?? 0));
     }
+  });
+  it('Night eases in: the Moon hides two levers, the Ghost three, the rest all; par counts only hidden first tries free', () => {
+    const at = (id: string) => LEVELS.find((l) => l.id === id)!;
+    expect(at('moon').hideFrom).toBe(2);
+    expect(at('ghost').hideFrom).toBe(1);
+    expect(at('cat').hideFrom ?? 0).toBe(0);
+    for (const id of ['moon', 'ghost']) {
+      const l = at(id);
+      expect(l.par).toBe(computePar(l.tieUp, l.target, true, l.hideFrom));
+      expect(l.par).toBeGreaterThanOrEqual(computePar(l.tieUp, l.target, true, 0));
+    }
+  });
+  it('replays come twisted (tangled, the tide, hidden levers); friend pictures keep their friend', () => {
+    const kinds = new Set<string>();
+    for (let k = 0; k < LEVELS.length * 3; k++) {
+      const l = levelAt(LEVELS.length + k);
+      const base = LEVELS[k % LEVELS.length];
+      expect(l.id).toBe(base.id);
+      if (base.friend) expect(l).toBe(base);
+      else if (!base.mend) {
+        const kind = l.mend ? 'tangled' : l.tide ? 'tide' : l.mystery && !base.mystery ? 'hidden' : l.mystery ? 'hidden-already' : 'plain';
+        kinds.add(kind);
+        if (l.mystery && !base.mystery) expect(l.par).toBe(computePar(l.tieUp, l.target, true, 0));
+      }
+    }
+    expect([...kinds].filter((k) => k !== 'hidden-already').sort()).toEqual(['hidden', 'tangled', 'tide']);
+    expect(levelAt(LEVELS.length + 3)).toBe(levelAt(LEVELS.length + 3)); // cached: no garbage per call
+  });
+  it('the picture of the day turns through four kinds', () => {
+    const run = Array.from({ length: 8 }, (_, k) => dayKind(new Date(Date.UTC(2026, 10, 1 + k)).toISOString().slice(0, 10)));
+    expect(new Set(run)).toEqual(new Set(['plain', 'tangled', 'hidden', 'tide']));
+    expect(run.slice(0, 4)).toEqual(run.slice(4, 8));
   });
 });

@@ -70,6 +70,12 @@ const DAILY = [
   { id: 'ladybug', name: 'Ladybug', color: 0xc7303a, rows: ['..#..#..', '.######.', '##.##.##', '########', '##.##.##', '.######.'] },
   { id: 'jelly', name: 'Squid', color: 0xc77dd6, rows: ['..####..', '.######.', '########', '#.#..#.#', '#.#..#.#', '.#.#.#..'] },
   { id: 'robot', name: 'Robot', color: 0x2a9d8f, rows: ['...##...', '.######.', '.#.##.#.', '.######.', '########', '.##..##.'] },
+  // lopsided ones: a picture that isn't mirror-symmetric plays differently (its levers can't pair up)
+  { id: 'boot', name: 'Boot', color: 0x8a5a3c, rows: ['..###...', '..###...', '..###...', '..######', '########'] },
+  { id: 'arrow', name: 'Arrow', color: 0xe2563b, rows: ['....#...', '.....#..', '########', '.....#..', '....#...'] },
+  { id: 'flag', name: 'Flag', color: 0x3d8fd1, rows: ['.#####..', '.######.', '.#####..', '.#......', '.#......', '###.....'] },
+  { id: 'snail', name: 'Snail', color: 0xc48a3a, rows: ['......#.', '.###..#.', '#...#.#.', '#.#.####', '########'] },
+  { id: 'whale', name: 'Whale', color: 0x3d5a80, rows: ['#.......', '##..###.', '.#######', '.#######', '..#####.'] },
 ];
 
 const bits = (s) => [...s].reduce((m, c, i) => (c === '#' ? m | (1 << i) : m), 0);

@@ -176,7 +176,7 @@ export class LevelFlow {
       if (this.playRow < this.model.rows.length) {
         this.playRowNotes(this.playRow);
         this.playRow++;
-        this.timer = TIMING.rowTime;
+        this.timer = this.rowTime();
       } else {
         this.hooks.glowRow(-1);
         this.phase = 'between';
@@ -190,6 +190,24 @@ export class LevelFlow {
       this.start(this.challenge ? this.progress.level : this.nextIndex());
     }
   }
+
+  /** Seconds per row of a win's song: Garden's gentle pace, then brisker (the song is the same, sooner done). */
+  rowTime(): number {
+    return this.level?.chapter === 'garden' || !this.level?.chapter ? TIMING.rowTime : 0.3;
+  }
+
+  /** Skip the rest of a win's show (the player reached for something): straight on to the next picture. */
+  skip(): boolean {
+    if (this.phase === 'play' || this.mirror) return false;
+    this.hooks.glowRow(-1);
+    this.phase = 'between';
+    this.timer = 0.35;
+    this.extraBetween = 0;
+    return true;
+  }
+
+  /** The yarn swap has been made once this visit: its hint stops coming up by itself. */
+  weftLearned = false;
 
   /** How many pictures there are (0: just go on in order). */
   total = 0;
@@ -261,10 +279,12 @@ export class LevelFlow {
       }
       this.emitStatus();
     }
-    // two-colour levels: say "swap Pip's yarn" the moment it's the next thing to do (it's never the puzzle)
+    // two-colour levels: say "swap Pip's yarn" the first time it's the next thing to do in a picture (and
+    // never again once you've swapped in this visit): after that, which yarn each row needs is part of reading the card
     if (!this.tutorial && this.level.weft && this.phase === 'play' && !this.mirror) {
+      if (e.type === 'weft') this.weftLearned = true;
       const n = nextStep(this.level, this.model.rows, this.model.latched, this.model.weft, this.model.helper);
-      if (n.step === 'weft') this.setHint('weft');
+      if (n.step === 'weft' && !this.weftLearned) this.setHint('weft');
       else if (this.hintStep === 'weft') this.setHint('none');
     }
     // friend pictures: "seat a plush" / "lift it off" whenever that's the next thing to do (the rest stays the puzzle)

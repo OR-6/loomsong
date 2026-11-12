@@ -101,6 +101,8 @@ export class DailyBall {
   /** Today's colour, whether it is still to do, and (once done) tomorrow's picture to peek out. */
   /** The tag on a new present ('Today', or who it's from: 'A visitor!'). */
   newLabel = 'Today';
+  /** The tag once it's opened: 'Tomorrow', or how many days you've woven one ('5 days woven'). */
+  doneLabel = 'Tomorrow';
   set(state: DailyState, color: number, tomorrow?: { key: string; rows: readonly Mask8[] }): void {
     if (state === 'hidden' && this.opening > 0) {
       this.state = 'hidden'; // hide once the opening has played
@@ -111,7 +113,7 @@ export class DailyBall {
     this.root.visible = state !== 'hidden';
     this.rib.color.set(new Color(color));
     this.ribbon.visible = state === 'new';
-    this.tag.set(state === 'new' ? this.newLabel : 'Tomorrow');
+    this.tag.set(state === 'new' ? this.newLabel : this.doneLabel);
     this.tag.mesh.visible = state !== 'hidden';
     // opened: the tag hangs beside the box, so tomorrow's picture shows inside it
     const { w, h } = DAILY_BALL;

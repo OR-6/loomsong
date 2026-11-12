@@ -23,8 +23,11 @@ export function mendLevel(level: Level, woven: number, wrong: number): Level {
   if (bad < 0) bad = (t[wrong] & 255) ^ level.tieUp[0] || level.tieUp[0];
   const rows = t.slice(0, woven);
   rows[wrong] = bad | (t[wrong] & 256);
-  return { ...level, mend: rows, par: computePar(level.tieUp, t.slice(wrong), !!level.mystery) };
+  return { ...level, mend: rows, par: computePar(level.tieUp, t.slice(wrong), !!level.mystery, level.hideFrom ?? 0) };
 }
+
+/** Night eases in: its first pictures hide only their last levers (the Moon two of four, the Ghost three). */
+const EASE_IN: Readonly<Record<string, number>> = { moon: 2, ghost: 1 };
 
 /** Chapter pictures that arrive tangled (woven, wrong): one mid-chapter twist each in Night and the Sea. */
 const MENDED: Readonly<Record<string, [number, number]>> = { owl: [4, 1], octopus: [4, 1] };
@@ -41,7 +44,9 @@ export const LEVELS: Level[] = PICTURES.map((p) => ({
   mystery: p.mystery,
   weft: p.weft,
   friend: p.friend,
-})).map((l) => (MENDED[l.id] ? mendLevel(l, MENDED[l.id][0], MENDED[l.id][1]) : l));
+}))
+  .map((l) => (EASE_IN[l.id] ? { ...l, hideFrom: EASE_IN[l.id], par: computePar(l.tieUp, l.target, true, EASE_IN[l.id]) } : l))
+  .map((l) => (MENDED[l.id] ? mendLevel(l, MENDED[l.id][0], MENDED[l.id][1]) : l));
 
 /**
  * The grand finale's picture: once every chapter is woven, the loom weaves a
@@ -58,7 +63,28 @@ const cache = new Map<number, Level>();
  */
 export function levelAt(i: number): Level {
   if (i < LEVELS.length) return LEVELS[i];
-  return LEVELS[(i - LEVELS.length) % LEVELS.length];
+  const k = i - LEVELS.length;
+  let l = twisted.get(k);
+  if (!l) {
+    l = twist(LEVELS[k % LEVELS.length], Math.floor(k / LEVELS.length) + k);
+    twisted.set(k, l);
+  }
+  return l;
+}
+
+/** Replays (after the last picture, or chasing gold) come with a twist, so a picture you know plays anew. */
+const twisted = new Map<number, Level>();
+export type Twist = 'tangled' | 'tide' | 'hidden';
+const TWISTS: readonly Twist[] = ['tangled', 'tide', 'hidden'];
+export function twist(base: Level, n: number): Level {
+  if (base.friend || base.mend) return base; // a friend picture's puzzle is its friend; a tangled one already is
+  return withTwist(base, TWISTS[((n % TWISTS.length) + TWISTS.length) % TWISTS.length]);
+}
+export function withTwist(base: Level, t: Twist | 'plain'): Level {
+  if (t === 'tangled') return mendLevel(base, Math.min(4, base.target.length - 2), 1);
+  if (t === 'tide') return { ...base, tide: true };
+  if (t === 'hidden') return { ...base, mystery: true, hideFrom: 0, par: computePar(base.tieUp, base.target, true, 0) };
+  return base;
 }
 
 /** A random pattern (the Workshop's own), kept for tools and tests. */
@@ -101,14 +127,12 @@ function dayNumber(key: string): number {
   return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(2026, 0, 1)) / 86400000);
 }
 
-/** Every third day the picture of the day hides its levers' threads, Night's rule (for players who know it). */
-export function hiddenLeverDay(key: string): boolean {
-  return ((dayNumber(key) % 3) + 3) % 3 === 2;
-}
-
-/** Every third day (the day before a hidden-lever day) the picture of the day arrives tangled: mend it. */
-export function mendDay(key: string): boolean {
-  return ((dayNumber(key) % 3) + 3) % 3 === 1;
+/**
+ * What kind of puzzle the picture of the day is, in a four-day turn: plain, tangled (mend it), hidden
+ * levers (Night's rule), the tide (the card two rows at a time). Each needs its chapter met first.
+ */
+export function dayKind(key: string): Twist | 'plain' {
+  return (['plain', 'tangled', 'hidden', 'tide'] as const)[((dayNumber(key) % 4) + 4) % 4];
 }
 
 /** The day's picture: the same for everyone that day; the whole set comes round before any repeats. */
@@ -142,6 +166,11 @@ export const VISITOR_LIKES: Readonly<Record<string, string>> = {
   'day-crown': 'house',
   'day-bear': 'heart',
   'day-pear': 'tulip',
+  'day-boot': 'duck',
+  'day-arrow': 'star',
+  'day-flag': 'house',
+  'day-snail': 'sprout',
+  'day-whale': 'fish',
   'day-anchor': 'boat',
 };
 

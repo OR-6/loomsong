@@ -1238,5 +1238,152 @@ export const DAILY: PictureLevel[] = [
     ],
     "par": 9,
     "rootMidi": 65
+  },
+  {
+    "id": "day-boot",
+    "name": "Boot",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0x8a5a3c,
+    "picture": [
+      "..###...",
+      "..###...",
+      "..###...",
+      "..######",
+      "########"
+    ],
+    "tieUp": [
+      248,
+      15,
+      60,
+      28
+    ],
+    "target": [
+      255,
+      252,
+      28,
+      28,
+      28
+    ],
+    "par": 5,
+    "rootMidi": 67
+  },
+  {
+    "id": "day-arrow",
+    "name": "Arrow",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0xe2563b,
+    "picture": [
+      "....#...",
+      ".....#..",
+      "########",
+      ".....#..",
+      "....#..."
+    ],
+    "tieUp": [
+      254,
+      63,
+      16,
+      32
+    ],
+    "target": [
+      16,
+      32,
+      255,
+      32,
+      16
+    ],
+    "par": 9,
+    "rootMidi": 64
+  },
+  {
+    "id": "day-flag",
+    "name": "Flag",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0x3d8fd1,
+    "picture": [
+      ".#####..",
+      ".######.",
+      ".#####..",
+      ".#......",
+      ".#......",
+      "###....."
+    ],
+    "tieUp": [
+      62,
+      7,
+      66,
+      2
+    ],
+    "target": [
+      7,
+      2,
+      2,
+      62,
+      126,
+      62
+    ],
+    "par": 6,
+    "rootMidi": 69
+  },
+  {
+    "id": "day-snail",
+    "name": "Snail",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0xc48a3a,
+    "picture": [
+      "......#.",
+      ".###..#.",
+      "#...#.#.",
+      "#.#.####",
+      "########"
+    ],
+    "tieUp": [
+      181,
+      78,
+      81,
+      64
+    ],
+    "target": [
+      255,
+      245,
+      81,
+      78,
+      64
+    ],
+    "par": 9,
+    "rootMidi": 62
+  },
+  {
+    "id": "day-whale",
+    "name": "Whale",
+    "chapter": "daily",
+    "mystery": false,
+    "color": 0x3d5a80,
+    "picture": [
+      "#.......",
+      "##..###.",
+      ".#######",
+      ".#######",
+      "..#####."
+    ],
+    "tieUp": [
+      252,
+      124,
+      114,
+      1
+    ],
+    "target": [
+      124,
+      254,
+      254,
+      115,
+      1
+    ],
+    "par": 7,
+    "rootMidi": 60
   }
 ];

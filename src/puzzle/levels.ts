@@ -21,10 +21,14 @@ export interface Level {
   chapter?: string;
   /** Levers' threads hidden until first tried. */
   mystery?: boolean;
+  /** With `mystery`: levers below this one stay shown (Night eases in: the Moon hides two, the Ghost three). */
+  hideFrom?: number;
   /** Second weft colour (Sea): rows with the weft bit are woven in it. */
   weft?: number;
   /** A friend picture: the threads a plush on the cushion must lift (its bottom row); not a lever. */
   friend?: number;
   /** Mend the cloth: it arrives already woven this far, one row of it wrong; unpick back to it and weave on. */
   mend?: Mask8[];
+  /** The tide: the card shows only the next two rows (the Sea's rule; also a twist for the day or a replay). */
+  tide?: boolean;
 }

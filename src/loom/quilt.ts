@@ -25,7 +25,8 @@ export interface QuiltPanel {
 /** Quilt width on the wall at arm's length (m); it's scaled up on far walls. */
 export const QUILT_W = 0.36;
 
-export function buildQuilt(title: string, panels: readonly QuiltPanel[], font = 'Lilita One, sans-serif'): Group {
+/** `gold`: every picture of the chapter has its gold bow: the binding is gold thread. */
+export function buildQuilt(title: string, panels: readonly QuiltPanel[], font = 'Lilita One, sans-serif', gold = false): Group {
   const g = new Group();
   g.name = 'Quilt';
   // patchwork: a patch per picture and one embroidered with the chapter's name, two to a row
@@ -45,7 +46,7 @@ export function buildQuilt(title: string, panels: readonly QuiltPanel[], font = 
   let seed = 3;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   // binding: a tomato edge all round
-  x.fillStyle = '#c8442f';
+  x.fillStyle = gold ? '#d9a521' : '#c8442f';
   x.fillRect(0, 0, W, H);
   const grounds = ['#f3e7cf', '#b9cfa3', '#bcd3e8', '#f3c9bf', '#ecd38c'];
   const rgb = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));

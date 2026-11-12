@@ -88,6 +88,8 @@ export class TargetCard {
   woven: readonly number[] = [];
   /** A row Pip hums instead of showing (-1: none): covered by a felt patch with a note until woven. */
   earRow = -1;
+  /** The Sea's tide: rows from this one up are under water until you get near them (-1: all shown). */
+  tideFrom = -1;
   /** A wrong row the loom just unpicked: its marks stay on that row until you touch a lever. */
   lastMiss: { r: number; woven: number } | null = null;
   /** Draw again with the last picture and statuses (after a change to a mark or patch). */
@@ -220,7 +222,8 @@ export class TargetCard {
       const row = r < target.length ? target[r] : 0;
       const st = status[r];
       // caller co-op: rows still to weave are hidden here (only the phone sees the picture)
-      const hidden = this.secret && st === 'todo';
+      const tide = !this.secret && this.tideFrom >= 0 && r >= this.tideFrom && st === 'todo' && r < target.length;
+      const hidden = (this.secret && st === 'todo') || tide;
       const ear = !hidden && r === this.earRow && (st === 'todo' || st === 'miss'); // a missed ear row stays covered: no answer yet
       // the row to weave next sits on a soft yellow band (easier to find than the pin alone)
       if (r === nextRow && stars === 0 && !highContrast) {
@@ -236,6 +239,8 @@ export class TargetCard {
         const lifted = !hidden && !ear && isLifted(row, i);
         if (ear) {
           g.fillStyle = (i + r) % 2 === 0 ? '#e9d3b4' : '#e2c9a6'; // under the patch (drawn over the whole row below)
+        } else if (tide) {
+          g.fillStyle = highContrast ? '#9a9a9a' : (i + r) % 2 === 0 ? '#9fc4dc' : '#8fb8d3'; // under the tide: it goes out as you weave up to it
         } else if (hidden) {
           g.fillStyle = (i + r) % 2 === 0 ? '#e6dcc6' : '#ddd1b8'; // a blank, checked swatch: ask your caller
         } else if (r >= target.length) {
