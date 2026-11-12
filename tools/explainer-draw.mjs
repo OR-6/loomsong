@@ -58,7 +58,7 @@ export default async function run({ page, frame }) {
     // 4. planning
     card(780, 670, 640, 160);
     text('4  Levers stay up between rows', 815, 728, 36, 'Lilita One');
-    text('Every move unties a knot: keep the right', 815, 774, 27, 'Fraunces', '#7a6250');
+    text('Every move unties a bow: keep the right', 815, 774, 27, 'Fraunces', '#7a6250');
     text('ones up and three stars are yours.', 815, 808, 27, 'Fraunces', '#7a6250');
     text('At Night you can’t see what a lever lifts until you try it. Then it’s deduction.', W / 2, 915, 32, 'Fraunces', ink, 'center');
     return cv.toDataURL('image/jpeg', 0.92);

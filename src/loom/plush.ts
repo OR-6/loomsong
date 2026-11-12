@@ -258,7 +258,7 @@ function tagTexture(): CanvasTexture {
  * joined): one button eye at column `x`, row `r` (+ `dy` cells), no smile.
  */
 const PROFILE_FACE: Record<string, { r: number; x: number; dy: number }> = {
-  '126,255,126,6,15,6': { r: 4, x: 1.75, dy: 0.45 }, // the Duck: its eye on the head, behind the beak
+  '126,255,126,71,6': { r: 3, x: 1.6, dy: 0.55 }, // the Duck: its eye on the head, behind the beak
 };
 
 /** Button eyes on the widest upper row, blush cheeks and a stitched smile. */

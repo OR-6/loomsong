@@ -170,15 +170,16 @@ await gallery('night', '03-night-deduce-the-levers.jpg');
 run('tools/seed-desk.mjs');
 await wait(1200);
 hands();
-run('tools/set-look.mjs');
 {
   const L = run('tools/state.mjs').targets.lever1;
   const t = [L[0] - O[0], L[1] - O[1], L[2] - O[2]];
   xr('set-device-state', { state: { fov: 50 } });
   xr('set-transform', { device: 'headset', position: { x: O[0] + t[0] - 0.12, y: O[1] + t[1] + 0.2, z: O[2] + t[2] + 0.36 } });
-  xr('look-at', { device: 'headset', target: { x: L[0], y: L[1], z: L[2] } });
+  // the look aims ~12° below head-forward (to spare the neck): aim the head that much above the lever
+  xr('look-at', { device: 'headset', target: { x: L[0], y: L[1] + Math.hypot(0.12, 0.2, 0.36) * Math.tan((12 * Math.PI) / 180), z: L[2] } });
   // wait in the page until the ring is two-thirds round, then hold the moment for the photo
-  evalJs(`const g = window.__loom.game; g.hideHints = true; const d = g.view.gazeDot; for (let i = 0; i < 200; i++) { if (d.visible && d.children.filter((b) => b.visible).length >= 8) break; await new Promise((r) => setTimeout(r, 10)); } g.setPaused(true); return 1;`);
+  // Look to play goes on only now, with the head already aimed (a dwell is 1 s: it would press before the camera got there)
+  evalJs(`const g = window.__loom.game; g.setPaused(false); g.settings = { ...g.settings, lookToPlay: true }; g.lookReset(); g.hideHints = true; const d = g.view.gazeDot; let ok = false; for (let i = 0; i < 300; i++) { if (d.visible && d.children.filter((b) => b.visible).length >= 8) { ok = true; break; } await new Promise((r) => setTimeout(r, 10)); } g.setPaused(true); if (!ok) throw new Error('no gaze ring for the Look to play photo'); return 1;`);
   cli('browser', 'screenshot', '--output-file', `${TMP}/g-look.png`);
   evalJs(`const g = window.__loom.game; g.setPaused(false); g.hideHints = false; g.settings = { ...g.settings, lookToPlay: false }; return 1;`);
   execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-i', `${TMP}/g-look.png`, '-vf', 'crop=1080:720:100:0,scale=1500:1000:flags=lanczos', '-q:v', '2', `${GALLERY}/14-look-to-play.jpg`]);

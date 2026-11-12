@@ -138,7 +138,7 @@ const HINT_TEXT: Record<HintStep, string> = {
   shuttle: 'Slide Pip across, or poke it',
   undo: 'Slide Pip back, or poke the spool',
   card: 'Match the next row',
-  knots: 'Each lever move unties a knot',
+  knots: 'Each lever move unties a bow',
   combo: '', // the aha is a gold ribbon over the card, not a tag
   more: 'Push another lever away too',
   friendOn: 'Put a shelf plush on the cushion',
@@ -658,7 +658,7 @@ export class GameSystem extends createSystem({
         }
         if (level.chapter === 'home' && !this.knotsTold && !this.flow.challenge && !this.progress.best[level.id]) {
           this.knotsTold = true;
-          this.later('New: knots over the card. Fewer lever moves, more stars', 2.5, 'centre', 6);
+          this.later('New: bows over the card. Each lever move unties one: fewer moves, more stars', 2.5, 'centre', 6);
         }
         this.earRow = this.chooseEarRow(level);
         this.earMisses = 0;

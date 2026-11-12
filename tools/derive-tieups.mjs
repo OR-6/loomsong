@@ -13,7 +13,8 @@ const CHAPTERS = [
     // the aha in level 1: the top row is the stem AND the leaves, so the leaf lever joins the stem lever
     { id: 'sprout', name: 'Sprout', color: 0x4f9a3a, rows: ['.#.##.#.', '...##...', '...##...'], tie: [0b00011000, 0b01000010] },
     { id: 'tulip', name: 'Tulip', color: 0xe2563b, rows: ['.#.##.#.', '.######.', '..####..', '...##...', '...##...'] },
-    { id: 'duck', name: 'Duck', color: 0xe9a21a, rule: 'parts', rows: ['.##.....', '####....', '.##.....', '.######.', '########', '.######.'] },
+    // a bath duck side-on: the head (its beak out to the left) sits right on the body, the tail tips up
+    { id: 'duck', name: 'Duck', color: 0xe9a21a, rule: 'parts', rows: ['.##.....', '###...#.', '.######.', '########', '.######.'], tie: [0b01111110, 0b10000001, 0b00000110, 0b01000001] }, // body, the body's ends, head, beak and tail: the widest row and the head row need two levers
     // a friend picture: a plush on the cushion lifts the threads under its feet (its bottom row);
     // the legs need it off, the tabletop, vase and flower need it on (the Sprout and the Tulip on the Garden shelf fit)
     { id: 'table', name: 'Flower table', color: 0xb5683a, rows: ['...##...', '..####..', '########', '..#..#..', '..#..#..'], tie: [0b00100100, 0b00000011, 0b11000000], friend: 0b00011000 },
