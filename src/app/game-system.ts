@@ -85,8 +85,16 @@ const KNOB_NAMES: Record<number, string> = { 0xe8553e: 'red', 0x1fb3a0: 'teal', 
 /** Seconds either side of a music beat that count as "on the beat". */
 const BEAT_WINDOW = 0.12;
 
-/** A picture's plate before it comes alive: its name is the surprise. */
-const SURPRISE_PLATE = 'What is it?';
+/**
+ * A picture's plate before it comes alive: where you are ("Garden · 2 of 4"), not its name (that's the
+ * surprise on the ribbon). A first headset test read "What is it?" as meaningless.
+ */
+function surprisePlate(chapter: string | undefined, id: string): string {
+  const ch = CHAPTERS.find((c) => c.id === chapter);
+  const i = ch ? ch.levels.indexOf(id) : -1;
+  void i;
+  return ch ? `${ch.name} · new picture` : 'A new picture'; // no number: the shelf tag already counts
+}
 
 /** Look to play's control keys (numbers, so nothing is built per frame). */
 const LOOK_LEVER = 0;
@@ -99,7 +107,6 @@ const LOOK_PLUSH = 100;
 const INTRO = [
   { part: 'card', text: 'Weave this picture' },
   { part: 'levers', text: 'Push levers away' },
-  { part: 'pip', text: 'Pip weaves a row' },
 ] as const;
 const INTRO_WAIT = 1.2;
 const INTRO_STEP = 2.4;
@@ -117,7 +124,7 @@ const HINT_TEXT: Record<HintStep, string> = {
   knots: 'Each lever move unties a knot',
   combo: '', // the aha is a gold ribbon over the card, not a tag
   more: 'Push another lever away too',
-  friendOn: 'Poke a shelf plush: it sits on the cushion',
+  friendOn: 'Poke a shelf plush: it sits on the mat',
   friendOff: 'Poke the plush to send it home',
   friendSwap: 'Try a different plush',
   none: '',
@@ -495,7 +502,7 @@ export class GameSystem extends createSystem({
     this.world.createTransformEntity(this.view.glows.right);
 
     this.hint = new Label(0.22, 0.034);
-    this.hint.set('Rest your hand here');
+    this.hint.set('Lay your palm flat on your desk');
     this.world.createTransformEntity(this.hint.mesh);
     this.hint.mesh.visible = false;
 
@@ -533,7 +540,7 @@ export class GameSystem extends createSystem({
         // a wrong row unweaves itself after Pip's droop, in the tutorial too (on a headset, a first
         // player spent 20 s fighting the spool after one wrong row): the spool is there to go back further
         this.autoUndoRow = !good ? e.index : -1;
-        this.autoUndoAt = this.time + 1.4;
+        this.autoUndoAt = this.time + 2.2; // long enough to see which squares were wrong
         audio.chirp(good ? 'happy' : 'sad');
         audio.verdict(good);
         // in rhythm: a right row thrown on the music's beat lands with a golden sparkle and a chord
@@ -568,7 +575,7 @@ export class GameSystem extends createSystem({
         this.view.card.setPicture(level.color ?? null, level.par);
         // a picture you haven't woven yet keeps its name until it comes alive: "?" on the plate, the name on the win
         this.nameHidden = !!level.chapter && level.id !== 'thanks' && !((this.progress.best[level.id] ?? 0) > 0);
-        const plate = this.nameHidden ? SURPRISE_PLATE : level.name;
+        const plate = this.nameHidden ? surprisePlate(level.chapter, level.id) : level.name;
         this.view.plaque.set(plate);
         if (this.debug) this.debug.plaque = plate;
         // a new picture: any friend goes home (the shelf and desk are rebuilt below); the cushion shows if this one needs a friend
@@ -1103,6 +1110,7 @@ export class GameSystem extends createSystem({
   /** The tag's words: levers by number and colour ("Push lever 1 (red) away"); in the tutorial the card hint states the goal once. */
   private hintText(step: HintStep): string {
     if (step === 'card' && this.flow?.tutorial) return 'Weave each row like the card';
+    if (step === 'undo' && this.autoUndoRow >= 0) return 'Not quite: Pip unpicks it'; // the loom undoes it by itself in a moment
     const look = !!this.settings.lookToPlay;
     if (step === 'lever' || step === 'unlatch') {
       const name = this.leverName(this.hintLever);
@@ -1112,6 +1120,17 @@ export class GameSystem extends createSystem({
     if (look && step === 'shuttle') return 'Look at Pip';
     if (look && step === 'undo') return 'Look at the spool to undo';
     if (look && step === 'weft') return 'Look at the spool by the levers';
+    if (step === 'friendOn') {
+      // name a plush you have whose feet (its bottom row) are exactly what this picture needs
+      const need = this.flow.level.friend ?? 0;
+      let name = '';
+      for (let i = 0; i < SPOTS && !name; i++) {
+        const id = this.view.plushes.idAt(i);
+        const pic = id ? pictureById(id) : undefined;
+        if (pic && (pic.target[0] & 255) === need) name = pic.name;
+      }
+      if (name) return look ? `Look at ${name}: it sits on the mat` : `Poke ${name}: it sits on the mat`;
+    }
     if (look && step === 'friendOn') return 'Look at a plush: it sits down';
     if (look && step === 'friendOff') return 'Look at the plush to send it home';
     return HINT_TEXT[step];
@@ -1146,7 +1165,7 @@ export class GameSystem extends createSystem({
       if (busyNow || this.flow.phase !== 'play' || Object.keys(this.progress.placed ?? {}).length > 0) this.carryDemo = 0;
     }
     ghost.show(
-      this.settings.lookToPlay || this.introT >= 0
+      this.settings.lookToPlay || (this.introT >= 0 && this.introK < 1)
         ? null // no hands to show: the ring of beads on what you look at is the guide
         : this.carryDemo > 0 && this.carryGesture
         ? this.carryGesture
@@ -1819,12 +1838,16 @@ export class GameSystem extends createSystem({
   private autoUndo(): void {
     const r = this.autoUndoRow;
     if (r < 0 || this.time < this.autoUndoAt) return;
-    this.autoUndoRow = -1;
     const c = this.controller;
     const rows = this.model.rows;
-    // only that same wrong row, still the last one, with nothing in hand and no partner steering
-    if (this.flow.phase !== 'play' || rows.length !== r + 1 || rows[r] === this.flow.level.target[r]) return;
-    if (c.shuttle.held || c.autoThrow || c.holding.left || c.holding.right || this.coopLink instanceof CoopGuest) return;
+    // only that same wrong row, still the last one, and no partner steering
+    if (this.flow.phase !== 'play' || rows.length !== r + 1 || rows[r] === this.flow.level.target[r] || this.coopLink instanceof CoopGuest) {
+      this.autoUndoRow = -1;
+      return;
+    }
+    // something in hand (the natural reaction is to grab a lever): wait for it, never give up
+    if (c.shuttle.held || c.autoThrow || c.holding.left || c.holding.right) return;
+    this.autoUndoRow = -1;
     c.doUndo();
     c.undoQuietUntil = performance.now() + 900;
     this.debug.autoUndo = (this.debug.autoUndo ?? 0) + 1;
@@ -1983,6 +2006,11 @@ export class GameSystem extends createSystem({
       name = `lever${best - LOOK_LEVER}`;
     }
     this.debug.lookPressed = name;
+  }
+
+  /** The current picture's not-yet-woven plate (captures). */
+  surprisePlateNow(): string {
+    return surprisePlate(this.flow.level.chapter, this.flow.level.id);
   }
 
   /** The spot a plush is in now (-1: none). */
@@ -2353,7 +2381,7 @@ export class GameSystem extends createSystem({
           const name = pictureById(id)?.name ?? '';
           // on a friend picture a poke seats the plush (or sends the seated one home), so say that
           const friendPic = !!this.flow?.level?.friend && this.flow.phase === 'play';
-          text = friendPic ? (i === this.seated ? `${name}: poke to go home` : `${name}: poke to sit on cushion`) : i < PLUSH.slots ? `${name}: poke to sing, pinch to carry` : `${name}: poke to sing`;
+          text = friendPic ? (i === this.seated ? `${name}: poke to go home` : `${name}: poke to sit on the mat`) : i < PLUSH.slots ? `${name}: poke to sing, pinch to carry` : `${name}: poke to sing`;
           lift = 0.045;
         }
         break;
@@ -2581,7 +2609,7 @@ export class GameSystem extends createSystem({
     }
     this.debug.controllers = held;
     if (this.placement.phase !== 'placed') {
-      this.hint.set(held ? 'Rest it on the table, hold the trigger' : 'Rest your hand here');
+      this.hint.set(held ? 'Rest a controller on your desk, hold the trigger' : 'Lay your palm flat on your desk');
       return;
     }
     // controllers work too (the tip pokes, the trigger pinches): say so once, then leave them be
@@ -2845,7 +2873,7 @@ export class GameSystem extends createSystem({
       }
       lift = 0.1; // above the card's top edge, clear of its knots
     } else if (INTRO[k].part === 'levers') {
-      c.leverPos(Math.min(1, c.activeLevers - 1), at);
+      c.leverPos(Math.max(0, Math.min(this.hintLever, c.activeLevers - 1)), at); // the lever the first row needs
       lift = 0.07;
     } else {
       const x = c.shuttleX();
@@ -2929,8 +2957,9 @@ export class GameSystem extends createSystem({
       this.view.undoHint = pulse;
     } else if (step === 'shuttle') {
       // Tag hangs just outside the frame beside Pip's perch, never over the threads.
-      const end = this.controller.shuttle.t < 0.5 ? -1 : 1;
-      m.position.set(end * (SHUTTLE.maxX - 0.03), 0.15, SHUTTLE.z + 0.01); // above Pip, pulled in toward the loom so the tag stays in view
+      // just above Pip wherever it perches, nudged in toward the loom so the tag stays in view
+      const px = this.controller.shuttleX();
+      m.position.set(px - Math.sign(px || 1) * 0.035, shuttleY(px) + 0.085, SHUTTLE.z + 0.01);
       if (this.controller.hover.left === null && this.controller.hover.right === null) {
         this.view.setShuttleHighlight(0, pulse);
       }

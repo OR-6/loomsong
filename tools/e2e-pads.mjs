@@ -12,7 +12,7 @@ await wait(1500);
 let s = run('tools/state.mjs');
 check('controllers are noticed', s.debug.controllers === true, String(s.debug.controllers));
 const hint = run('tools/hint-text.mjs');
-check('the table prompt says how to set the loom down with one', hint === 'Rest it on the table, hold the trigger', hint);
+check('the table prompt says how to set the loom down with one', hint === 'Rest a controller on your desk, hold the trigger', hint);
 // where the controller's "fingertip" sits relative to the device pose
 s = run('tools/state.mjs');
 const off = [s.right.indexTip[0] - 0.35, s.right.indexTip[1] - 1.45, s.right.indexTip[2] + 0.25];

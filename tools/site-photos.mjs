@@ -44,8 +44,8 @@ const gallery = async (name, out, frame = null) => {
   xr('set-device-state', { state: { fov: f.fov } });
   xr('set-transform', { device: 'headset', position: { x: O[0] + f.p[0], y: O[1] + f.p[1], z: O[2] + f.p[2] } });
   xr('look-at', { device: 'headset', target: { x: O[0] + f.t[0], y: O[1] + f.t[1], z: O[2] + f.t[2] } });
-  // a picture still being woven keeps its name a surprise: 'What is it?' on the plate, as the text says
-  evalJs(`const g = window.__loom.game; g.hideHints = true; if (g.flow.phase === 'play') g.view.plaque.set('What is it?'); return 1;`);
+  // a picture still being woven keeps its name a surprise: its place in the chapter on the plate ('Garden · 2 of 4'), as in play
+  evalJs(`const g = window.__loom.game; g.hideHints = true; if (g.flow.phase === 'play') g.view.plaque.set(g.surprisePlateNow()); return 1;`);
   await wait(350);
   cli('browser', 'screenshot', '--output-file', `${TMP}/g-${name}.png`);
   evalJs(`window.__loom.game.hideHints = false; return 1;`);

@@ -49,15 +49,13 @@ shot('m1-02-row1', s.debug.loomOrigin);
 
 // Row 2: the stem again, ←
 await passTo(false);
-// A deliberate wrong pass (the top row needs the leaves too), then unpick it with the bobbin.
+// A deliberate wrong pass (the top row needs the leaves too): Pip droops, then the loom unpicks it by itself.
+const undone0 = state().debug.autoUndo ?? 0;
 await passTo(true);
+shot('m1-03-miss', state().debug.loomOrigin);
+for (let i = 0; i < 12 && (state().debug.autoUndo ?? 0) === undone0; i++) await wait(400);
 s = state();
-check('wrong row 3 woven', s.debug.rows.length === 3, JSON.stringify(s.debug.rows));
-shot('m1-03-miss', s.debug.loomOrigin);
-const t = T();
-await pinchSlide(cal, t.bobbin, [t.bobbinPulled[0], t.bobbinPulled[1], t.bobbinPulled[2] + 0.008], 0.5);
-s = state();
-check('bobbin pull unpicks the wrong row', s.debug.rows.length === 2, `rows=${s.debug.rows.length}`);
+check('a wrong row unweaves itself (no spool fight)', (s.debug.autoUndo ?? 0) === undone0 + 1 && s.debug.rows.length === 2, JSON.stringify({ undone: s.debug.autoUndo, rows: s.debug.rows }));
 
 // Row 3: poke lever 1 (accessibility path): it joins lever 0, the aha; pass →
 await poke(cal, lever(1, false));

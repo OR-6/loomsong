@@ -13,7 +13,7 @@ check('the ghost hand shows a plush being carried to the desk, once', run('tools
 run('tools/seed-midgame.mjs'); // the Duck, not woven before
 await wait(600);
 let s = D('state');
-check("a new picture's plate keeps its name a surprise", s.level === 'duck' && s.plaque === 'What is it?', JSON.stringify(s));
+check("a new picture's plate keeps its name a surprise", s.level === 'duck' && s.plaque === 'Garden · new picture', JSON.stringify(s));
 run('tools/solve-best.mjs');
 for (let i = 0; i < 10 && !s.reveal; i++) {
   await wait(300);
