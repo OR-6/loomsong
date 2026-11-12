@@ -1073,7 +1073,7 @@ export class GameSystem extends createSystem({
     }
     ghost.show(
       this.settings.lookToPlay
-        ? null // no hands to show: the felt dot on what you look at is the guide
+        ? null // no hands to show: the ring of beads on what you look at is the guide
         : this.carryDemo > 0 && this.carryGesture
         ? this.carryGesture
         : this.notice
@@ -1780,7 +1780,7 @@ export class GameSystem extends createSystem({
 
   /**
    * Look to play (accessibility): no hands needed. Look at a lever, Pip, the undo spool, the yarn swap
-   * or (with the cushion out) a plush for a moment and it is pressed; a felt dot grows on it as you look.
+   * or (with the cushion out) a plush for a moment and it is pressed; a ring of felt beads fills around it as you look.
    */
   private lookKey = '';
   private lookT = 0;
@@ -1851,7 +1851,7 @@ export class GameSystem extends createSystem({
     }
     this.lookT += dt;
     const DWELL = 1.1;
-    this.view.setGazeDot(bx, by, bz, Math.max(0, Math.min(1, this.lookT / DWELL)));
+    this.view.setGazeDot(bx, by, bz, Math.max(0, Math.min(1, this.lookT / DWELL)), this.gazeQ); // square to your view
     if (this.lookT < DWELL) return;
     this.lookSpent = true; // once per look: glance away to press it again
     audio.tick();

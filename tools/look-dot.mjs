@@ -1,7 +1,7 @@
-// The Look to play dot (E2E).
+// The Look to play ring (E2E): shown, and how many beads are filled.
 export default async function run({ page, frame }) {
   return await (frame ?? page).evaluate(() => {
     const d = window.__loom?.game?.view?.gazeDot;
-    return d ? { visible: d.visible, scale: Math.round(d.scale.x * 100) / 100 } : null;
+    return d ? { visible: d.visible, beads: d.children.filter((b) => b.visible).length } : null;
   });
 }

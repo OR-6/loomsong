@@ -110,6 +110,9 @@ const _b = new Vector3();
 const Z_AXIS = new Vector3(0, 0, 1);
 
 const _v = new Vector3();
+/** Beads in the Look to play ring. */
+const GAZE_BEADS = 12;
+
 export class LoomView {
   readonly root = new Group();
   /** Theme-dependent meshes live here so a theme switch can rebuild them. */
@@ -1322,21 +1325,38 @@ export class LoomView {
     return this.mood === 'none' && Math.abs(this.shuttleVel) < 0.05 && this.pipGrabT < 0 && this.pipWakeT < 0;
   }
 
-  /** Look to play: a felt dot that grows on the control you're looking at (0: hidden). */
+  /** Look to play: a ring of felt beads that fills around the control you're looking at, like a dial. */
   readonly gazeDot = (() => {
-    const m = new Mesh(new SphereGeometry(0.009, 14, 10), new MeshStandardMaterial({ color: 0xf2b632, roughness: 1, map: feltTexture(), emissive: 0x6b4a10, depthTest: false, transparent: true }));
-    m.renderOrder = 998;
-    m.visible = false;
-    m.name = 'GazeDot';
-    return m;
+    const g = new Group();
+    g.name = 'GazeRing';
+    g.visible = false;
+    g.renderOrder = 998;
+    const geo = new SphereGeometry(0.0054, 10, 8);
+    const mat = new MeshStandardMaterial({ color: 0xf2b632, roughness: 1, map: feltTexture(), emissive: 0x7a5410, depthTest: false });
+    for (let i = 0; i < GAZE_BEADS; i++) {
+      const b = new Mesh(geo, mat);
+      const a = Math.PI / 2 - (i / GAZE_BEADS) * Math.PI * 2; // from the top, clockwise
+      b.position.set(Math.cos(a) * 0.03, Math.sin(a) * 0.03, 0);
+      b.renderOrder = 998;
+      g.add(b);
+    }
+    return g;
   })();
-  setGazeDot(x: number, y: number, z: number, progress: number): void {
+  private gazeQ = new Quaternion();
+  /** Show the ring at a control (loom space), square to the view of a head turned `headQ` (world); `progress` 0..1 (0: hidden). */
+  setGazeDot(x: number, y: number, z: number, progress: number, headQ?: Quaternion): void {
     const d = this.gazeDot;
     if (!d.parent) this.root.add(d);
     d.visible = progress > 0.02;
-    d.position.set(x, y + 0.03, z);
-    d.scale.setScalar(0.35 + 0.65 * progress);
-    (d.material as MeshStandardMaterial).opacity = 0.5 + 0.5 * progress;
+    if (!d.visible) return;
+    d.position.set(x, y, z);
+    if (headQ) d.quaternion.copy(this.root.getWorldQuaternion(this.gazeQ).invert().multiply(headQ));
+    const n = Math.ceil(progress * GAZE_BEADS);
+    for (let i = 0; i < GAZE_BEADS; i++) {
+      const b = d.children[i];
+      b.visible = i < n;
+      b.scale.setScalar(i === n - 1 ? 0.6 + 0.4 * (progress * GAZE_BEADS - (n - 1)) : 1);
+    }
   }
 
   /** Stroked: Pip closes its eyes for a moment, fluffs up and bobs happily. */

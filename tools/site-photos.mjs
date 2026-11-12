@@ -44,7 +44,8 @@ const gallery = async (name, out, frame = null) => {
   xr('set-device-state', { state: { fov: f.fov } });
   xr('set-transform', { device: 'headset', position: { x: O[0] + f.p[0], y: O[1] + f.p[1], z: O[2] + f.p[2] } });
   xr('look-at', { device: 'headset', target: { x: O[0] + f.t[0], y: O[1] + f.t[1], z: O[2] + f.t[2] } });
-  evalJs(`window.__loom.game.hideHints = true; return 1;`);
+  // a picture still being woven keeps its name a surprise: '?' on the plate, as the text says
+  evalJs(`const g = window.__loom.game; g.hideHints = true; if (g.flow.phase === 'play') g.view.plaque.set('?'); return 1;`);
   await wait(350);
   cli('browser', 'screenshot', '--output-file', `${TMP}/g-${name}.png`);
   evalJs(`window.__loom.game.hideHints = false; return 1;`);
@@ -136,7 +137,10 @@ hands();
 await wait(600);
 await shoot('friend', [0.1, 0.26, 0.5], [0.06, 0.03, 0.06], 50);
 save('friend', 'plush-friend.jpg', 800, 500, 1152, 720);
+// the friend photo is about the cushion: the present and the telephone (and their tags) stay out of the frame's edges
+evalJs(`const v = window.__loom.game.view; v.phone.root.position.y -= 5; v.daily.root.position.y -= 5; return 1;`);
 await gallery('friend', '02-plushes-help.jpg');
+evalJs(`const v = window.__loom.game.view; v.phone.root.position.y += 5; v.daily.root.position.y += 5; return 1;`);
 // 8. the picture card up close: hand-stamped squares, the move knots as yarn bows
 await shoot('card', [0.0, 0.2, 0.2], [0.0, 0.15, -0.23], 34);
 await gallery('card', '08-picture-card.jpg', { p: [0.0, 0.2, 0.2], t: [0.0, 0.15, -0.23], fov: 34 });
@@ -153,7 +157,7 @@ await wait(900);
 const gift = evalJs(`const g = window.__loom.game; g.syncDaily(); const s = g.controller.bankSide; g.giftAt[0] = -s * 0.2; g.giftAt[1] = 0.25; g.view.setGiftSpot(g.giftAt[0], g.giftAt[1]); return g.giftAt;`);
 hands();
 await shoot('gift', [gift[0] * 0.4, 0.16, gift[1] + 0.2], [gift[0] * 0.8, 0.02, gift[1] - 0.04], 46);
-await gallery('gift', '13-present-of-the-day.jpg');
+await gallery('gift', '13-present-of-the-day.jpg', { p: [gift[0] * 0.75, 0.15, gift[1] + 0.21], t: [gift[0] * 1.15, 0.035, gift[1] - 0.1], fov: 44 }); // tight: the present, the basket and the shelf, no bare desk
 
 // 10. Night: what a lever lifts stays hidden until you try it (one tried and dyed, the rest undyed wool)
 run('tools/seed-night.mjs');
@@ -161,6 +165,25 @@ await wait(900);
 hands();
 await shoot('night', [0.24, 0.3, 0.36], [0.06, 0.03, -0.02], 52);
 await gallery('night', '03-night-deduce-the-levers.jpg');
+
+// 12. Look to play: no hands; the felt dot grows on the lever you're looking at (caught mid-look, before it presses)
+run('tools/seed-desk.mjs');
+await wait(1200);
+hands();
+run('tools/set-look.mjs');
+{
+  const L = run('tools/state.mjs').targets.lever1;
+  const t = [L[0] - O[0], L[1] - O[1], L[2] - O[2]];
+  xr('set-device-state', { state: { fov: 50 } });
+  xr('set-transform', { device: 'headset', position: { x: O[0] + t[0] - 0.12, y: O[1] + t[1] + 0.2, z: O[2] + t[2] + 0.36 } });
+  xr('look-at', { device: 'headset', target: { x: L[0], y: L[1], z: L[2] } });
+  // wait in the page until the ring is two-thirds round, then hold the moment for the photo
+  evalJs(`const g = window.__loom.game; g.hideHints = true; const d = g.view.gazeDot; for (let i = 0; i < 200; i++) { if (d.visible && d.children.filter((b) => b.visible).length >= 8) break; await new Promise((r) => setTimeout(r, 10)); } g.setPaused(true); return 1;`);
+  cli('browser', 'screenshot', '--output-file', `${TMP}/g-look.png`);
+  evalJs(`const g = window.__loom.game; g.setPaused(false); g.hideHints = false; g.settings = { ...g.settings, lookToPlay: false }; return 1;`);
+  execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-i', `${TMP}/g-look.png`, '-vf', 'crop=1080:720:100:0,scale=1500:1000:flags=lanczos', '-q:v', '2', `${GALLERY}/14-look-to-play.jpg`]);
+  console.log('shot look');
+}
 
 xr('set-device-state', { state: { fov: 90 } });
 process.env.PHOTO = '0';
