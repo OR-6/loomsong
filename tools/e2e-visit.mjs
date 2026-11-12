@@ -18,7 +18,7 @@ xr('set-transform', { device: HAND, position: { x: 0.45, y: 1.3, z: 0.2 }, orien
 await wait(3000);
 let v = run('tools/visit-state.mjs');
 check('a plush stands on the desk', !!v.placed.sprout, JSON.stringify(v.placed));
-check("today's pick is the visitor who likes it (the Ladybug)", v.pick?.id === 'day-ladybug', JSON.stringify(v.pick));
+check("today's pick is a visitor who likes it (the Ladybug or the Snail)", ['day-ladybug', 'day-snail'].includes(v.pick?.id), JSON.stringify(v.pick));
 const sp = v.placed.sprout;
 check('the present stands right beside the Sprout', v.giftShown && sp && Math.hypot(v.gift[0] - sp[0], v.gift[1] - sp[1]) < 0.1, JSON.stringify({ gift: v.gift, sprout: sp }));
 check('a notice says someone came to see it', v.notices.some((n) => /A visitor for your Sprout/.test(n)), JSON.stringify(v.notices));

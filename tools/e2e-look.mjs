@@ -26,16 +26,13 @@ lookAt(lever);
 await wait(2200);
 s = run('tools/state.mjs');
 check('off by default: looking does nothing', !s.debug.latched[0] && !s.debug.lookPressed, JSON.stringify([s.debug.latched[0], s.debug.lookPressed]));
-run('tools/set-look.mjs');
-xr('look-at', { device: 'headset', target: { x: lever[0] + 0.4, y: lever[1], z: lever[2] } });
-await wait(300);
-lookAt(lever);
-const dots = [];
-for (let i = 0; i < 10; i++) {
-  await wait(150);
-  dots.push(run('tools/look-dot.mjs'));
-}
-check('a ring of felt beads fills while you look', dots.some((d) => d.visible && d.beads >= 1), JSON.stringify(dots.map((d) => (d.visible ? "" : "x") + d.beads)));
+// still looking at the lever: switch Look to play on from inside the page and watch the ring from its start
+process.env.LOOK_WATCH = '1';
+process.env.LOOK_ENABLE = '1';
+const ring = run('tools/look-dot.mjs'); // the ring fills bead by bead
+delete process.env.LOOK_WATCH;
+delete process.env.LOOK_ENABLE;
+check('a ring of felt beads fills while you look', ring.visible && ring.seen.length >= 3 && ring.seen.some((b, i) => i > 0 && b > ring.seen[i - 1]), JSON.stringify(ring.seen));
 for (let i = 0; i < 8 && !s.debug.latched[0]; i++) {
   await wait(300);
   s = run('tools/state.mjs');
