@@ -221,7 +221,7 @@ export class TargetCard {
       const st = status[r];
       // caller co-op: rows still to weave are hidden here (only the phone sees the picture)
       const hidden = this.secret && st === 'todo';
-      const ear = !hidden && r === this.earRow && st === 'todo';
+      const ear = !hidden && r === this.earRow && (st === 'todo' || st === 'miss'); // a missed ear row stays covered: no answer yet
       // the row to weave next sits on a soft yellow band (easier to find than the pin alone)
       if (r === nextRow && stars === 0 && !highContrast) {
         g.fillStyle = 'rgba(247,180,40,0.72)';
@@ -314,7 +314,7 @@ export class TargetCard {
       }
       if (st === 'match') drawTick(g, px(gridX + WARPS * cell + markW / 2), cy, px(0.0075));
       const lastMiss = st === 'todo' && !hidden && !this.secret && this.lastMiss && this.lastMiss.r === r ? this.lastMiss.woven : undefined;
-      if ((st === 'miss' && !this.secret) || lastMiss !== undefined) {
+      if ((st === 'miss' && !this.secret && !ear) || lastMiss !== undefined) {
         if (st === 'miss') drawCross(g, px(gridX + WARPS * cell + markW / 2), cy, px(0.007));
         // say exactly what was wrong, square by square (by shape, not only colour): a ring round a
         // square that needed its thread lifted, a cross on one that got a thread it shouldn't have

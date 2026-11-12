@@ -47,10 +47,10 @@ check('row 1 woven', s.debug.rows.length >= 1 && s.debug.rows[0] === 24, JSON.st
 check('tutorial: no homework tags, the guide goes on to the next move', s.debug.hint !== 'card' && s.debug.hint !== 'knots', s.debug.hint);
 shot('m1-02-row1', s.debug.loomOrigin);
 
-// Row 2: the stem again: the levers already make it, so Pip flies back by himself
-for (let i = 0; i < 12 && state().debug.rows.length < 2; i++) await wait(300);
-s = state();
-check('a repeated row: Pip weaves it by himself', s.debug.rows.length === 2 && s.debug.repeats === 1, JSON.stringify({ rows: s.debug.rows, repeats: s.debug.repeats }));
+// Row 2: the stem again, ← (the first picture: you do every pass yourself, Pip never does it for you)
+await wait(1200);
+check('the first picture: Pip waits for you, even on a repeated row', state().debug.rows.length === 1 && !state().debug.repeats, JSON.stringify(state().debug.rows));
+await passTo(false);
 // A deliberate wrong pass (the top row needs the leaves too): Pip droops, then the loom unpicks it by itself.
 const undone0 = state().debug.autoUndo ?? 0;
 await passTo(true);

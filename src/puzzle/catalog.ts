@@ -89,7 +89,7 @@ export const VISITOR_LIKES: Readonly<Record<string, string>> = {
   'day-mushroom': 'table',
   'day-gift': 'heart',
   'day-key': 'house',
-  'day-crown': 'star',
+  'day-rocket': 'star',
   'day-icecream': 'cup',
   'day-snowman': 'moon',
   'day-bell': 'ghost',
@@ -100,7 +100,6 @@ export const VISITOR_LIKES: Readonly<Record<string, string>> = {
   'day-pine': 'fish',
   'day-jelly': 'octopus',
   'day-anchor': 'boat',
-  'day-pear': 'jellyfish',
 };
 
 /**

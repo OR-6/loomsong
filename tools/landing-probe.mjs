@@ -25,7 +25,7 @@ export default async function run({ page, frame }) {
   await t.click('#hand-pick button[data-hand="left"]');
   const hand = (await settings()).hand;
   await t.click('#hand-pick button[data-hand="auto"]');
-  const coopOpen = await t.evaluate(() => !!document.getElementById('coop-host').offsetParent); // always open now
+  const coopOpen = await t.evaluate(() => !!document.getElementById('coop-join').offsetParent); // always open now (calls start from the toy telephone)
   await t.fill('#coop-code', 'zz');
   await t.click('#coop-join');
   await page.waitForTimeout(300);

@@ -122,7 +122,7 @@ const PRACTICE_AFTER = 20;
 const HINT_TEXT: Record<HintStep, string> = {
   lever: 'Slide it away',
   unlatch: 'Slide it back',
-  weft: 'Poke the spool by the levers',
+  weft: 'Poke the blue yarn by Pip',
   shuttle: 'Slide Pip across, or poke it',
   undo: 'Poke the spool to undo',
   card: 'Match the next row',
@@ -556,7 +556,15 @@ export class GameSystem extends createSystem({
         // player spent 20 s fighting the spool after one wrong row): the spool is there to go back further
         this.autoUndoRow = !good ? e.index : -1;
         this.view.card.lastMiss = good ? null : { r: e.index, woven: e.row };
-        if (e.index === this.earRow && this.view.card.earRow === this.earRow) this.earWoven(good);
+        if (e.index === this.earRow && this.view.card.earRow === this.earRow) {
+          if (!good && this.earMisses === 0) {
+            // first miss: no answer yet. The loom unpicks it and Pip hums again, this time with the threads quivering
+            this.earMisses = 1;
+            this.view.card.lastMiss = null;
+            this.earHumAt = this.time + 2.6;
+            this.earShowQuiver = true;
+          } else this.earWoven(good);
+        }
         this.autoUndoAt = this.time + 2.2; // long enough to see which squares were wrong
         // the same row again with the levers as they are: Pip remembers it and flies back by himself
         const tg = this.flow.level.target;
@@ -596,7 +604,14 @@ export class GameSystem extends createSystem({
         // shouldn't feel like losing lives); the stars still come at the win
         this.view.card.setPicture(level.color ?? null, level.chapter === 'garden' ? 0 : level.par);
         this.view.card.lastMiss = null;
+        if (level.chapter === 'home' && !this.knotsTold && !this.flow.challenge && !this.progress.best[level.id]) {
+          this.knotsTold = true;
+          this.laterNotice = 'New: each lever move unties a knot. Keep some for gold';
+          this.laterNoticeIn = 2.5;
+        }
         this.earRow = this.chooseEarRow(level);
+        this.earMisses = 0;
+        this.earShowQuiver = false;
         this.earHumAt = -1;
         this.view.card.earRow = this.earRow;
         // a picture you haven't woven yet keeps its name until it comes alive: "?" on the plate, the name on the win
@@ -694,7 +709,13 @@ export class GameSystem extends createSystem({
           const fp = likes ? this.progress.placed?.[likes] : undefined;
           const vp = this.progress.placed?.[this.flow.level.id];
           const friendName = fp && vp && Math.hypot(fp[0] - vp[0], fp[1] - vp[1]) < 0.12 ? pictureById(likes!)?.name : undefined;
-          this.laterNotice = friendName ? `${this.flow.level.name} stays with your ${friendName}` : 'Leave a plush out: someone may visit tomorrow';
+          const nextLike = Object.entries(VISITOR_LIKES).find(([v, f]) => v !== this.flow.level.id && !this.progress.best[v] && this.progress.best[f])?.[1];
+          const hintFor = nextLike ? pictureById(nextLike)?.name : undefined;
+          this.laterNotice = friendName
+            ? `${this.flow.level.name} stays with your ${friendName}`
+            : hintFor
+              ? `Leave your ${hintFor} out: someone may visit it tomorrow`
+              : 'Leave a plush out: someone may visit tomorrow';
           this.laterNoticeIn = 4.6;
           this.syncDaily();
         }
@@ -1163,7 +1184,7 @@ export class GameSystem extends createSystem({
     }
     if (look && step === 'shuttle') return 'Look at Pip';
     if (look && step === 'undo') return 'Look at the spool to undo';
-    if (look && step === 'weft') return 'Look at the spool by the levers';
+    if (look && step === 'weft') return 'Look at the blue yarn by Pip';
     if (step === 'friendOn') {
       // name a plush you have whose feet (its bottom row) are exactly what this picture needs
       const need = this.flow.level.friend ?? 0;
@@ -1173,9 +1194,10 @@ export class GameSystem extends createSystem({
         const pic = id ? pictureById(id) : undefined;
         if (pic && (pic.target[0] & 255) === need) name = pic.name;
       }
-      if (name) return look ? `Look at ${name}: it sits on the mat` : `Poke ${name}: it sits on the mat`;
+      // the first friend picture names one; after that, working out whose feet fit is the puzzle
+      if (name && this.flow.level.id === 'table') return look ? `Look at ${name}: it sits on the mat` : `Poke ${name}: it sits on the mat`;
+      return look ? 'Whose feet would lift those threads?' : 'Whose feet would lift those threads? Poke a plush';
     }
-    if (look && step === 'friendOn') return 'Look at a plush: it sits down';
     if (look && step === 'friendOff') return 'Look at the plush to send it home';
     return HINT_TEXT[step];
   }
@@ -1752,6 +1774,16 @@ export class GameSystem extends createSystem({
     const pick = this.progress.dailyPick;
     if (pick && pick.day === this.today) {
       const l = DAILY_LEVELS.find((d) => d.id === pick.id);
+      const likes = l ? VISITOR_LIKES[l.id] : undefined;
+      const isVisitor = !!likes && !!this.progress.placed?.[likes];
+      // a plain picture of the day can still turn into a visitor if you put a liked plush out today (until you open it)
+      const canRepick = !isVisitor && !this.dailyDone && !this.flow?.daily;
+      const v = canRepick ? visitorFor(this.today, Object.keys(this.progress.placed ?? {}), (id) => (this.progress.best[id] ?? 0) > 0) : null;
+      if (v && v.id !== pick.id) {
+        this.progress.dailyPick = { day: this.today, id: v.id };
+        saveProgress(this.progress);
+        return v;
+      }
       if (l) return l;
     }
     const onDesk = Object.keys(this.progress.placed ?? {});
@@ -2123,16 +2155,21 @@ export class GameSystem extends createSystem({
   private earRow = -1;
   private earHumAt = -1;
   private earTold = false;
+  private knotsTold = false;
+  private earMisses = 0;
+  /** The threads quiver as Pip hums only after a first miss (a hint; until then it's by ear). */
+  private earShowQuiver = false;
   private earQuiver = new Float32Array(WARPS).fill(-1);
   private chooseEarRow(level: Level): number {
     const ch = level.chapter;
     const daily = level.id.startsWith('day-');
-    if (!(ch === 'home' || ch === 'sea' || daily) || level.friend || level.mystery || this.coopLink || this.practice || this.settings.highContrast || (this.flow?.challenge && !this.flow.daily)) return -1;
+    const firstOfHome = ch === 'home' && CHAPTERS.find((c) => c.id === 'home')?.levels[0] === level.id; // Home's first picture brings the knots: one new thing at a time
+    if (!(ch === 'home' || daily) || firstOfHome || level.friend || level.mystery || this.coopLink || this.practice || this.settings.highContrast || (this.flow?.challenge && !this.flow.daily)) return -1;
     const t = level.target;
     let best = -1;
     let bestScore = -1;
     for (let r = 1; r < t.length; r++) {
-      if (t[r] === t[r - 1] || (r + 1 < t.length && t[r] === t[r + 1])) continue; // never a repeat: that would be no puzzle
+      if (t.some((x, k) => k !== r && x === t[r])) continue; // never a row you can see elsewhere on the card: that would be no puzzle
       let n = 0;
       for (let w = 0; w < WARPS; w++) if (isLifted(t[r], w)) n++;
       if (n < 2 || n > 6) continue;
@@ -2159,7 +2196,7 @@ export class GameSystem extends createSystem({
       if (!isLifted(row, w)) continue;
       const delay = 0.12 + k++ * 0.16;
       audio.pluck(w, 0.4, delay, 0.3, panOf(warpX(w)));
-      this.earQuiver[w] = this.time + delay; // the thread quivers as it sounds
+      if (this.earShowQuiver) this.earQuiver[w] = this.time + delay; // after a miss, the thread quivers as it sounds (a hint you can see)
     }
     this.view.setPipMood('happy');
     this.debug.earHums = (this.debug.earHums ?? 0) + 1;
@@ -2218,7 +2255,7 @@ export class GameSystem extends createSystem({
     const c = this.controller;
     const lv = this.flow.level;
     const r = this.model.rows.length;
-    const stillSame = this.flow.phase === 'play' && r > 0 && r < lv.target.length && lv.target[r] === lv.target[r - 1];
+    const stillSame = this.flow.phase === 'play' && !this.flow.tutorial && r > 0 && r < lv.target.length && lv.target[r] === lv.target[r - 1]; // the first picture: you do every pass yourself
     // the shed (plus a seated friend) and Pip's yarn must already make it
     const ready = stillSame && (this.model.shed & 255) === (lv.target[r] & 255) && ((lv.target[r] & 256) !== 0 ? 1 : 0) === this.model.weft;
     if (!ready || c.mirror || this.coopLink instanceof CoopGuest || !c.allow.shuttle) {
@@ -2388,7 +2425,7 @@ export class GameSystem extends createSystem({
     // the telephone: once Garden is woven, or straight away when a call is hosted (e.g. from the 2D page)
     const calling = this.practice || coop.status.state === 'hosting' || (coop.status.state === 'connected' && coop.status.role === 'host');
     // a ?start= shortcut (judges, filming) has the telephone out at once, so the caller can be tried
-    ph.root.visible = ((this.progress.tutorialDone && this.picturesDone() >= 4) || calling || !!FILM) && !this.grand;
+    ph.root.visible = ((this.progress.tutorialDone && this.picturesDone() >= 6) || calling || !!FILM) && !this.grand; // a few pictures into Home: one new thing at a time
     this.phoneVec.set(this.controller.bankSide * TOY_PHONE.x, TOY_PHONE.y, TOY_PHONE.z);
     c.phoneSpot = ph.root.visible && this.flow?.phase === 'play' && !this.flow.challenge ? this.phoneVec : null;
     c.plateSpot = this.flow?.phase === 'play' && !this.flow.challenge && !this.grand && !(this.coopLink instanceof CoopGuest) ? this.view.plaque.mesh.position : null;

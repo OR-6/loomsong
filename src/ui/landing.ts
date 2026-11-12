@@ -31,7 +31,7 @@ export function mountLanding(world: World): void {
           <div class="pitch">
             <i class="tape" aria-hidden="true"></i>
 
-            <p id="tagline">A tiny loom on your real desk. Hands only.</p>
+            <p id="tagline">A tiny loom on your real desk, made for your hands.</p>
             <p class="lede">Push the levers away, slide Pip across, and each row you weave sings. Finish a picture and it comes alive as a little felt toy that stays on your desk.</p>
             <div class="go">
               <button id="enter-xr" class="patch" type="button">Enter mixed reality</button>
@@ -77,7 +77,7 @@ export function mountLanding(world: World): void {
             <path data-line d="M-10 30 Q 300 4 520 22 T 1010 10" fill="none" stroke="url(#ply-teal)" stroke-width="4.5" stroke-linecap="round"/>
           </svg>
           <figure class="photo small" data-hang><i class="peg"></i><span class="label">Your shelf, your desk</span><img loading="lazy" src="${sitePhoto('shelf.jpg')}" alt="Finished plushes on the shelf and on the desk, beside the wrapped present of the day" width="800" height="500" /></figure>
-          <div class="note-card"><i class="tape"></i><b>Four chapters, and a new picture every day</b><p>Garden teaches your hands, Home combines levers, Night hides what they lift, and Sea weaves in two colours. Some pictures need a friend: sit a plush on the cushion and it lifts the threads under its feet. Carry your plushes anywhere on your desk and they stay there; finish a chapter and its quilt hangs on your wall.</p></div>
+          <div class="note-card"><i class="tape"></i><b>Four chapters, and visitors</b><p>Garden teaches your hands, Home combines levers, Night hides what they lift, and Sea weaves in two colours. In Home, one row per picture is hummed by Pip: find it by ear. Some pictures need a friend: sit a plush on the felt mat and it lifts the threads under its feet. Carry your plushes anywhere on your desk and they stay; leave one out and tomorrow a visitor comes for it.</p></div>
           <figure class="photo small" data-hang><i class="peg"></i><span class="label">Your plushes help</span><img loading="lazy" src="${sitePhoto('plush-friend.jpg')}" alt="The Sprout plush sits on a felt cushion in front of the loom and lifts the two middle threads" width="800" height="500" /></figure>
         </section>
 
@@ -121,8 +121,7 @@ export function mountLanding(world: World): void {
             <h2 id="coop-title">No headset? Be the caller on your phone.</h2>
             <p>The weaver pokes the toy telephone on their desk in the headset and reads out the code. Open this page on your phone and join. Only you can see the picture, and only they can see which threads each lever lifts, so you have to talk it through. Tap a square to pin its thread on their loom, or ring Pip to make it wave. Every picture you finish together leaves a postcard on your phone.</p>
             <div class="row">
-              <button type="button" id="coop-host" class="patch">Host a loom</button>
-              <span class="or">or</span>
+              <button type="button" id="coop-host" class="patch" hidden>Host a loom</button>
               <input id="coop-code" maxlength="4" placeholder="CODE" aria-label="Room code" autocomplete="off" />
               <button type="button" id="coop-join" class="patch">Join</button>
               <button type="button" id="coop-leave" hidden>Leave</button>
