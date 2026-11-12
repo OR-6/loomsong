@@ -2265,14 +2265,14 @@ export class GameSystem extends createSystem({
 
   /**
    * Settings inside the headset: a small felt "Settings" tag at the loom's front corner opens four
-   * toggles (calm motion, high contrast, rows by ear, look to play). Each saves at once, the same way
+   * toggles (calm motion, high contrast, rows by ear, look to play, rest to press, music). Each saves at once, the same way
    * the 2D page does; the tags fold away when you poke "Settings" again, or after a while.
    */
   private setLabels: Label[] = [];
   private setOpen = false;
   private setIdle = 0;
   private setVecs: Vector3[] = [];
-  private static readonly SET_KEYS = ['calm', 'contrast', 'ear', 'look', 'rest'] as const;
+  private static readonly SET_KEYS = ['calm', 'contrast', 'ear', 'look', 'rest', 'music'] as const;
   private buildSettingTags(): void {
     for (let i = 0; i <= GameSystem.SET_KEYS.length; i++) {
       const l = new Label(i === 0 ? 0.09 : 0.15, 0.026);
@@ -2295,6 +2295,7 @@ export class GameSystem extends createSystem({
     this.setLabels[3].set(`Rows by ear: ${on(st.hearRows !== false)}`);
     this.setLabels[4].set(`Look to play: ${on(!!st.lookToPlay)}`);
     this.setLabels[5].set(`Rest to press: ${on(restPressOn(st))}`);
+    this.setLabels[6].set(`Music: ${on(st.music)}`);
   }
   private pokeSetting(i: number): void {
     audio.click(true);
@@ -2309,6 +2310,7 @@ export class GameSystem extends createSystem({
     else if (key === 'contrast') st.highContrast = !st.highContrast;
     else if (key === 'ear') st.hearRows = st.hearRows === false;
     else if (key === 'rest') st.restPress = !restPressOn(st);
+    else if (key === 'music') st.music = !st.music;
     else st.lookToPlay = !st.lookToPlay;
     saveSettings(st);
     window.dispatchEvent(new CustomEvent('loomsong:settings')); // the same path as the 2D page: everything restyles
@@ -2328,7 +2330,12 @@ export class GameSystem extends createSystem({
       l.mesh.visible = vis;
       const v = this.setVecs[i];
       if (i === 0) v.set(x, 0.016, z);
-      else v.set(x - side * 0.01, 0.03 + i * 0.042, z - 0.01); // 1.6 cm of air between tags (each 2.6 cm tall)
+      else {
+        // two columns (the second further out), three rows: a short stack with 1.6 cm of air between tags
+        const col = (i - 1) % 2;
+        const row = Math.floor((i - 1) / 2);
+        v.set(x - side * (0.01 + col * 0.165), 0.035 + row * 0.042, z - 0.01);
+      }
       l.mesh.position.copy(v);
       c.settingSpots[i] = vis ? v : null;
     }

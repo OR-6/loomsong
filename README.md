@@ -19,7 +19,7 @@ Hand tracking gives no touch feedback, so Loomsong puts every interaction on a r
 3. **Rest one hand flat on the table for a second.** The loom unfolds there, and the first time, tags name its parts: the card, the levers and Pip. (No hand seen? After about 8 seconds, or 15 if your hands are up but not flat, it appears at a default height; poke the yellow arrows to raise or lower it.)
 4. Follow the ghost hand: slide the glowing lever away from you, then pinch Pip and slide him across. Your first row plays within a minute.
 5. Pinch-and-slide, or just poke: poking works on every control.
-6. Settings without leaving the headset: poke the felt **Settings** tag at the loom's front corner for calm motion, high contrast, rows by ear, Look to play and Rest to press.
+6. Settings without leaving the headset: poke the felt **Settings** tag at the loom's front corner for calm motion, high contrast, rows by ear, Look to play, Rest to press and music.
 7. Nothing to log into. Progress stays in the browser.
 8. **Short on time?** Add `?start=friends` to the link to start at the fourth picture, where your plushes become tools (poke a plush to seat it on the cushion). `?start=night` and `?start=sea` jump to those chapters; `?finale=1` shows the ending.
 9. **Phone caller:** with `?start=friends` the toy telephone is on your desk at once (in normal play it arrives a few pictures into Home). Poke it twice; its tag shows a four-letter code. On any phone, open the same link, type the code in the box at the top and press **Join as caller**. Alone? Wait 20 seconds and a practice caller picks up: the picture leaves the loom and felt pins drop on each row's threads. Poke the telephone to hang up.

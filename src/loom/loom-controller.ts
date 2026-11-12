@@ -96,7 +96,7 @@ function targetKey(t: Target): number {
 }
 const PLATE_TARGET = { kind: 'plate' } as const;
 /** One target object per settings tag (no allocation in the per-frame search). */
-const SETTING_TARGETS: Target[] = [0, 1, 2, 3, 4, 5].map((i) => ({ kind: 'setting', i }) as Target);
+const SETTING_TARGETS: Target[] = [0, 1, 2, 3, 4, 5, 6].map((i) => ({ kind: 'setting', i }) as Target);
 /** The two nudge arrows (direction, z): allocated once, not per hand per frame. */
 const NUDGE_SPOTS = [[1, NUDGE.upZ], [-1, NUDGE.downZ]] as const;
 const SWAP_TARGET = { kind: 'swap' } as const;
