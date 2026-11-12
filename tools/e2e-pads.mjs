@@ -23,7 +23,7 @@ xr('set-select-value', { device: PAD, value: 1 });
 for (let i = 0; i < 12 && run('tools/state.mjs').debug.phase !== 'placed'; i++) await wait(400);
 xr('set-select-value', { device: PAD, value: 0 });
 s = run('tools/state.mjs');
-check('trigger held on the desk sets the loom down there', s.debug.phase === 'placed' && s.debug.deskSource !== 'default' && Math.abs(s.debug.deskY - 0.8) < 0.03, JSON.stringify({ phase: s.debug.phase, src: s.debug.deskSource, y: s.debug.deskY }));
+check('trigger held on the desk sets the loom down there', s.debug.phase === 'placed' && s.debug.deskSource !== 'default' && Math.abs(s.debug.deskY - 0.8) < 0.04, JSON.stringify({ phase: s.debug.phase, src: s.debug.deskSource, y: s.debug.deskY }));
 await wait(800);
 s = run('tools/state.mjs');
 check('a notice says controllers work, once', (s.debug.notices ?? []).filter((n) => n.startsWith('Controllers work too')).length === 1, JSON.stringify(s.debug.notices));

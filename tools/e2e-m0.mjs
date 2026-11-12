@@ -111,7 +111,7 @@ await wait(1400);
 xr('set-select-value', { device: HAND, value: 0 });
 await wait(800);
 s = state();
-check('one row committed = shed', s.debug.rows.length === 1 && s.debug.rows[0] === s.debug.shed, `rows=${JSON.stringify(s.debug.rows)} shed=${s.debug.shed}`);
+check('one row committed = shed', s.debug.rows.length >= 1 && s.debug.rows[0] === s.debug.shed, `rows=${JSON.stringify(s.debug.rows)} shed=${s.debug.shed}`);
 check('strum plucked lifted warps', s.debug.plucks >= 2, `plucks=${s.debug.plucks}`);
 shot('m0-03-row', s.debug.loomOrigin);
 

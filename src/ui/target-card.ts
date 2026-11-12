@@ -313,12 +313,22 @@ export class TargetCard {
         g.restore();
       }
       if (st === 'match') drawTick(g, px(gridX + WARPS * cell + markW / 2), cy, px(0.0075));
-      const lastMiss = st === 'todo' && this.lastMiss && this.lastMiss.r === r ? this.lastMiss.woven : undefined;
-      if (st === 'miss' || lastMiss !== undefined) {
+      const lastMiss = st === 'todo' && !hidden && !this.secret && this.lastMiss && this.lastMiss.r === r ? this.lastMiss.woven : undefined;
+      if ((st === 'miss' && !this.secret) || lastMiss !== undefined) {
         if (st === 'miss') drawCross(g, px(gridX + WARPS * cell + markW / 2), cy, px(0.007));
         // say exactly what was wrong, square by square (by shape, not only colour): a ring round a
         // square that needed its thread lifted, a cross on one that got a thread it shouldn't have
         const woven = st === 'miss' ? this.woven[r] : lastMiss;
+        if (woven !== undefined && ((woven ^ row) & 256) !== 0) {
+          // the right threads, the wrong yarn: outline the whole row in the yarn it needed
+          g.save();
+          g.strokeStyle = row & 256 && this.weft !== null ? hex(this.weft) : '#d23a22';
+          g.lineWidth = px(0.0016);
+          g.setLineDash([px(0.002), px(0.0012)]);
+          roundRect(g, px(gridX - 0.001), px(y + 0.0004), px(WARPS * cell + 0.002), px(cell - 0.0008), px(cell * 0.2));
+          g.stroke();
+          g.restore();
+        }
         g.save();
         g.lineWidth = px(0.0011);
         g.lineCap = 'round';

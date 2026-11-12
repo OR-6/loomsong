@@ -556,7 +556,7 @@ export class GameSystem extends createSystem({
         // player spent 20 s fighting the spool after one wrong row): the spool is there to go back further
         this.autoUndoRow = !good ? e.index : -1;
         this.view.card.lastMiss = good ? null : { r: e.index, woven: e.row };
-        if (e.index === this.earRow) this.earWoven(good);
+        if (e.index === this.earRow && this.view.card.earRow === this.earRow) this.earWoven(good);
         this.autoUndoAt = this.time + 2.2; // long enough to see which squares were wrong
         // the same row again with the levers as they are: Pip remembers it and flies back by himself
         const tg = this.flow.level.target;
@@ -691,7 +691,9 @@ export class GameSystem extends createSystem({
         if (this.flow.daily) {
           // the visitor stays by the plush it came to see; say so once it has hopped onto the desk
           const likes = VISITOR_LIKES[this.flow.level.id];
-          const friendName = likes && this.progress.placed?.[likes] ? pictureById(likes)?.name : undefined;
+          const fp = likes ? this.progress.placed?.[likes] : undefined;
+          const vp = this.progress.placed?.[this.flow.level.id];
+          const friendName = fp && vp && Math.hypot(fp[0] - vp[0], fp[1] - vp[1]) < 0.12 ? pictureById(likes!)?.name : undefined;
           this.laterNotice = friendName ? `${this.flow.level.name} stays with your ${friendName}` : 'Leave a plush out: someone may visit tomorrow';
           this.laterNoticeIn = 4.6;
           this.syncDaily();
@@ -801,7 +803,7 @@ export class GameSystem extends createSystem({
     const shared = clothFromHash(location.hash);
     const film = FILM ? LEVELS.findIndex((l) => l.id === FILM) : -1;
     if (shared) this.flow.startChallenge(clothLevel(shared));
-    else if (VISIT) {
+    else if (VISIT && Object.keys(this.progress.best).length === 0) {
       // ?visit=1: Garden and the Heart woven, today's pick forgotten; a plush goes on the desk once the loom is out
       for (let i = 0; i < 5; i++) this.progress.best[LEVELS[i].id] ??= 2;
       this.progress.tutorialDone = true;
@@ -998,6 +1000,11 @@ export class GameSystem extends createSystem({
 
   /** Caller co-op information gap: the picture leaves the headset (card and ghost); the phone has it. */
   private setCallerGap(on: boolean): void {
+    if (on && this.earRow >= 0) {
+      // a caller has the picture: no row by ear in this one
+      this.earRow = -1;
+      this.view.card.earRow = -1;
+    }
     this.view.card.secret = on;
     this.view.setTargetHidden(on);
     this.flow.quiet = on;
@@ -1672,9 +1679,9 @@ export class GameSystem extends createSystem({
 
   /** A poked card row plays its tune (left to right, like a pass), with notes rising off the card. */
   private playCardRow(r: number): void {
-    if (r === this.earRow && this.earActive()) {
-      this.humEarRow();
-      return;
+    if (r === this.earRow && this.view.card.earRow === r) {
+      if (this.earActive()) this.humEarRow();
+      return; // a covered row only ever hums, and only when it's up
     }
     const lv = this.flow?.level;
     const row = lv?.target[r];
@@ -1738,6 +1745,7 @@ export class GameSystem extends createSystem({
   }
   private giftDirty = false;
   private visitorToldDay = '';
+  private visitSeeded = false;
 
   /** Today's picture of the day, chosen once a day: a visitor for a plush you've left on your desk, else the day's own. */
   private todayLevel(): Level {
@@ -1806,7 +1814,7 @@ export class GameSystem extends createSystem({
       if (d < 0) return -1;
       if (!this.progress.placed?.[lv.id]) {
         const likes = VISITOR_LIKES[lv.id];
-        const at = (likes && this.progress.placed?.[likes] ? ([this.giftAt[0], this.giftAt[1]] as [number, number]) : null) ?? this.freeDeskSpot();
+        const at = (likes ? this.besideDeskPlush(likes) : null) ?? this.freeDeskSpot(); // beside its friend, where it is now
         if (!at) return -1;
         (this.progress.placed ??= {})[lv.id] = at;
         saveProgress(this.progress);
@@ -2119,7 +2127,7 @@ export class GameSystem extends createSystem({
   private chooseEarRow(level: Level): number {
     const ch = level.chapter;
     const daily = level.id.startsWith('day-');
-    if (!(ch === 'home' || ch === 'sea' || daily) || level.friend || level.mystery || this.coopLink || this.practice || this.settings.highContrast || this.flow?.challenge) return -1;
+    if (!(ch === 'home' || ch === 'sea' || daily) || level.friend || level.mystery || this.coopLink || this.practice || this.settings.highContrast || (this.flow?.challenge && !this.flow.daily)) return -1;
     const t = level.target;
     let best = -1;
     let bestScore = -1;
@@ -2138,7 +2146,7 @@ export class GameSystem extends createSystem({
   }
   /** The ear row is the one to weave now (and still covered). */
   private earActive(): boolean {
-    return this.earRow >= 0 && this.flow?.phase === 'play' && this.model.rows.length === this.earRow && this.view.card.earRow === this.earRow;
+    return this.earRow >= 0 && this.flow?.phase === 'play' && this.model.rows.length === this.earRow && this.view.card.earRow === this.earRow && !this.practice && !this.coopLink && !this.view.card.secret;
   }
   private humEarRow(): void {
     const lv = this.flow.level;
@@ -2180,6 +2188,7 @@ export class GameSystem extends createSystem({
   }
   private earWoven(good: boolean): void {
     this.view.card.earRow = -1; // the patch comes off either way: the picture shows, the marks say what was wrong
+    this.earRow = -1;
     this.view.card.refresh();
     if (!this.notice) {
       this.tutor.set(''); // the label skips an unchanged text
@@ -3043,7 +3052,8 @@ export class GameSystem extends createSystem({
     else if (this.flow.challenge) this.showNotice('Weave this cloth', 6);
     // ?visit=1: the Sprout stands on the desk, so a visitor comes for it
     const liked = new Set(Object.values(VISITOR_LIKES));
-    if (VISIT && !Object.keys(this.progress.placed ?? {}).some((id) => liked.has(id))) {
+    if (VISIT && !this.visitSeeded && !Object.keys(this.progress.placed ?? {}).some((id) => liked.has(id))) {
+      this.visitSeeded = true;
       const at = this.freeDeskSpot();
       if (at) {
         (this.progress.placed ??= {}).sprout = at;
@@ -3069,7 +3079,7 @@ export class GameSystem extends createSystem({
   private tickIntro(dt: number): void {
     if (this.introT < 0) return;
     const c = this.controller;
-    const busy = c.holding.left !== null || c.holding.right !== null || c.hover.left !== null || c.hover.right !== null || this.model.rows.length > 0 || this.flow.phase !== 'play';
+    const busy = c.holding.left !== null || c.holding.right !== null || (c.hover.left !== null && !hands.left.controller) || (c.hover.right !== null && !hands.right.controller) || this.model.rows.length > 0 || this.flow.phase !== 'play';
     this.introT += dt;
     const k = Math.floor((this.introT - INTRO_WAIT) / INTRO_STEP);
     if (busy || k >= INTRO.length) {
@@ -3119,7 +3129,7 @@ export class GameSystem extends createSystem({
 
   /** Position the tutorial label over its target and pulse that target. */
   private syncHint(dt: number) {
-    const step = this.earActive() && this.flow.hintStep !== 'undo' && this.flow.hintStep !== 'shuttle' ? 'card' : this.flow.hintStep; // no lever demo on a row you find by ear: the tag points at the patch
+    const step = this.earActive() && this.flow.hintStep !== 'undo' ? 'card' : this.flow.hintStep; // no lever demo on a row you find by ear: the tag points at the patch
     if (this.laterNoticeIn > 0) {
       this.laterNoticeIn -= dt;
       if (this.laterNoticeIn <= 0) this.showNotice(this.laterNotice, 4, 'centre');

@@ -76,6 +76,7 @@ export class HandTrackerSystem extends createSystem({}) {
   private up = new Vector3();
   private seen: Record<Side, boolean> = { left: false, right: false };
   private fwd = new Vector3();
+  private handSide: Record<Side, boolean> = { left: false, right: false };
   private dropout: Record<Side, number> = { left: 0, right: 0 };
 
   update(delta: number) {
@@ -93,10 +94,13 @@ export class HandTrackerSystem extends createSystem({}) {
     this.seen.left = this.seen.right = false;
 
     if (frame && session && ref && frame.getJointPose) {
+      // a tracked hand on a side always wins over a controller there
+      this.handSide.left = this.handSide.right = false;
+      for (const src of session.inputSources) if (src.hand && (src.handedness === 'left' || src.handedness === 'right')) this.handSide[src.handedness] = true;
       for (const src of session.inputSources) {
         if (src.handedness !== 'left' && src.handedness !== 'right') continue;
         if (!src.hand) {
-          if (src.gamepad) this.readController(src, frame, ref, delta);
+          if (src.gamepad && !this.handSide[src.handedness]) this.readController(src, frame, ref, delta);
           continue;
         }
         const side = src.handedness;
@@ -205,6 +209,7 @@ export class HandTrackerSystem extends createSystem({}) {
     if (!rp || !src.gamepad) return;
     this.seen[side] = true;
     const h = hands[side];
+    const fresh = !h.controller;
     h.controller = true;
     const p = rp.transform.position;
     const o = rp.transform.orientation;
@@ -214,16 +219,21 @@ export class HandTrackerSystem extends createSystem({}) {
     const trigger = src.gamepad.buttons[0]?.value ?? 0;
     h.pinchDist = CONTROLLER_OPEN - (CONTROLLER_OPEN - 0.004) * trigger;
     h.rawPinch.copy(this.tmpIndex);
+    if (fresh) {
+      // a hand just became a controller: no velocity spike, no lagged filter
+      h.indexTip.copy(this.tmpIndex);
+      h.filter.reset();
+    }
     this.prevIndex.copy(h.indexTip);
     h.indexTip.copy(this.tmpIndex);
-    if (h.tracked && delta > 0) {
+    if (h.tracked && delta > 0 && !fresh) {
       this.rawVel.subVectors(h.indexTip, this.prevIndex).divideScalar(delta);
       h.indexVel.lerp(this.rawVel, 0.35);
     } else {
       h.indexVel.set(0, 0, 0);
     }
     h.palm.copy(this.tmpIndex);
-    h.palmRadius = 0.004;
+    h.palmRadius = 0.02; // a resting controller's tip sits a little above the desk (unmeasured: check on a headset)
     h.upDot = trigger > 0.6 ? 1 : 0;
   }
 }
