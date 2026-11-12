@@ -202,7 +202,6 @@ export function buildPlush(rows: readonly Mask8[], color: number, gold = false):
 const LIFT = 0.003;
 let smileGeo: TorusGeometry | null = null;
 let tagMat: MeshStandardMaterial | null = null;
-let tagStripeMat: MeshStandardMaterial | null = null;
 let tagGeo: BoxGeometry | null = null;
 
 /** Stubby felt feet under the bottom row, and a little sewn-in toy tag on one side. */
@@ -228,17 +227,30 @@ function addFeetAndTag(g: Group, rows: readonly Mask8[], color: number): void {
   }
   tagGeo ??= new BoxGeometry(1, 1, 1);
   tagGeo.userData.sharedGeometry = true;
-  tagMat ??= new MeshStandardMaterial({ color: 0xfff3e0, roughness: 0.9 });
-  tagStripeMat ??= new MeshStandardMaterial({ color: 0xe2563b, roughness: 0.8 });
+  // cream with the red stripe printed on (one draw per plush, not two)
+  tagMat ??= new MeshStandardMaterial({ roughness: 0.9, map: tagTexture() });
   const tag = new Mesh(tagGeo, tagMat);
   tag.scale.set(0.0008, cell * 0.85, cell * 0.6);
   tag.position.set(xb + cell * 0.6, LIFT + cell * 0.55, cell * 0.2);
   tag.rotation.z = -0.12;
-  const stripe = new Mesh(tagGeo, tagStripeMat);
-  stripe.scale.set(1.3, 0.18, 1.02);
-  stripe.position.y = 0.25;
-  tag.add(stripe);
   g.add(tag);
+}
+
+let tagTex: CanvasTexture | null = null;
+/** The sewn-in toy tag's face: cream with a red band near the top. */
+function tagTexture(): CanvasTexture {
+  if (tagTex) return tagTex;
+  const c = document.createElement('canvas');
+  c.width = 16;
+  c.height = 32;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#fff3e0';
+  g.fillRect(0, 0, 16, 32);
+  g.fillStyle = '#e2563b';
+  g.fillRect(0, 6, 16, 6);
+  tagTex = new CanvasTexture(c);
+  tagTex.colorSpace = SRGBColorSpace;
+  return tagTex;
 }
 
 /** Button eyes on the widest upper row, blush cheeks and a stitched smile. */

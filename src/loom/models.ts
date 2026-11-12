@@ -73,7 +73,15 @@ export function mergeStatic(root: Object3D, keep: (o: Object3D) => boolean): num
   root.traverse((o) => {
     const m = o as Mesh;
     if (!m.isMesh || (m as Mesh & { isInstancedMesh?: boolean }).isInstancedMesh || Array.isArray(m.material) || protectedSubtree(o) || !m.visible) return;
-    const key = (m.material as Material).name || (m.material as Material).uuid;
+    // unindexed geometry (e.g. extruded beams) gets a plain 0..n-1 index so it can join a merge
+    if (!m.geometry.index) {
+      const n = m.geometry.attributes.position.count;
+      const idx = new Uint32Array(n);
+      for (let i = 0; i < n; i++) idx[i] = i;
+      m.geometry.setIndex(new BufferAttribute(idx, 1));
+    }
+    // by material and attribute set: parts with and without UVs each merge among themselves
+    const key = ((m.material as Material).name || (m.material as Material).uuid) + '|' + Object.keys(m.geometry.attributes).sort().join(',');
     const list = groups.get(key) ?? [];
     list.push(m);
     groups.set(key, list);

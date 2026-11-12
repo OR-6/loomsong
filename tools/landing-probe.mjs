@@ -4,8 +4,15 @@ export default async function run({ page, frame }) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e).slice(0, 160)));
   await t.evaluate(() => location.reload());
-  await page.waitForTimeout(3000);
-  const ids = ['enter-xr', 'hc', 'fit', 'hand-pick', 'coop', 'coop-host', 'coop-code', 'coop-join', 'share-card', 'style-pick'];
+  await page.waitForTimeout(500);
+  // the dev server serves modules unbundled: wait for the page rather than a fixed time
+  for (let i = 0; i < 60; i++) {
+    const up = await t.evaluate(() => !!document.getElementById('share-card')).catch(() => false);
+    if (up) break;
+    await page.waitForTimeout(250);
+  }
+  await page.waitForTimeout(300);
+  const ids = ['enter-xr', 'hc', 'calm', 'fit', 'hand-pick', 'coop', 'coop-host', 'coop-code', 'coop-join', 'share-card', 'style-pick'];
   const missing = await t.evaluate((ids) => ids.filter((id) => !document.getElementById(id)), ids);
   const settings = () => t.evaluate(() => JSON.parse(localStorage.getItem('loomsong:settings.v1') || '{}'));
   await t.click('#hc');

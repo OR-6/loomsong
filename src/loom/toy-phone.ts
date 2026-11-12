@@ -8,6 +8,7 @@
 import { CatmullRomCurve3, CircleGeometry, CylinderGeometry, Group, Mesh, MeshStandardMaterial, SphereGeometry, CapsuleGeometry, TubeGeometry, Vector3 } from '@iwsdk/core';
 import { Label } from '../ui/label.js';
 import { feltTexture } from './textures.js';
+import { mergeStatic } from './models.js';
 
 export const TOY_PHONE = {
   /** On the lever side, in front of the bank (x is multiplied by side). */
@@ -87,6 +88,8 @@ export class ToyPhone {
     this.tag.mesh.position.set(0, 0.006, 0.034);
     this.tag.mesh.rotation.x = -0.35;
     this.root.add(this.tag.mesh);
+    // the static parts in one draw per material (the handset rattles and the tag changes: they stay apart)
+    mergeStatic(this.root, (o) => o === this.handset || o === this.tag.mesh);
   }
 
   setSide(side: 1 | -1): void {

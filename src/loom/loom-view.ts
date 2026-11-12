@@ -2056,5 +2056,6 @@ function buildCushion(): Group {
     m.rotation.y = -a + Math.PI / 2;
     g.add(m);
   }
+  mergeStatic(g, () => false); // 22 stitches + the pillow: two draws, not 23
   return g;
 }
